@@ -1,11 +1,15 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, UserPlus, AlertCircle } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext.jsx';
-import Spinner from '../components/common/Spinner.jsx';
+import { User, Mail, Lock, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import Spinner from '../components/common/Spinner';
 
 export default function Register() {
-  const { register, isAuthenticated, loading } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
+  if (!auth) {
+    throw new Error('Register must be used within an AuthProvider');
+  }
+  const { register, isAuthenticated, loading } = auth;
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -21,7 +25,7 @@ export default function Register() {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -47,7 +51,7 @@ export default function Register() {
       setTimeout(() => {
         navigate('/login');
       }, 2000);
-    } catch (err) {
+    } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi đăng ký tài khoản. Vui lòng thử lại.');
     }
   };

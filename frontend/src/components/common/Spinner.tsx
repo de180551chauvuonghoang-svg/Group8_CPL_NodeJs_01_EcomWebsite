@@ -1,6 +1,10 @@
-import React from 'react';
 
-export default function Spinner({ fullPage = false, message = 'Đang tải dữ liệu...' }) {
+interface SpinnerProps {
+  fullPage?: boolean;
+  message?: string;
+}
+
+export default function Spinner({ fullPage = false, message = 'Đang tải dữ liệu...' }: SpinnerProps) {
   const spinnerElement = (
     <div style={{
       display: 'flex',

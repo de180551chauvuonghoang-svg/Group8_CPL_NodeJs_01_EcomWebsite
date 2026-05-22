@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
 const API = axios.create({
   baseURL: 'http://localhost:5000/api',
@@ -10,9 +10,9 @@ const API = axios.create({
 
 // Request interceptor to add authorization token
 API.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('ecom_token');
-    if (token) {
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -24,7 +24,7 @@ API.interceptors.request.use(
 
 // Response interceptor to handle errors
 API.interceptors.response.use(
-  (response) => response.data,
+  (response: AxiosResponse) => response.data,
   (error) => {
     const message = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau.';
     console.error('[API Error Interceptor]', error.response || error);

@@ -1,11 +1,16 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { authService } from '../services/authService.js';
+import { createContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '../services/authService';
+import { User, AuthContextType } from '../types';
 
-export const AuthContext = createContext();
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   // Check if user token exists on application mount
   useEffect(() => {
@@ -31,7 +36,7 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email: string, password: string): Promise<User> => {
     setLoading(true);
     try {
       const data = await authService.login(email, password);
@@ -45,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (name: string, email: string, password: string): Promise<any> => {
     setLoading(true);
     try {
       return await authService.register(name, email, password);
@@ -54,7 +59,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = (): void => {
     authService.logout();
     setUser(null);
   };

@@ -1,11 +1,15 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
-import { AuthContext } from '../context/AuthContext.jsx';
-import Spinner from '../components/common/Spinner.jsx';
+import { AuthContext } from '../context/AuthContext';
+import Spinner from '../components/common/Spinner';
 
 export default function Login() {
-  const { login, isAuthenticated, loading } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
+  if (!auth) {
+    throw new Error('Login must be used within an AuthProvider');
+  }
+  const { login, isAuthenticated, loading } = auth;
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -18,7 +22,7 @@ export default function Login() {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email || !password) {
       setErrorMsg('Vui lòng nhập đầy đủ thông tin');
@@ -29,12 +33,12 @@ export default function Login() {
       setErrorMsg('');
       await login(email, password);
       navigate('/');
-    } catch (err) {
+    } catch (err: any) {
       setErrorMsg(err.message || 'Sai tài khoản hoặc mật khẩu');
     }
   };
 
-  const handleQuickLogin = (role) => {
+  const handleQuickLogin = (role: 'customer' | 'admin') => {
     if (role === 'customer') {
       setEmail('customer@ecom.com');
       setPassword('password123');

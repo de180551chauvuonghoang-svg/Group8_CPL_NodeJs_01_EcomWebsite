@@ -1,15 +1,14 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext.jsx';
+import { AuthProvider } from './context/AuthContext';
 
 // Layout components
-import Header from './components/layout/Header.jsx';
-import Footer from './components/layout/Footer.jsx';
+import Header from './components/layout/Header';
+import Footer from './components/layout/Footer';
 
 // Pages components
-import Home from './pages/Home.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 function AppContent() {
   return (
@@ -44,4 +43,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

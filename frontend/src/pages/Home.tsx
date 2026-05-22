@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { 
   Search, 
   SlidersHorizontal, 
@@ -14,18 +14,23 @@ import {
   CheckCircle, 
   Percent 
 } from 'lucide-react';
-import { productService } from '../services/productService.js';
-import { AuthContext } from '../context/AuthContext.jsx';
-import Spinner from '../components/common/Spinner.jsx';
+import { productService } from '../services/productService';
+import { AuthContext } from '../context/AuthContext';
+import { Product } from '../types';
+import Spinner from '../components/common/Spinner';
 
 export default function Home() {
-  const { isAuthenticated, user } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
+  if (!auth) {
+    throw new Error('Home must be used within an AuthProvider');
+  }
+  const { isAuthenticated, user } = auth;
   
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [search, setSearch] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
 
   // Fetch products based on filters
   useEffect(() => {
@@ -694,4 +699,3 @@ export default function Home() {
     </div>
   );
 }
-
