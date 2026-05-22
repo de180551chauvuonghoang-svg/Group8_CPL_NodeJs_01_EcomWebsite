@@ -1,10 +1,14 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, Store } from 'lucide-react';
-import { AuthContext } from '../../context/AuthContext.jsx';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function Header() {
-  const { user, logout, isAuthenticated } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
+  if (!auth) {
+    throw new Error('Header must be used within an AuthProvider');
+  }
+  const { user, logout, isAuthenticated } = auth;
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -61,7 +65,7 @@ export default function Header() {
           </Link>
 
           {/* User authenticated block */}
-          {isAuthenticated ? (
+          {isAuthenticated && user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{
@@ -87,7 +91,7 @@ export default function Header() {
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                   <span style={{ maxWidth: '1200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    Hi, {user.name} ({user.role})
+                    Hi, {user.name} {user.role ? `(${user.role})` : ''}
                   </span>
                 </div>
               </div>
@@ -127,4 +131,3 @@ export default function Header() {
     </header>
   );
 }
-
