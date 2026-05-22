@@ -1,0 +1,23 @@
+# CodeRabbit Configuration File
+# For documentation, visit https://coderabbit.ai/docs/configuration/reference
+
+language: "vi-VN" # Ngôn ngữ nhận xét của AI sẽ là Tiếng Việt
+
+reviews:
+  profile: "chill" # Phong cách nhận xét thân thiện, tích cực
+  poem: false # Tắt tính năng tự động làm thơ ở mỗi PR
+
+# Bỏ qua các Pull Request nháp (Draft PR)
+ignore_draft_pr: true
+
+# Tự động tạo release notes cho mỗi PR
+release_notes:
+  enabled: true
+
+# Lọc các file không cần thiết phải review
+path_filters:
+  - "!node_modules/**"
+  - "!dist/**"
+  - "!build/**"
+  - "!pnpm-lock.yaml"
+  - "!.gemini/**"
