@@ -90,3 +90,260 @@ Dự án **E-Com FPT** đã được tích hợp bộ điều phối tự độn
 3. **Auto Seeding Data:** Tự động nạp sẵn **2 tài khoản thử nghiệm** (`admin@ecom.com` & `customer@ecom.com` với mật khẩu chung là `password123`) cùng **6 sản phẩm công nghệ cao cấp mẫu** vào database nếu phát hiện bảng trống.
 
 > **Bạn chỉ cần cấu hình xong và khởi động dự án, toàn bộ thế giới dữ liệu sẽ tự động được thiết lập sẵn sàng để bạn trải nghiệm và lập trình!**
+
+---
+
+## 📊 6. Sơ Đồ Thực Tế Hệ Thống Cơ Sở Dữ Liệu (Database ERD & Specifications)
+
+Dưới đây là sơ đồ thiết kế cơ sở dữ liệu hoàn chỉnh, chuyên nghiệp và đã được tối ưu hóa cho dự án E-Commerce (đã bao gồm các trường **`phoneNumber`** tại tài khoản `Users` và địa chỉ giao hàng `Addresses`).
+
+### 🎨 Sơ đồ trực quan Mermaid (Xem trực tiếp trong Markdown / GitHub)
+
+```mermaid
+erDiagram
+    Users {
+        string id PK
+        string name
+        string email UK
+        string phoneNumber
+        string password
+        string role
+        datetime createdAt
+    }
+    Addresses {
+        string id PK
+        string userId FK
+        string receiverName
+        string phoneNumber
+        string addressLine1
+        string addressLine2
+        string city
+        string state
+        string country
+        boolean isDefault
+    }
+    Categories {
+        string id PK
+        string name
+        string slug
+        string parentId FK
+    }
+    Products {
+        string id PK
+        string categoryId FK
+        string name
+        string description
+        decimal price
+        string image
+    }
+    ProductImages {
+        string id PK
+        string productId FK
+        string imageUrl
+        boolean isPrimary
+    }
+    ProductVariants {
+        string id PK
+        string productId FK
+        string sku
+        decimal price
+        int stock
+        string size
+        string color
+    }
+    Carts {
+        string id PK
+        string userId FK
+    }
+    CartItems {
+        string id PK
+        string cartId FK
+        string productId FK
+        string variantId FK
+        int quantity
+    }
+    Coupons {
+        string id PK
+        string code UK
+        string discountType
+        decimal discountValue
+        boolean active
+    }
+    Orders {
+        string id PK
+        string userId FK
+        string couponId FK
+        decimal totalPrice
+        string status
+        string shippingAddressId FK
+    }
+    OrderItems {
+        string id PK
+        string orderId FK
+        string productId FK
+        string variantId FK
+        int quantity
+        decimal price
+    }
+    Payments {
+        string id PK
+        string orderId FK
+        string paymentMethod
+        decimal amount
+        string status
+    }
+    Reviews {
+        string id PK
+        string userId FK
+        string productId FK
+        int rating
+        string comment
+    }
+
+    Users ||--o{ Addresses : "has"
+    Users ||--o| Carts : "has"
+    Users ||--o{ Orders : "places"
+    Users ||--o{ Reviews : "writes"
+    
+    Carts ||--o{ CartItems : "contains"
+    Products ||--o{ CartItems : "added"
+    ProductVariants ||--o{ CartItems : "variant"
+    
+    Categories ||--o{ Products : "classifies"
+    Categories ||--o{ Categories : "sub-category"
+    Products ||--o{ ProductImages : "has"
+    Products ||--o{ ProductVariants : "has"
+    Products ||--o{ Reviews : "receives"
+    
+    Orders ||--o{ OrderItems : "contains"
+    Products ||--o{ OrderItems : "bought"
+    ProductVariants ||--o{ OrderItems : "variant-bought"
+    
+    Orders ||--o{ Payments : "pays"
+    Coupons ||--o{ Orders : "applies"
+```
+
+### 📊 Mã nguồn DBML (Dán vào [dbdiagram.io](https://dbdiagram.io/) để kéo thả)
+
+```dbml
+Table Users {
+  id varchar [pk]
+  name nvarchar
+  email varchar [unique]
+  phoneNumber varchar
+  password varchar
+  role varchar
+  createdAt datetime
+}
+
+Table Addresses {
+  id varchar [pk]
+  userId varchar [ref: > Users.id]
+  receiverName nvarchar
+  phoneNumber varchar
+  addressLine1 nvarchar
+  addressLine2 nvarchar
+  city nvarchar
+  state nvarchar
+  country nvarchar
+  isDefault boolean
+}
+
+Table Categories {
+  id varchar [pk]
+  name nvarchar
+  slug varchar
+  parentId varchar [ref: > Categories.id]
+}
+
+Table Products {
+  id varchar [pk]
+  categoryId varchar [ref: > Categories.id]
+  name nvarchar
+  description nvarchar
+  price decimal
+  image varchar
+  createdAt datetime
+}
+
+Table ProductImages {
+  id varchar [pk]
+  productId varchar [ref: > Products.id]
+  imageUrl varchar
+  isPrimary boolean
+}
+
+Table ProductVariants {
+  id varchar [pk]
+  productId varchar [ref: > Products.id]
+  sku varchar
+  price decimal
+  stock int
+  size varchar
+  color varchar
+}
+
+Table Carts {
+  id varchar [pk]
+  userId varchar [ref: - Users.id]
+  createdAt datetime
+}
+
+Table CartItems {
+  id varchar [pk]
+  cartId varchar [ref: > Carts.id]
+  productId varchar [ref: > Products.id]
+  variantId varchar [ref: > ProductVariants.id]
+  quantity int
+  addedAt datetime
+}
+
+Table Coupons {
+  id varchar [pk]
+  code varchar [unique]
+  discountType varchar
+  discountValue decimal
+  minOrderValue decimal
+  expiryDate datetime
+  active boolean
+}
+
+Table Orders {
+  id varchar [pk]
+  userId varchar [ref: > Users.id]
+  couponId varchar [ref: > Coupons.id]
+  totalPrice decimal
+  status varchar
+  shippingAddressId varchar [ref: > Addresses.id]
+  createdAt datetime
+}
+
+Table OrderItems {
+  id varchar [pk]
+  orderId varchar [ref: > Orders.id]
+  productId varchar [ref: > Products.id]
+  variantId varchar [ref: > ProductVariants.id]
+  quantity int
+  price decimal
+}
+
+Table Payments {
+  id varchar [pk]
+  orderId varchar [ref: > Orders.id]
+  paymentMethod varchar
+  transactionId varchar
+  amount decimal
+  status varchar
+  createdAt datetime
+}
+
+Table Reviews {
+  id varchar [pk]
+  userId varchar [ref: > Users.id]
+  productId varchar [ref: > Products.id]
+  rating int
+  comment nvarchar
+  createdAt datetime
+}
+```
+
