@@ -1,7 +1,11 @@
 import app from './src/app.js';
 import dotenv from 'dotenv';
+import { connectDB } from './src/config/db.js';
 
 dotenv.config();
+
+// Connect to SQL Server Database before starting server
+await connectDB();
 
 const PORT = process.env.PORT || 5000;
 
