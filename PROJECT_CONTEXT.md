@@ -34,24 +34,31 @@
 ## 🏁 3. Lịch Sử & Những Việc Đã Hoàn Thành (Milestones Completed)
 * [x] **TypeScript Migration:** Chuyển đổi toàn bộ Frontend từ JavaScript sang TypeScript, cấu hình `tsconfig.json` hoàn chỉnh không lỗi type.
 * [x] **Vercel API Integration:** Thiết lập URL API động thông qua biến môi trường `VITE_API_BASE_URL` giúp deploy độc lập dễ dàng.
-* [x] **Cấu hình Git & GitHub:** Kích hoạt Branch Protection Rule cho nhánh `main` (chỉ cho phép Owner bypass và cấm các collaborator khác push trực tiếp không qua PR).
-* [x] **Tên miền & Vercel:** Cập nhật dự án trên Vercel và cấu hình Custom Domain riêng `ecomfpt.app` (cần trỏ DNS A/CNAME về Vercel).
-* [x] **Đổi tên hiển thị Web:** Đổi tiêu đề Tab trình duyệt mặc định từ `frontend` thành **`E-Com FPT`** trong file `frontend/index.html`.
-* [x] **Bộ hướng dẫn cài đặt:** Hoàn thành file `README.md` hướng dẫn cài đặt chi tiết bằng tiếng Việt bắt đầu từ `git clone` và `pnpm install`.
+* [x] **Cấu hình Git & GitHub:** Kích hoạt Branch Protection Rule cho nhánh `main`.
+* [x] **Tên miền & Vercel:** Cập nhật dự án trên Vercel và cấu hình Custom Domain riêng `ecomfpt.app`.
+* [x] **Đổi tên hiển thị Web:** Đổi tiêu đề Tab trình duyệt thành **`E-Com FPT`**.
+* [x] **Bộ hướng dẫn cài đặt:** Hoàn thành file `README.md` hướng dẫn cài đặt.
+* [x] **Full Database Schema (24 bảng):** Thiết kế và implement đầy đủ schema SQL Server dựa trên ERD Mermaid:
+  * `backend/src/config/schema.sql` — SQL script chạy trực tiếp trên SSMS
+  * `backend/src/config/initDb.js` — Module Node.js tự động tạo bảng & seed data khi server start
+  * Đã tách `db.js` thành module riêng, code sạch hơn
+  * Seed data: 8 Categories (parent/child), 3 Attributes + 12 Values, 6 Products + 10 Variants
 
 ---
 
 ## 🚧 4. Trạng Thái Hiện Tại & Công Việc Đang Làm (Active Context)
-* **Trạng thái deploy:** Frontend đang kết nối tên miền `ecomfpt.app` trên Vercel (đang đợi cấu hình DNS trỏ IP `76.76.21.21`).
-* **Tính năng:** Đăng nhập, Đăng ký, và hiển thị Cửa hàng (Trang chủ) đang chạy tốt ở môi trường Local.
+* **Database Schema:** Đã implement đầy đủ 24 bảng (SQL Server). Chạy server backend sẽ tự động tạo bảng và seed data.
+* **Cấu trúc DB:** 7 nhóm nghiệp vụ: Users, Categories, Products/Catalog, Reviews, Cart/Wishlist, Orders/Payments, Coupons.
+* **Seed data sẵn sàng:** 2 Users (`admin@ecom.com` + `customer@ecom.com`, mật khẩu từ env `SEED_PASSWORD`, mặc định `password123` ở dev), 8 Categories (có sub-category), 3 Attributes + 12 AttributeValues, 6 Products với 10 Variants. Seed **bị tắt trong `NODE_ENV=production`**.
 
 ---
 
 ## 🔮 5. Kế Hoạch Tiếp Theo (Next Steps / Roadmap)
-1. **Thiết lập DNS:** Hoàn tất cấu hình bản ghi A (`76.76.21.21`) và CNAME (`cname.vercel-dns.com`) để kích hoạt website chạy online.
-2. **Quản lý Giỏ hàng (Cart Page):** Xây dựng trang Giỏ hàng và trang Thanh toán (Checkout) cho người dùng.
-3. **Trang Quản lý Sản phẩm (Admin Dashboard):** Bổ sung giao diện quản trị Admin để Thêm/Sửa/Xóa sản phẩm trực tiếp từ Frontend.
-4. **Kết nối Database thật:** Chuyển từ In-memory Database sang MongoDB hoặc PostgreSQL cho Backend.
+1. **Xây dựng API Backend:** Tạo REST API endpoints cho Products, Categories, Cart, Orders dựa trên schema mới.
+2. **Kết nối Frontend với API thật:** Thay thế mock data bằng API calls thực từ SQL Server.
+3. **Quản lý Giỏ hàng (Cart Page):** Xây dựng trang Giỏ hàng và Thanh toán (Checkout).
+4. **Trang Quản lý Sản phẩm (Admin Dashboard):** Giao diện Admin Thêm/Sửa/Xóa sản phẩm.
+5. **Thiết lập DNS:** Hoàn tất cấu hình bản ghi A/CNAME cho `ecomfpt.app`.
 
 ---
 
