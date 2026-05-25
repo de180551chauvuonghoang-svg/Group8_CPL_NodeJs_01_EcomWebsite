@@ -1,7 +1,9 @@
 -- ============================================================
 --  E-Com FPT — Full Database Schema (SQL Server)
---  Generated from Mermaid ERD
---  Run this script in SSMS against the [ecomfpt] database
+--  DERIVED FROM: backend/src/config/initDb.js (source of truth)
+--  This file is a human-readable copy for direct SSMS execution.
+--  When you alter a table, update BOTH this file AND initDb.js.
+--  Run this script in SSMS against the [ecomfpt] database.
 -- ============================================================
 
 USE [ecomfpt];

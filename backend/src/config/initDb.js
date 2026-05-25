@@ -1,41 +1,45 @@
-import { sql, pool } from './db.js';
-
 /**
  * Initialize all 24 tables for E-Com FPT database.
+ * SOURCE OF TRUTH: This file (initDb.js) is the authoritative schema definition.
+ * schema.sql is a human-readable copy — keep them in sync manually when altering tables.
+ *
  * Uses IF NOT EXISTS so it is safe to run on every server start.
  * Tables are created in dependency order (FK parents first).
+ *
+ * @param {import('mssql').ConnectionPool} pool - Active mssql connection pool
+ * @param {import('mssql')} sql - The mssql module (types namespace)
  */
-export const initDb = async () => {
+export const initDb = async (pool, sql) => {
   try {
-    await createUsersTable();
-    await createCategoriesTable();
-    await createProductsTable();
-    await createProductImagesTable();
-    await createProductCategoriesTable();
-    await createAttributesTable();
-    await createAttributeValuesTable();
-    await createProductVariantsTable();
-    await createVariantAttributeValuesTable();
-    await createInventoryLogsTable();
-    await createReviewsTable();          // order_item_id FK added later
-    await createCartsTable();
-    await createCartItemsTable();
-    await createWishlistsTable();
-    await createWishlistItemsTable();
-    await createCouponsTable();
-    await createCouponProductsTable();
-    await createCouponCategoriesTable();
-    await createOrdersTable();
-    await createOrderItemsTable();
-    await addReviewsOrderItemFk();       // deferred FK
-    await createPaymentsTable();
-    await createRefundsTable();
-    await createRefundItemsTable();
-    await createCouponUsageTable();
+    await createUsersTable(pool);
+    await createCategoriesTable(pool);
+    await createProductsTable(pool);
+    await createProductImagesTable(pool);
+    await createProductCategoriesTable(pool);
+    await createAttributesTable(pool);
+    await createAttributeValuesTable(pool);
+    await createProductVariantsTable(pool);
+    await createVariantAttributeValuesTable(pool);
+    await createInventoryLogsTable(pool);
+    await createReviewsTable(pool);          // order_item_id FK added later
+    await createCartsTable(pool);
+    await createCartItemsTable(pool);
+    await createWishlistsTable(pool);
+    await createWishlistItemsTable(pool);
+    await createCouponsTable(pool);
+    await createCouponProductsTable(pool);
+    await createCouponCategoriesTable(pool);
+    await createOrdersTable(pool);
+    await createOrderItemsTable(pool);
+    await addReviewsOrderItemFk(pool);       // deferred FK
+    await createPaymentsTable(pool);
+    await createRefundsTable(pool);
+    await createRefundItemsTable(pool);
+    await createCouponUsageTable(pool);
 
     console.log('[✓] initDb: All 24 tables verified/created.');
 
-    await seedData();
+    await seedData(pool, sql);
 
   } catch (err) {
     console.error('[🚨 initDb ERROR]', err.message);
@@ -47,7 +51,7 @@ export const initDb = async () => {
 //  GROUP 1: USERS
 // ============================================================
 
-const createUsersTable = async () => {
+const createUsersTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Users')
     BEGIN
@@ -72,7 +76,7 @@ const createUsersTable = async () => {
 //  GROUP 2: CATEGORIES
 // ============================================================
 
-const createCategoriesTable = async () => {
+const createCategoriesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Categories')
     BEGIN
@@ -97,7 +101,7 @@ const createCategoriesTable = async () => {
 //  GROUP 3: PRODUCTS & CATALOG
 // ============================================================
 
-const createProductsTable = async () => {
+const createProductsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Products')
     BEGIN
@@ -119,7 +123,7 @@ const createProductsTable = async () => {
   `);
 };
 
-const createProductImagesTable = async () => {
+const createProductImagesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProductImages')
     BEGIN
@@ -138,7 +142,7 @@ const createProductImagesTable = async () => {
   `);
 };
 
-const createProductCategoriesTable = async () => {
+const createProductCategoriesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProductCategories')
     BEGIN
@@ -152,7 +156,7 @@ const createProductCategoriesTable = async () => {
   `);
 };
 
-const createAttributesTable = async () => {
+const createAttributesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Attributes')
     BEGIN
@@ -166,7 +170,7 @@ const createAttributesTable = async () => {
   `);
 };
 
-const createAttributeValuesTable = async () => {
+const createAttributeValuesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'AttributeValues')
     BEGIN
@@ -183,7 +187,7 @@ const createAttributeValuesTable = async () => {
   `);
 };
 
-const createProductVariantsTable = async () => {
+const createProductVariantsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProductVariants')
     BEGIN
@@ -207,7 +211,7 @@ const createProductVariantsTable = async () => {
   `);
 };
 
-const createVariantAttributeValuesTable = async () => {
+const createVariantAttributeValuesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'VariantAttributeValues')
     BEGIN
@@ -221,7 +225,7 @@ const createVariantAttributeValuesTable = async () => {
   `);
 };
 
-const createInventoryLogsTable = async () => {
+const createInventoryLogsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'InventoryLogs')
     BEGIN
@@ -244,7 +248,7 @@ const createInventoryLogsTable = async () => {
 //  GROUP 4: REVIEWS
 // ============================================================
 
-const createReviewsTable = async () => {
+const createReviewsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Reviews')
     BEGIN
@@ -268,7 +272,7 @@ const createReviewsTable = async () => {
   `);
 };
 
-const addReviewsOrderItemFk = async () => {
+const addReviewsOrderItemFk = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (
       SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Reviews_OrderItems'
@@ -288,7 +292,7 @@ const addReviewsOrderItemFk = async () => {
 //  GROUP 5: CART & WISHLIST
 // ============================================================
 
-const createCartsTable = async () => {
+const createCartsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Carts')
     BEGIN
@@ -303,7 +307,7 @@ const createCartsTable = async () => {
   `);
 };
 
-const createCartItemsTable = async () => {
+const createCartItemsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'CartItems')
     BEGIN
@@ -321,7 +325,7 @@ const createCartItemsTable = async () => {
   `);
 };
 
-const createWishlistsTable = async () => {
+const createWishlistsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Wishlists')
     BEGIN
@@ -335,7 +339,7 @@ const createWishlistsTable = async () => {
   `);
 };
 
-const createWishlistItemsTable = async () => {
+const createWishlistItemsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'WishlistItems')
     BEGIN
@@ -356,7 +360,7 @@ const createWishlistItemsTable = async () => {
 //  GROUP 6: COUPONS
 // ============================================================
 
-const createCouponsTable = async () => {
+const createCouponsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Coupons')
     BEGIN
@@ -382,7 +386,7 @@ const createCouponsTable = async () => {
   `);
 };
 
-const createCouponProductsTable = async () => {
+const createCouponProductsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'CouponProducts')
     BEGIN
@@ -396,7 +400,7 @@ const createCouponProductsTable = async () => {
   `);
 };
 
-const createCouponCategoriesTable = async () => {
+const createCouponCategoriesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'CouponCategories')
     BEGIN
@@ -414,7 +418,7 @@ const createCouponCategoriesTable = async () => {
 //  GROUP 7: ORDERS & PAYMENTS
 // ============================================================
 
-const createOrdersTable = async () => {
+const createOrdersTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Orders')
     BEGIN
@@ -443,7 +447,7 @@ const createOrdersTable = async () => {
   `);
 };
 
-const createOrderItemsTable = async () => {
+const createOrderItemsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'OrderItems')
     BEGIN
@@ -465,7 +469,7 @@ const createOrderItemsTable = async () => {
   `);
 };
 
-const createPaymentsTable = async () => {
+const createPaymentsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Payments')
     BEGIN
@@ -484,7 +488,7 @@ const createPaymentsTable = async () => {
   `);
 };
 
-const createRefundsTable = async () => {
+const createRefundsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Refunds')
     BEGIN
@@ -502,7 +506,7 @@ const createRefundsTable = async () => {
   `);
 };
 
-const createRefundItemsTable = async () => {
+const createRefundItemsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'RefundItems')
     BEGIN
@@ -519,7 +523,7 @@ const createRefundItemsTable = async () => {
   `);
 };
 
-const createCouponUsageTable = async () => {
+const createCouponUsageTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'CouponUsage')
     BEGIN
@@ -542,21 +546,35 @@ const createCouponUsageTable = async () => {
 //  SEED DATA
 // ============================================================
 
-const seedData = async () => {
-  await seedUsers();
-  await seedCategories();
-  await seedAttributes();
-  await seedProducts();
+const seedData = async (pool, sql) => {
+  await seedUsers(pool, sql);
+  await seedCategories(pool, sql);
+  await seedAttributes(pool, sql);
+  await seedProducts(pool, sql);
 };
 
-const seedUsers = async () => {
+const seedUsers = async (pool, sql) => {
+  // Never seed in production — avoids leaking dev credentials
+  if (process.env.NODE_ENV === 'production') {
+    console.log('[Seed] Skipping user seed in production environment.');
+    return;
+  }
+
   const { recordset } = await pool.request()
     .query(`SELECT COUNT(*) AS cnt FROM Users`);
   if (recordset[0].cnt > 0) return;
 
+  // Read seed password from env var; fall back to a dev-only default
+  const seedPassword =
+    process.env.SEED_PASSWORD ??
+    (process.env.NODE_ENV === 'development' ? 'password123' : undefined);
+  if (!seedPassword) {
+    throw new Error('SEED_PASSWORD env var is required when seeding users outside development.');
+  }
+
   console.log('[Seed] Seeding initial users...');
   const bcrypt = await import('bcryptjs');
-  const hashed = await bcrypt.default.hash('password123', 10);
+  const hashed = await bcrypt.default.hash(seedPassword, 10);
 
   await pool.request()
     .input('id',       sql.VarChar,   'usr_admin001')
@@ -581,7 +599,7 @@ const seedUsers = async () => {
   console.log('[Seed] ✓ Users seeded.');
 };
 
-const seedCategories = async () => {
+const seedCategories = async (pool, sql) => {
   const { recordset } = await pool.request()
     .query(`SELECT COUNT(*) AS cnt FROM Categories`);
   if (recordset[0].cnt > 0) return;
@@ -610,7 +628,7 @@ const seedCategories = async () => {
   console.log('[Seed] ✓ Categories seeded.');
 };
 
-const seedAttributes = async () => {
+const seedAttributes = async (pool, sql) => {
   const { recordset } = await pool.request()
     .query(`SELECT COUNT(*) AS cnt FROM Attributes`);
   if (recordset[0].cnt > 0) return;
@@ -666,7 +684,7 @@ const seedAttributes = async () => {
   console.log('[Seed] ✓ Attributes & values seeded.');
 };
 
-const seedProducts = async () => {
+const seedProducts = async (pool, sql) => {
   const { recordset } = await pool.request()
     .query(`SELECT COUNT(*) AS cnt FROM Products`);
   if (recordset[0].cnt > 0) return;
@@ -739,57 +757,68 @@ const seedProducts = async () => {
     },
   ];
 
-  for (const p of products) {
-    // Insert product
-    await pool.request()
-      .input('id',         sql.VarChar,   p.id)
-      .input('name',       sql.NVarChar,  p.name)
-      .input('slug',       sql.VarChar,   p.slug)
-      .input('desc',       sql.NVarChar,  p.desc)
-      .input('shortDesc',  sql.NVarChar,  p.short_desc)
-      .input('basePrice',  sql.Decimal(18, 2), p.base_price)
-      .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured)
-              VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1)`);
+  // Wrap all product inserts in one transaction — rollback on any failure
+  const transaction = new sql.Transaction(pool);
+  try {
+    await transaction.begin();
+    const req = () => transaction.request();
 
-    // Link to category
-    await pool.request()
-      .input('productId',  sql.VarChar, p.id)
-      .input('categoryId', sql.VarChar, p.category)
-      .query(`INSERT INTO ProductCategories (product_id,category_id)
-              VALUES (@productId,@categoryId)`);
+    for (const p of products) {
+      // Insert product
+      await req()
+        .input('id',         sql.VarChar,        p.id)
+        .input('name',       sql.NVarChar,        p.name)
+        .input('slug',       sql.VarChar,         p.slug)
+        .input('desc',       sql.NVarChar,        p.desc)
+        .input('shortDesc',  sql.NVarChar,        p.short_desc)
+        .input('basePrice',  sql.Decimal(18, 2),  p.base_price)
+        .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured)
+                VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1)`);
 
-    // Primary image
-    await pool.request()
-      .input('id',        sql.VarChar,   `img_${p.id}_primary`)
-      .input('productId', sql.VarChar,   p.id)
-      .input('imageUrl',  sql.VarChar,   p.primaryImage)
-      .input('altText',   sql.NVarChar,  p.name)
-      .query(`INSERT INTO ProductImages (id,product_id,image_url,alt_text,is_primary)
-              VALUES (@id,@productId,@imageUrl,@altText,1)`);
+      // Link to category
+      await req()
+        .input('productId',  sql.VarChar, p.id)
+        .input('categoryId', sql.VarChar, p.category)
+        .query(`INSERT INTO ProductCategories (product_id,category_id)
+                VALUES (@productId,@categoryId)`);
 
-    // Variants
-    for (const v of p.variants) {
-      await pool.request()
-        .input('id',        sql.VarChar,        v.id)
-        .input('productId', sql.VarChar,        p.id)
-        .input('sku',       sql.VarChar,        v.sku)
-        .input('price',     sql.Decimal(18, 2), v.price)
-        .input('compare',   sql.Decimal(18, 2), v.compare)
-        .input('stock',     sql.Int,            v.stock)
-        .input('imageUrl',  sql.VarChar,        v.image)
-        .query(`INSERT INTO ProductVariants (id,product_id,sku,price,compare_price,stock_qty,image_url)
-                VALUES (@id,@productId,@sku,@price,@compare,@stock,@imageUrl)`);
+      // Primary image
+      await req()
+        .input('id',        sql.VarChar,  `img_${p.id}_primary`)
+        .input('productId', sql.VarChar,  p.id)
+        .input('imageUrl',  sql.VarChar,  p.primaryImage)
+        .input('altText',   sql.NVarChar, p.name)
+        .query(`INSERT INTO ProductImages (id,product_id,image_url,alt_text,is_primary)
+                VALUES (@id,@productId,@imageUrl,@altText,1)`);
 
-      // Link attribute values to variant
-      for (const avId of v.avIds) {
-        await pool.request()
-          .input('variantId', sql.VarChar, v.id)
-          .input('avId',      sql.VarChar, avId)
-          .query(`INSERT INTO VariantAttributeValues (variant_id,attribute_value_id)
-                  VALUES (@variantId,@avId)`);
+      // Variants
+      for (const v of p.variants) {
+        await req()
+          .input('id',        sql.VarChar,        v.id)
+          .input('productId', sql.VarChar,         p.id)
+          .input('sku',       sql.VarChar,         v.sku)
+          .input('price',     sql.Decimal(18, 2),  v.price)
+          .input('compare',   sql.Decimal(18, 2),  v.compare)
+          .input('stock',     sql.Int,             v.stock)
+          .input('imageUrl',  sql.VarChar,         v.image)
+          .query(`INSERT INTO ProductVariants (id,product_id,sku,price,compare_price,stock_qty,image_url)
+                  VALUES (@id,@productId,@sku,@price,@compare,@stock,@imageUrl)`);
+
+        // Link attribute values to variant
+        for (const avId of v.avIds) {
+          await req()
+            .input('variantId', sql.VarChar, v.id)
+            .input('avId',      sql.VarChar, avId)
+            .query(`INSERT INTO VariantAttributeValues (variant_id,attribute_value_id)
+                    VALUES (@variantId,@avId)`);
+        }
       }
     }
-  }
 
-  console.log('[Seed] ✓ Products, variants & categories seeded.');
+    await transaction.commit();
+    console.log('[Seed] ✓ Products, variants & categories seeded.');
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
 };

@@ -49,7 +49,7 @@
 ## 🚧 4. Trạng Thái Hiện Tại & Công Việc Đang Làm (Active Context)
 * **Database Schema:** Đã implement đầy đủ 24 bảng (SQL Server). Chạy server backend sẽ tự động tạo bảng và seed data.
 * **Cấu trúc DB:** 7 nhóm nghiệp vụ: Users, Categories, Products/Catalog, Reviews, Cart/Wishlist, Orders/Payments, Coupons.
-* **Seed data sẵn sàng:** 2 Users (admin + customer), 8 Categories, 3 Attributes, 6 Products với 10 Variants.
+* **Seed data sẵn sàng:** 2 Users (`admin@ecom.com` + `customer@ecom.com`, mật khẩu từ env `SEED_PASSWORD`, mặc định `password123` ở dev), 8 Categories (có sub-category), 3 Attributes + 12 AttributeValues, 6 Products với 10 Variants. Seed **bị tắt trong `NODE_ENV=production`**.
 
 ---
 

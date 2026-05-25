@@ -85,23 +85,220 @@ DB_INSTANCE=SQLEXPRESS
 
 Dự án **E-Com FPT** đã được tích hợp bộ điều phối tự động cực kỳ thông minh tại file `backend/src/config/db.js`. Khi bạn chạy lệnh khởi động Backend (`pnpm dev`):
 
-1. **Auto Create Database:** Hệ thống sẽ tự động kết nối vào SQL Server và kiểm tra xem có database tên là **`ecomfpt`** chưa. Nếu chưa có, nó sẽ tự động tạo cơ sở dữ liệu mới tinh.
-2. **Auto Create Tables:** Tự động tạo bảng **`Users`** và bảng **`Products`** với đầy đủ các ràng buộc, khóa chính và kiểu dữ liệu chuẩn xác.
-3. **Auto Seeding Data:** Tự động nạp sẵn **2 tài khoản thử nghiệm** (`admin@ecom.com` & `customer@ecom.com` với mật khẩu chung là `password123`) cùng **6 sản phẩm công nghệ cao cấp mẫu** vào database nếu phát hiện bảng trống.
+1. **Auto Create Database:** Hệ thống tự kết nối SQL Server, kiểm tra và tự tạo database **`ecomfpt`** nếu chưa có.
+2. **Auto Create Tables:** Tự động tạo đầy đủ **24 bảng** (xem sơ đồ ERD bên dưới) theo đúng thứ tự phụ thuộc khóa ngoại.
+3. **Auto Seeding Data:** Nếu phát hiện bảng trống (và `NODE_ENV !== 'production'`), hệ thống sẽ seed sẵn dữ liệu mẫu:
+   - **2 tài khoản thử nghiệm:** `admin@ecom.com` & `customer@ecom.com` (mật khẩu mặc định: `password123`, cấu hình qua biến `SEED_PASSWORD`)
+   - **8 Categories:** Điện Tử, Âm Thanh, Máy Tính, Phụ Kiện, Wearables, Gia Dụng, Nhà Bếp, Thời Trang (có hỗ trợ danh mục cha/con)
+   - **3 Attributes** với **12 AttributeValues:** Màu sắc (5 màu), Dung lượng (3 options), Kích thước (S/M/L/XL)
+   - **6 Products** tiếng Việt với **10 ProductVariants** (ảnh thật từ Unsplash, giá VNĐ)
 
-> **Bạn chỉ cần cấu hình xong và khởi động dự án, toàn bộ thế giới dữ liệu sẽ tự động được thiết lập sẵn sàng để bạn trải nghiệm và lập trình!**
+> Chi tiết đầy đủ về seed data xem tại [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md).
 
 ---
 
-## 📊 6. Sơ Đồ Thực Tế Hệ Thống Cơ Sở Dữ Liệu (Database ERD & Specifications)
+## 📊 6. Sơ Đồ Thực Tế Hệ Thống Cơ Sở Dữ Liệu (Database ERD — 24 bảng)
 
-Dưới đây là sơ đồ thiết kế cơ sở dữ liệu hoàn chỉnh, chuyên nghiệp và đã được tối ưu hóa cho dự án E-Commerce (đã bao gồm các trường **`phoneNumber`** tại tài khoản `Users` và địa chỉ giao hàng `Addresses`).
+Schema được định nghĩa trong [`backend/src/config/initDb.js`](../backend/src/config/initDb.js) (source of truth) và [`backend/src/config/schema.sql`](../backend/src/config/schema.sql) (bản copy để chạy SSMS).
 
 ### 🎨 Sơ đồ trực quan Mermaid (Xem trực tiếp trong Markdown / GitHub)
 
 ```mermaid
 erDiagram
     Users {
+        varchar id PK
+        nvarchar name
+        varchar email UK
+        varchar phone_number
+        varchar avatar_url
+        varchar password
+        varchar role
+        bit is_active
+        datetime2 created_at
+        datetime2 updated_at
+    }
+    Categories {
+        varchar id PK
+        nvarchar name
+        varchar slug UK
+        varchar parent_id FK
+        bit is_active
+    }
+    Products {
+        varchar id PK
+        nvarchar name
+        varchar slug UK
+        nvarchar description
+        decimal base_price
+        bit is_active
+        bit is_featured
+    }
+    ProductImages {
+        varchar id PK
+        varchar product_id FK
+        varchar image_url
+        bit is_primary
+    }
+    ProductCategories {
+        varchar product_id FK
+        varchar category_id FK
+    }
+    Attributes {
+        varchar id PK
+        nvarchar name UK
+    }
+    AttributeValues {
+        varchar id PK
+        varchar attribute_id FK
+        nvarchar value
+        varchar color_hex
+    }
+    ProductVariants {
+        varchar id PK
+        varchar product_id FK
+        varchar sku UK
+        decimal price
+        decimal compare_price
+        int stock_qty
+        bit is_active
+    }
+    VariantAttributeValues {
+        varchar variant_id FK
+        varchar attribute_value_id FK
+    }
+    InventoryLogs {
+        varchar id PK
+        varchar variant_id FK
+        int change_qty
+        varchar reason
+        varchar created_by FK
+    }
+    Reviews {
+        varchar id PK
+        varchar product_id FK
+        varchar user_id FK
+        varchar order_item_id FK
+        tinyint rating
+        bit is_verified
+    }
+    Carts {
+        varchar id PK
+        varchar user_id FK
+    }
+    CartItems {
+        varchar id PK
+        varchar cart_id FK
+        varchar variant_id FK
+        int quantity
+    }
+    Wishlists {
+        varchar id PK
+        varchar user_id FK
+    }
+    WishlistItems {
+        varchar id PK
+        varchar wishlist_id FK
+        varchar product_id FK
+    }
+    Coupons {
+        varchar id PK
+        varchar code UK
+        varchar discount_type
+        decimal discount_value
+        bit is_active
+    }
+    CouponProducts {
+        varchar coupon_id FK
+        varchar product_id FK
+    }
+    CouponCategories {
+        varchar coupon_id FK
+        varchar category_id FK
+    }
+    Orders {
+        varchar id PK
+        varchar user_id FK
+        varchar coupon_id FK
+        varchar status
+        decimal total
+        nvarchar shipping_address
+    }
+    OrderItems {
+        varchar id PK
+        varchar order_id FK
+        varchar variant_id FK
+        int quantity
+        decimal unit_price
+        decimal total_price
+    }
+    Payments {
+        varchar id PK
+        varchar order_id FK
+        varchar method
+        varchar status
+        decimal amount
+    }
+    Refunds {
+        varchar id PK
+        varchar payment_id FK
+        varchar status
+        decimal refund_amount
+    }
+    RefundItems {
+        varchar id PK
+        varchar refund_id FK
+        varchar order_item_id FK
+        int quantity
+        decimal refund_amount
+    }
+    CouponUsage {
+        varchar id PK
+        varchar coupon_id FK
+        varchar order_id FK
+        varchar user_id FK
+    }
+
+    Users ||--o| Carts : "has"
+    Users ||--o| Wishlists : "has"
+    Users ||--o{ Orders : "places"
+    Users ||--o{ Reviews : "writes"
+    Users ||--o{ InventoryLogs : "logs"
+
+    Categories ||--o{ Categories : "sub_category"
+    Categories ||--o{ ProductCategories : "has"
+    Categories ||--o{ CouponCategories : "discounted_by"
+
+    Products ||--o{ ProductCategories : "has"
+    Products ||--o{ ProductImages : "has"
+    Products ||--o{ ProductVariants : "has"
+    Products ||--o{ Reviews : "receives"
+    Products ||--o{ WishlistItems : "added_to"
+    Products ||--o{ CouponProducts : "discounted_by"
+
+    Attributes ||--o{ AttributeValues : "has"
+    AttributeValues ||--o{ VariantAttributeValues : "describes"
+    ProductVariants ||--o{ VariantAttributeValues : "has"
+    ProductVariants ||--o{ CartItems : "added_to_cart"
+    ProductVariants ||--o{ OrderItems : "bought"
+    ProductVariants ||--o{ InventoryLogs : "tracks"
+
+    Carts ||--o{ CartItems : "contains"
+    Wishlists ||--o{ WishlistItems : "contains"
+
+    Coupons ||--o{ CouponProducts : "applies_to"
+    Coupons ||--o{ CouponCategories : "applies_to"
+    Coupons ||--o{ CouponUsage : "tracks"
+    Coupons ||--o{ Orders : "applies"
+
+    Orders ||--o{ OrderItems : "contains"
+    Orders ||--o{ CouponUsage : "records"
+    Orders ||--o| Payments : "pays"
+
+    Payments ||--o| Refunds : "can_refund"
+    Refunds ||--o{ RefundItems : "detail"
+    OrderItems ||--o{ RefundItems : "refunded"
+    OrderItems ||--o{ Reviews : "verified_by"
+```
         string id PK
         string name
         string email UK
@@ -226,124 +423,240 @@ erDiagram
 ### 📊 Mã nguồn DBML (Dán vào [dbdiagram.io](https://dbdiagram.io/) để kéo thả)
 
 ```dbml
+// E-Com FPT — Full Schema DBML (paste at https://dbdiagram.io/)
+// SOURCE: backend/src/config/initDb.js
+
 Table Users {
   id varchar [pk]
   name nvarchar
   email varchar [unique]
-  phoneNumber varchar
+  phone_number varchar
+  avatar_url varchar
   password varchar
   role varchar
-  createdAt datetime
-}
-
-Table Addresses {
-  id varchar [pk]
-  userId varchar [ref: > Users.id]
-  receiverName nvarchar
-  phoneNumber varchar
-  addressLine1 nvarchar
-  addressLine2 nvarchar
-  city nvarchar
-  state nvarchar
-  country nvarchar
-  isDefault boolean
+  is_active boolean
+  created_at datetime
+  updated_at datetime
 }
 
 Table Categories {
   id varchar [pk]
   name nvarchar
-  slug varchar
-  parentId varchar [ref: > Categories.id]
+  slug varchar [unique]
+  description nvarchar
+  image_url varchar
+  parent_id varchar [ref: > Categories.id]
+  sort_order int
+  is_active boolean
+  created_at datetime
 }
 
 Table Products {
   id varchar [pk]
-  categoryId varchar [ref: > Categories.id]
   name nvarchar
+  slug varchar [unique]
   description nvarchar
-  price decimal
-  image varchar
-  createdAt datetime
+  short_desc nvarchar
+  base_price decimal
+  is_active boolean
+  is_featured boolean
+  created_at datetime
+  updated_at datetime
 }
 
 Table ProductImages {
   id varchar [pk]
-  productId varchar [ref: > Products.id]
-  imageUrl varchar
-  isPrimary boolean
+  product_id varchar [ref: > Products.id]
+  image_url varchar
+  alt_text nvarchar
+  sort_order int
+  is_primary boolean
+  created_at datetime
+}
+
+Table ProductCategories {
+  product_id varchar [ref: > Products.id]
+  category_id varchar [ref: > Categories.id]
+}
+
+Table Attributes {
+  id varchar [pk]
+  name nvarchar [unique]
+  created_at datetime
+}
+
+Table AttributeValues {
+  id varchar [pk]
+  attribute_id varchar [ref: > Attributes.id]
+  value nvarchar
+  color_hex varchar
+  sort_order int
 }
 
 Table ProductVariants {
   id varchar [pk]
-  productId varchar [ref: > Products.id]
-  sku varchar
+  product_id varchar [ref: > Products.id]
+  sku varchar [unique]
   price decimal
-  stock int
-  size varchar
-  color varchar
+  compare_price decimal
+  stock_qty int
+  weight_kg decimal
+  image_url varchar
+  is_active boolean
+  created_at datetime
+  updated_at datetime
+}
+
+Table VariantAttributeValues {
+  variant_id varchar [ref: > ProductVariants.id]
+  attribute_value_id varchar [ref: > AttributeValues.id]
+}
+
+Table InventoryLogs {
+  id varchar [pk]
+  variant_id varchar [ref: > ProductVariants.id]
+  change_qty int
+  reason nvarchar
+  reference_id varchar
+  created_by varchar [ref: > Users.id]
+  created_at datetime
+}
+
+Table Reviews {
+  id varchar [pk]
+  product_id varchar [ref: > Products.id]
+  user_id varchar [ref: > Users.id]
+  order_item_id varchar [ref: > OrderItems.id]
+  rating tinyint
+  title nvarchar
+  body nvarchar
+  is_verified boolean
+  is_approved boolean
+  created_at datetime
+  updated_at datetime
 }
 
 Table Carts {
   id varchar [pk]
-  userId varchar [ref: - Users.id]
-  createdAt datetime
+  user_id varchar [ref: - Users.id]
+  created_at datetime
+  updated_at datetime
 }
 
 Table CartItems {
   id varchar [pk]
-  cartId varchar [ref: > Carts.id]
-  productId varchar [ref: > Products.id]
-  variantId varchar [ref: > ProductVariants.id]
+  cart_id varchar [ref: > Carts.id]
+  variant_id varchar [ref: > ProductVariants.id]
   quantity int
-  addedAt datetime
+  added_at datetime
+}
+
+Table Wishlists {
+  id varchar [pk]
+  user_id varchar [ref: - Users.id]
+  created_at datetime
+}
+
+Table WishlistItems {
+  id varchar [pk]
+  wishlist_id varchar [ref: > Wishlists.id]
+  product_id varchar [ref: > Products.id]
+  added_at datetime
 }
 
 Table Coupons {
   id varchar [pk]
   code varchar [unique]
-  discountType varchar
-  discountValue decimal
-  minOrderValue decimal
-  expiryDate datetime
-  active boolean
+  description nvarchar
+  discount_type varchar
+  discount_value decimal
+  min_order_amount decimal
+  max_discount_amt decimal
+  usage_limit int
+  used_count int
+  user_limit int
+  starts_at datetime
+  expires_at datetime
+  is_active boolean
+  created_at datetime
+}
+
+Table CouponProducts {
+  coupon_id varchar [ref: > Coupons.id]
+  product_id varchar [ref: > Products.id]
+}
+
+Table CouponCategories {
+  coupon_id varchar [ref: > Coupons.id]
+  category_id varchar [ref: > Categories.id]
 }
 
 Table Orders {
   id varchar [pk]
-  userId varchar [ref: > Users.id]
-  couponId varchar [ref: > Coupons.id]
-  totalPrice decimal
+  user_id varchar [ref: > Users.id]
+  coupon_id varchar [ref: > Coupons.id]
   status varchar
-  shippingAddressId varchar [ref: > Addresses.id]
-  createdAt datetime
+  subtotal decimal
+  discount_amount decimal
+  shipping_fee decimal
+  total decimal
+  shipping_name nvarchar
+  shipping_phone varchar
+  shipping_address nvarchar
+  shipping_city nvarchar
+  shipping_country nvarchar
+  note nvarchar
+  created_at datetime
+  updated_at datetime
 }
 
 Table OrderItems {
   id varchar [pk]
-  orderId varchar [ref: > Orders.id]
-  productId varchar [ref: > Products.id]
-  variantId varchar [ref: > ProductVariants.id]
+  order_id varchar [ref: > Orders.id]
+  variant_id varchar [ref: > ProductVariants.id]
   quantity int
-  price decimal
+  unit_price decimal
+  total_price decimal
+  product_name nvarchar
+  variant_info nvarchar
+  created_at datetime
 }
 
 Table Payments {
   id varchar [pk]
-  orderId varchar [ref: > Orders.id]
-  paymentMethod varchar
-  transactionId varchar
-  amount decimal
+  order_id varchar [ref: - Orders.id]
+  method varchar
   status varchar
-  createdAt datetime
+  amount decimal
+  transaction_ref varchar
+  paid_at datetime
+  created_at datetime
 }
 
-Table Reviews {
+Table Refunds {
   id varchar [pk]
-  userId varchar [ref: > Users.id]
-  productId varchar [ref: > Products.id]
-  rating int
-  comment nvarchar
-  createdAt datetime
+  payment_id varchar [ref: - Payments.id]
+  reason nvarchar
+  status varchar
+  refund_amount decimal
+  refunded_at datetime
+  created_at datetime
+}
+
+Table RefundItems {
+  id varchar [pk]
+  refund_id varchar [ref: > Refunds.id]
+  order_item_id varchar [ref: > OrderItems.id]
+  quantity int
+  refund_amount decimal
+}
+
+Table CouponUsage {
+  id varchar [pk]
+  coupon_id varchar [ref: > Coupons.id]
+  order_id varchar [ref: > Orders.id]
+  user_id varchar [ref: > Users.id]
+  used_at datetime
 }
 ```
 

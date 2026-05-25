@@ -83,7 +83,7 @@ export const userService = {
   getProfile: async (userId) => {
     const result = await pool.request()
       .input('id', sql.VarChar, userId)
-      .query('SELECT id, name, email, role, createdAt FROM Users WHERE id = @id');
+      .query('SELECT id, name, email, role, phone_number, created_at AS createdAt FROM Users WHERE id = @id');
 
     const user = result.recordset[0];
     if (!user) {
@@ -97,7 +97,7 @@ export const userService = {
   findById: async (userId) => {
     const result = await pool.request()
       .input('id', sql.VarChar, userId)
-      .query('SELECT id, name, email, role, createdAt FROM Users WHERE id = @id');
+      .query('SELECT id, name, email, role, phone_number, created_at AS createdAt FROM Users WHERE id = @id');
     
     return result.recordset[0];
   }

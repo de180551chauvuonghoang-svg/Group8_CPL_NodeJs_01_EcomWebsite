@@ -53,7 +53,7 @@ export const connectDB = async () => {
     console.log(`[✓] SQL Server Connected Successfully to database: ${dbName}`);
 
     // 3. Initialize all 24 tables and seed data
-    await initDb();
+    await initDb(pool, sql);
 
   } catch (err) {
     console.error(`[✗] SQL Server Connection / Initialization Failed!`);
