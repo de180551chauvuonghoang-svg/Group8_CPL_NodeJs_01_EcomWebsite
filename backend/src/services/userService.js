@@ -1,104 +1,104 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-// In-memory user database
-const users = [];
+import { sql, pool } from '../config/db.js';
 
 // Helper to hash password
 const hashPassword = async (password) => {
   return await bcrypt.hash(password, 10);
 };
 
-// Seed initial users on startup
-const seedUsers = async () => {
-  const adminPassword = await hashPassword('password123');
-  const customerPassword = await hashPassword('password123');
-
-  users.push(
-    {
-      id: 'usr_admin123',
-      name: 'Admin Manager',
-      email: 'admin@ecom.com',
-      password: adminPassword,
-      role: 'admin',
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'usr_cust123',
-      name: 'Nguyen Van A',
-      email: 'customer@ecom.com',
-      password: customerPassword,
-      role: 'customer',
-      createdAt: new Date().toISOString()
-    }
-  );
-  console.log('[Seed] In-memory users pre-populated: admin@ecom.com & customer@ecom.com (password: password123)');
-};
-
-// Seed immediately
-seedUsers();
-
 export const userService = {
   // Register user
   register: async ({ name, email, password }) => {
-    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (existingUser) {
+    // 1. Check if email already exists in Database
+    const emailCheckResult = await pool.request()
+      .input('email', sql.VarChar, email.toLowerCase())
+      .query('SELECT * FROM Users WHERE email = @email');
+
+    if (emailCheckResult.recordset.length > 0) {
       throw new Error('Email is already registered');
     }
 
+    // 2. Hash password & Insert into SQL Server
     const hashedPassword = await hashPassword(password);
-    const newUser = {
-      id: `usr_${Math.random().toString(36).substr(2, 9)}`,
+    const userId = `usr_${Math.random().toString(36).substr(2, 9)}`;
+    const role = 'customer'; // Default role
+
+    await pool.request()
+      .input('id', sql.VarChar, userId)
+      .input('name', sql.NVarChar, name)
+      .input('email', sql.VarChar, email.toLowerCase())
+      .input('password', sql.VarChar, hashedPassword)
+      .input('role', sql.VarChar, role)
+      .query(`
+        INSERT INTO Users (id, name, email, password, role)
+        VALUES (@id, @name, @email, @password, @role)
+      `);
+
+    return {
+      id: userId,
       name,
       email: email.toLowerCase(),
-      password: hashedPassword,
-      role: 'customer', // default role
-      createdAt: new Date().toISOString()
+      role
     };
-
-    users.push(newUser);
-    
-    // Return without password
-    const { password: _, ...userWithoutPassword } = newUser;
-    return userWithoutPassword;
   },
 
   // Login user
   login: async ({ email, password }) => {
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    // 1. Fetch user from SQL Server
+    const result = await pool.request()
+      .input('email', sql.VarChar, email.toLowerCase())
+      .query('SELECT * FROM Users WHERE email = @email');
+
+    const user = result.recordset[0];
     if (!user) {
       throw new Error('Invalid email or password');
     }
 
+    // 2. Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       throw new Error('Invalid email or password');
     }
 
-    // Generate JWT token
+    // 3. Generate JWT token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET || 'supersecretkeyforecommerce2026_dev_env',
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    const { password: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, token };
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token
+    };
   },
 
   // Get user profile
   getProfile: async (userId) => {
-    const user = users.find(u => u.id === userId);
+    const result = await pool.request()
+      .input('id', sql.VarChar, userId)
+      .query('SELECT id, name, email, role, createdAt FROM Users WHERE id = @id');
+
+    const user = result.recordset[0];
     if (!user) {
       throw new Error('User not found');
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return user;
   },
 
-  // Check if user exists
+  // Find user by ID (used in middlewares)
   findById: async (userId) => {
-    return users.find(u => u.id === userId);
+    const result = await pool.request()
+      .input('id', sql.VarChar, userId)
+      .query('SELECT id, name, email, role, createdAt FROM Users WHERE id = @id');
+    
+    return result.recordset[0];
   }
 };

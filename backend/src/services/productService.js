@@ -1,156 +1,175 @@
-// In-memory products store
-let products = [
-  {
-    id: 'prod_1',
-    name: 'Wireless Noise-Canceling Headphones',
-    price: 199.99,
-    description: 'Experience premium sound quality with active noise cancellation, 40-hour battery life, and comfortable memory foam ear cups.',
-    category: 'Audio',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
-    stock: 15,
-    rating: 4.8,
-    reviewsCount: 124
-  },
-  {
-    id: 'prod_2',
-    name: 'Mechanical Gaming Keyboard',
-    price: 89.99,
-    description: 'Tactile mechanical blue switches, customizable RGB backlighting, durable aluminum chassis, and dedicated media keys.',
-    category: 'Accessories',
-    image: 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80',
-    stock: 25,
-    rating: 4.6,
-    reviewsCount: 89
-  },
-  {
-    id: 'prod_3',
-    name: 'Ergonomic Wireless Mouse',
-    price: 49.99,
-    description: 'Precision wireless mouse with adjustable DPI settings, side-scrolling wheel, and ergonomic shape designed for all-day comfort.',
-    category: 'Accessories',
-    image: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=600&q=80',
-    stock: 40,
-    rating: 4.5,
-    reviewsCount: 215
-  },
-  {
-    id: 'prod_4',
-    name: 'Smart fitness Watch Pro',
-    price: 149.99,
-    description: 'Track your daily fitness activity, heart rate, sleep quality, and receive calls/notifications on a sleek AMOLED display.',
-    category: 'Wearables',
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
-    stock: 12,
-    rating: 4.7,
-    reviewsCount: 64
-  },
-  {
-    id: 'prod_5',
-    name: 'Cold-Brew Coffee Maker',
-    price: 34.99,
-    description: 'Brew delicious and rich iced coffee at home. Airtight silicone lid keeps coffee fresh for up to 2 weeks, premium glass carafe.',
-    category: 'Home & Kitchen',
-    image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80',
-    stock: 8,
-    rating: 4.4,
-    reviewsCount: 156
-  },
-  {
-    id: 'prod_6',
-    name: 'Ultra-Wide Curved Monitor 34"',
-    price: 449.99,
-    description: 'Immersive gaming and productivity experience with 144Hz refresh rate, HDR 10 support, 21:9 ratio, and rich dual speakers.',
-    category: 'Electronics',
-    image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80',
-    stock: 5,
-    rating: 4.9,
-    reviewsCount: 42
-  }
-];
+import { sql, pool } from '../config/db.js';
 
 export const productService = {
   // Get all products with optional category filter and search
   getAll: async ({ category, search }) => {
-    let filteredProducts = [...products];
+    let query = 'SELECT * FROM Products WHERE 1=1';
+    const request = pool.request();
 
     if (category) {
-      filteredProducts = filteredProducts.filter(
-        p => p.category.toLowerCase() === category.toLowerCase()
-      );
+      query += ' AND LOWER(category) = LOWER(@category)';
+      request.input('category', sql.NVarChar, category);
     }
 
     if (search) {
-      const searchLower = search.toLowerCase();
-      filteredProducts = filteredProducts.filter(
-        p => p.name.toLowerCase().includes(searchLower) || 
-             p.description.toLowerCase().includes(searchLower)
-      );
+      query += ' AND (LOWER(name) LIKE LOWER(@search) OR LOWER(description) LIKE LOWER(@search))';
+      request.input('search', sql.NVarChar, `%${search}%`);
     }
 
-    return filteredProducts;
+    const result = await request.query(query);
+    
+    // Ensure correct types for numeric values from decimal SQL columns
+    return result.recordset.map(product => ({
+      ...product,
+      price: parseFloat(product.price),
+      rating: parseFloat(product.rating),
+      stock: parseInt(product.stock),
+      reviewsCount: parseInt(product.reviewsCount)
+    }));
   },
 
   // Get product by ID
   getById: async (productId) => {
-    const product = products.find(p => p.id === productId);
+    const result = await pool.request()
+      .input('id', sql.VarChar, productId)
+      .query('SELECT * FROM Products WHERE id = @id');
+
+    const product = result.recordset[0];
     if (!product) {
       throw new Error('Product not found');
     }
-    return product;
+
+    return {
+      ...product,
+      price: parseFloat(product.price),
+      rating: parseFloat(product.rating),
+      stock: parseInt(product.stock),
+      reviewsCount: parseInt(product.reviewsCount)
+    };
   },
 
   // Create new product (Admin feature)
   create: async (productData) => {
-    const newProduct = {
-      id: `prod_${Math.random().toString(36).substr(2, 9)}`,
-      name: productData.name,
-      price: parseFloat(productData.price) || 0.0,
-      description: productData.description || '',
-      category: productData.category || 'Uncategorized',
-      image: productData.image || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80',
-      stock: parseInt(productData.stock) || 0,
-      rating: 5.0,
-      reviewsCount: 0
-    };
+    const productId = `prod_${Math.random().toString(36).substr(2, 9)}`;
+    const price = parseFloat(productData.price) || 0.0;
+    const stock = parseInt(productData.stock) || 0;
+    const rating = 5.0;
+    const reviewsCount = 0;
+    const description = productData.description || '';
+    const category = productData.category || 'Uncategorized';
+    const image = productData.image || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80';
 
-    products.push(newProduct);
-    return newProduct;
+    await pool.request()
+      .input('id', sql.VarChar, productId)
+      .input('name', sql.NVarChar, productData.name)
+      .input('price', sql.Decimal(10, 2), price)
+      .input('description', sql.NVarChar, description)
+      .input('category', sql.NVarChar, category)
+      .input('image', sql.VarChar, image)
+      .input('stock', sql.Int, stock)
+      .input('rating', sql.Decimal(3, 2), rating)
+      .input('reviewsCount', sql.Int, reviewsCount)
+      .query(`
+        INSERT INTO Products (id, name, price, description, category, image, stock, rating, reviewsCount)
+        VALUES (@id, @name, @price, @description, @category, @image, @stock, @rating, @reviewsCount)
+      `);
+
+    return {
+      id: productId,
+      name: productData.name,
+      price,
+      description,
+      category,
+      image,
+      stock,
+      rating,
+      reviewsCount
+    };
   },
 
   // Update existing product (Admin feature)
   update: async (productId, updateData) => {
-    const index = products.findIndex(p => p.id === productId);
-    if (index === -1) {
+    // 1. Fetch current product details to handle partial updates
+    const currentResult = await pool.request()
+      .input('id', sql.VarChar, productId)
+      .query('SELECT * FROM Products WHERE id = @id');
+
+    const current = currentResult.recordset[0];
+    if (!current) {
       throw new Error('Product not found');
     }
 
-    const updatedProduct = {
-      ...products[index],
-      ...updateData,
-      // Ensure correct types
-      price: updateData.price !== undefined ? parseFloat(updateData.price) : products[index].price,
-      stock: updateData.stock !== undefined ? parseInt(updateData.stock) : products[index].stock
-    };
+    const name = updateData.name !== undefined ? updateData.name : current.name;
+    const price = updateData.price !== undefined ? parseFloat(updateData.price) : parseFloat(current.price);
+    const description = updateData.description !== undefined ? updateData.description : current.description;
+    const category = updateData.category !== undefined ? updateData.category : current.category;
+    const image = updateData.image !== undefined ? updateData.image : current.image;
+    const stock = updateData.stock !== undefined ? parseInt(updateData.stock) : parseInt(current.stock);
 
-    products[index] = updatedProduct;
-    return updatedProduct;
+    await pool.request()
+      .input('id', sql.VarChar, productId)
+      .input('name', sql.NVarChar, name)
+      .input('price', sql.Decimal(10, 2), price)
+      .input('description', sql.NVarChar, description)
+      .input('category', sql.NVarChar, category)
+      .input('image', sql.VarChar, image)
+      .input('stock', sql.Int, stock)
+      .query(`
+        UPDATE Products
+        SET name = @name,
+            price = @price,
+            description = @description,
+            category = @category,
+            image = @image,
+            stock = @stock
+        WHERE id = @id
+      `);
+
+    return {
+      id: productId,
+      name,
+      price,
+      description,
+      category,
+      image,
+      stock,
+      rating: parseFloat(current.rating),
+      reviewsCount: parseInt(current.reviewsCount)
+    };
   },
 
   // Delete product (Admin feature)
   delete: async (productId) => {
-    const index = products.findIndex(p => p.id === productId);
-    if (index === -1) {
+    // 1. Fetch product first to return it after deletion
+    const result = await pool.request()
+      .input('id', sql.VarChar, productId)
+      .query('SELECT * FROM Products WHERE id = @id');
+
+    const product = result.recordset[0];
+    if (!product) {
       throw new Error('Product not found');
     }
 
-    const deletedProduct = products[index];
-    products = products.filter(p => p.id !== productId);
-    return deletedProduct;
+    await pool.request()
+      .input('id', sql.VarChar, productId)
+      .query('DELETE FROM Products WHERE id = @id');
+
+    return {
+      ...product,
+      price: parseFloat(product.price),
+      rating: parseFloat(product.rating),
+      stock: parseInt(product.stock),
+      reviewsCount: parseInt(product.reviewsCount)
+    };
   },
 
   // Update stock when an order is placed
   reduceStock: async (productId, quantity) => {
-    const product = products.find(p => p.id === productId);
+    const result = await pool.request()
+      .input('id', sql.VarChar, productId)
+      .query('SELECT * FROM Products WHERE id = @id');
+
+    const product = result.recordset[0];
     if (!product) {
       throw new Error(`Product ${productId} not found`);
     }
@@ -159,7 +178,19 @@ export const productService = {
       throw new Error(`Insufficient stock for product: ${product.name}`);
     }
 
-    product.stock -= quantity;
-    return product;
+    const newStock = product.stock - quantity;
+
+    await pool.request()
+      .input('id', sql.VarChar, productId)
+      .input('stock', sql.Int, newStock)
+      .query('UPDATE Products SET stock = @stock WHERE id = @id');
+
+    return {
+      ...product,
+      price: parseFloat(product.price),
+      rating: parseFloat(product.rating),
+      stock: newStock,
+      reviewsCount: parseInt(product.reviewsCount)
+    };
   }
 };

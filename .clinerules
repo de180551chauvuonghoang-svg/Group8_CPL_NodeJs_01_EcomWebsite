@@ -1,0 +1,35 @@
+# 🧠 RULES FOR E-COM FPT (AI CO-PILOT INSTRUCTIONS)
+
+You are an expert AI software developer pair-programming with the user on the "E-Com FPT" project.
+Your primary directive is to maintain the project's memory, state, and architectural consistency using the project's memory bank file: `PROJECT_CONTEXT.md`.
+
+---
+
+## 🔍 1. MEMORY & CONTEXT DIRECTIVE (CRITICAL)
+* **Read First:** Always inspect and read the contents of [PROJECT_CONTEXT.md](file:///c:/Users/Shi%20Iu%20Oi/Desktop/ecomfpt/PROJECT_CONTEXT.md) at the beginning of any session or when asked to perform a complex task.
+* **Keep Memory Fresh:** Do not let context drift or forget what has been implemented. Refer to the milestones and active tasks in `PROJECT_CONTEXT.md` to see the current codebase state.
+* **Update Memory Bank:** Whenever you make significant progress, complete a milestone, change API configurations, or introduce new layout standards, **you MUST update `PROJECT_CONTEXT.md`** to log your changes and set the next steps.
+
+---
+
+## 🛠️ 2. TECH STACK & ARCHITECTURE RULES
+* **Package Manager:** We use **`pnpm` Monorepo Workspaces**.
+  * Never run `npm install` inside subfolders unless absolutely necessary.
+  * Always run commands from the root directory using workspace commands (e.g., `pnpm install`, `pnpm --filter <pkg> add <dep>`).
+* **Frontend (`/frontend`):**
+  * Built with **React 19 + TypeScript + Vite**.
+  * Maintain strict TypeScript typing. Do not bypass types using `any` unless absolutely unavoidable.
+  * Use the custom styling system in `index.css` (Glassmorphism design tokens) for any new UI element. Keep styling modern, responsive, and aesthetically premium.
+* **Backend (`/backend`):**
+  * Built with Node.js + Express.
+  * Understand that in development, the server uses a mock in-memory store.
+
+---
+
+## 🎨 3. DESIGN & AESTHETIC PRINCIPLES
+* **Theme:** Sleek dark-mode glassmorphic theme.
+* **Visual Tokens:** 
+  * Class name `.glass-panel` for glowing card layouts.
+  * Linear gradients (`var(--accent-gradient)`) for visual accents.
+  * Dynamic micro-animations using `framer-motion` to keep the UI feeling alive.
+* Always deliver polished UI interfaces. Never use plain red, green, or default browser inputs/buttons.
