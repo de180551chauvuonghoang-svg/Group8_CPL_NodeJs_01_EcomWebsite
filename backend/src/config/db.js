@@ -20,18 +20,25 @@ export const connectDB = async () => {
   try {
     const dbName = process.env.DB_DATABASE || 'ecomfpt';
     
+    // Sanitize database name to prevent SQL injection and invalid identifiers
+    const dbNameRegex = /^[A-Za-z0-9_-]{1,128}$/;
+    if (!dbNameRegex.test(dbName)) {
+      throw new Error(`Invalid database name: "${dbName}". Database names must be 1-128 characters and can only contain alphanumeric characters, underscores, and hyphens.`);
+    }
+    
     // 1. First connect to master to check and create the database if it doesn't exist
     const masterConfig = { ...baseConfig, database: 'master' };
     console.log(`[⏳ DB CONNECT] Checking/Creating database: '${dbName}'...`);
     
     const tempPool = await sql.connect(masterConfig);
-    const dbCheckResult = await tempPool.request().query(`
-      SELECT name FROM sys.databases WHERE name = '${dbName}'
-    `);
+    const dbCheckResult = await tempPool.request()
+      .input('dbName', sql.NVarChar, dbName)
+      .query('SELECT name FROM sys.databases WHERE name = @dbName');
     
     if (dbCheckResult.recordset.length === 0) {
       console.log(`[📦 DATABASE] Database '${dbName}' does not exist. Creating database...`);
-      await tempPool.request().query(`CREATE DATABASE ${dbName}`);
+      // Safely quote the database identifier in brackets
+      await tempPool.request().query(`CREATE DATABASE [${dbName}]`);
       console.log(`[📦 DATABASE] Database '${dbName}' created successfully!`);
     } else {
       console.log(`[📦 DATABASE] Database '${dbName}' already exists.`);
