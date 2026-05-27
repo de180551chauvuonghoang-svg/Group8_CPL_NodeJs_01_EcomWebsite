@@ -43,6 +43,7 @@
   * `backend/src/config/initDb.js` — Module Node.js tự động tạo bảng & seed data khi server start
   * Đã tách `db.js` thành module riêng, code sạch hơn
   * Seed data: 8 Categories (parent/child), 3 Attributes + 12 Values, 6 Products + 10 Variants
+* [x] **Trang chủ mới Volitify (Tailwind CSS):** Thay thế giao diện trang chủ cũ bằng template Volitify cao cấp, thiết kế Bento Grid, banner ưu đãi VIP, và tích hợp hoàn chỉnh hệ thống tìm kiếm/bộ lọc sản phẩm động kết nối trực tiếp với Database/API.
 
 ---
 

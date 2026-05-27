@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { AnimatePresence } from 'framer-motion';
 
 // Layout components
 import Header from './components/layout/Header';
@@ -11,35 +12,36 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 
 function AppContent() {
-  return (
-    <Router>
-      <Header />
-      <main style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flexGrow: 1,
-        width: '100%',
-        minHeight: 'calc(100vh - 70px - 100px)' // subtract Header and Footer heights approximately
-      }}>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-          {/* Fallback to home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+  return (
+    <div className="app-root">
+      {!isAuthPage && <Header />}
+      <main className={`app-main ${isAuthPage ? 'auth-page' : ''}`}>
+        <AnimatePresence mode="popLayout">
+          <Routes location={location} key={location.pathname}>
+            {/* Public routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            {/* Fallback to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AnimatePresence>
       </main>
-      <Footer />
-    </Router>
+      {!isAuthPage && <Footer />}
+    </div>
   );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <Router>
+        <AppContent />
+      </Router>
     </AuthProvider>
   );
 }

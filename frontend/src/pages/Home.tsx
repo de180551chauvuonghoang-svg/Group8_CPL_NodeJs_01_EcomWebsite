@@ -1,18 +1,14 @@
 import { useState, useEffect, useContext } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { 
-  Search, 
-  SlidersHorizontal, 
   Star, 
   ShoppingBag, 
   ArrowRight, 
-  ShieldCheck, 
-  Truck, 
-  Clock, 
-  CreditCard, 
   Sparkles, 
-  Flame, 
   CheckCircle, 
-  Percent 
+  Percent, 
+  Truck, 
+  Inbox
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { AuthContext } from '../context/AuthContext';
@@ -28,9 +24,12 @@ export default function Home() {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [search, setSearch] = useState<string>('');
-  const [category, setCategory] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Read search & category parameters from the URL
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get('search') || '';
+  const category = searchParams.get('category') || '';
 
   // Fetch products based on filters
   useEffect(() => {
@@ -49,12 +48,19 @@ export default function Home() {
     // Debounce search slightly
     const timer = setTimeout(() => {
       fetchProducts();
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [category, search]);
 
-  const categories = ['Audio', 'Accessories', 'Wearables', 'Home & Kitchen', 'Electronics'];
+  const categories = [
+    { key: '', label: 'Tất cả sản phẩm' },
+    { key: 'Audio', label: 'Audio & Âm Thanh' },
+    { key: 'Accessories', label: 'Phụ Kiện' },
+    { key: 'Wearables', label: 'Thiết Bị Đeo' },
+    { key: 'Home & Kitchen', label: 'Bếp & Gia Dụng' },
+    { key: 'Electronics', label: 'Điện Tử' }
+  ];
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText('ECOM2026');
@@ -69,633 +75,371 @@ export default function Home() {
     }
   };
 
+  const handleCategorySelect = (catKey: string) => {
+    const params: Record<string, string> = {};
+    if (catKey) {
+      params.category = catKey;
+    }
+    if (search && search.trim() !== '') {
+      params.search = search;
+    }
+    setSearchParams(params);
+  };
+
   return (
-    <div className="fade-in" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem', width: '100%', position: 'relative' }}>
-      
-      {/* Background Decorative Glowing Blobs */}
-      <div className="glow-blob blob-1" />
-      <div className="glow-blob blob-2" />
-
-      {/* Hero Banner Section */}
-      <div className="glass-panel hero-section" style={{
-        padding: '4rem 3rem',
-        marginBottom: '3rem',
-        borderRadius: 'var(--radius-lg)',
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '2rem'
-      }}>
-        <div style={{ flex: '1', minWidth: '300px', zIndex: 2 }}>
-          {/* Animated Promo Badge */}
-          <div className="promo-badge" style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(139, 92, 246, 0.15)',
-            border: '1px solid rgba(139, 92, 246, 0.3)',
-            borderRadius: 'var(--radius-full)',
-            padding: '6px 16px',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            color: '#c084fc',
-            marginBottom: '1.5rem',
-            boxShadow: '0 0 15px rgba(139, 92, 246, 0.1)'
-          }}>
-            <Sparkles size={14} className="animate-sparkle" />
-            <span>BỘ SƯU TẬP THỜI THƯỢNG 2026</span>
-          </div>
-
-          <h1 style={{ fontSize: '3.2rem', fontWeight: 800, marginBottom: '1.2rem', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
-            Trải Nghiệm Mua Sắm <br />
-            <span className="gradient-text" style={{ position: 'relative' }}>
-              Thời Thượng & Đột Phá
-              <span className="text-underline" />
-            </span>
+    <div className="bg-background text-on-surface select-none">
+      {/* Hero Section (Cinematic Enterprise style) */}
+      <section className="relative h-[80vh] overflow-hidden transition-all duration-1000 opacity-100 translate-y-0">
+        <div className="absolute inset-0 z-0">
+          <img
+            alt="Cinematic Hero"
+            className="w-full h-full object-cover scale-105 transition-transform duration-[20s] hover:scale-100"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDutVWXgXeNNxAFSw1LnTaGbiHDAiBPBjHHQg-AV_KcN_Mj2W6Lb6OLynbCfV-BQDJETcN3mBJtG3mccPgffl3chP2WTvlBJsiU3sZuQWLhZVeiaEhXysOCLIQygBQPupqpRZVr4cTDcUSE7YbcYACtESilfopmaqsE63q79l6iZgrolR50bM1h5_lEDkV314cOpO3NNTiToUCJh_9QK2hH4ZfCdZNkrR7fNgLYhitHs-ba52A9gbxH7tvHxthqln94pZA1NvbK_vMp"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent"></div>
+        </div>
+        <div className="relative z-10 max-w-container-max mx-auto px-margin-desktop h-full flex flex-col justify-center">
+          <span className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary font-bold text-label-md mb-6 uppercase tracking-widest w-fit">
+            RA MẮT THẾ HỆ MỚI
+          </span>
+          <h1 className="font-display-lg text-display-lg max-w-3xl mb-8 leading-tight text-navy-dark">
+            Nâng tầm trải nghiệm sống thông minh
           </h1>
-          
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.15rem', maxWidth: '600px', lineHeight: 1.65, marginBottom: '2rem' }}>
-            {isAuthenticated ? (
-              <span>Chào mừng quay trở lại, <strong style={{ color: '#fff' }}>{user?.name || 'Bạn'}</strong>! </span>
+          <p className="text-body-lg text-on-surface-variant max-w-xl mb-10">
+            {isAuthenticated && user ? (
+              <span className="block mb-2 font-semibold">Chào mừng trở lại, {user.name}! 👋</span>
             ) : null}
-            Khám phá những thiết bị công nghệ hiện đại, phụ kiện độc đáo và các giải pháp thông minh tối ưu hóa trải nghiệm cuộc sống của bạn.
+            Khám phá hệ sinh thái thiết bị điện tử cao cấp, được thiết kế để mang lại sự tiện nghi và hiệu suất tối ưu cho ngôi nhà của bạn.
           </p>
-
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <button onClick={handleScrollToProducts} className="gradient-btn hero-btn" style={{ padding: '0.9rem 2rem', fontSize: '1rem' }}>
-              <span>Mua Sắm Ngay</span>
-              <ArrowRight size={18} />
-            </button>
-            {!isAuthenticated && (
-              <a href="/login" className="secondary-btn hero-btn-sec" style={{ padding: '0.9rem 2rem', fontSize: '1rem' }}>
-                Đăng Nhập
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Hero Decorative Side Stats Grid */}
-        <div style={{ flex: '1', minWidth: '300px', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-          <div className="glass-panel stat-card" style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-            <Flame size={24} style={{ color: 'var(--accent-secondary)', marginBottom: '0.5rem' }} />
-            <h4 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff' }}>99%</h4>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Khách hàng hài lòng</p>
-          </div>
-          <div className="glass-panel stat-card" style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-            <Truck size={24} style={{ color: 'var(--info)', marginBottom: '0.5rem' }} />
-            <h4 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff' }}>2 Giờ</h4>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Giao nhanh nội thành</p>
-          </div>
-          <div className="glass-panel stat-card" style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-            <ShieldCheck size={24} style={{ color: 'var(--success)', marginBottom: '0.5rem' }} />
-            <h4 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff' }}>100%</h4>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Bảo hành chính hãng</p>
-          </div>
-          <div className="glass-panel stat-card" style={{ padding: '1.5rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}>
-            <Sparkles size={24} style={{ color: 'var(--warning)', marginBottom: '0.5rem' }} />
-            <h4 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff' }}>50k+</h4>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Sản phẩm đã bán</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Feature Highlights Row */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '4rem'
-      }}>
-        <div className="feature-item">
-          <Truck className="feature-icon" style={{ color: 'var(--accent-primary)' }} />
-          <div>
-            <h5>Giao Hàng Toàn Quốc</h5>
-            <p>Miễn phí đơn hàng từ $500</p>
-          </div>
-        </div>
-        <div className="feature-item">
-          <ShieldCheck className="feature-icon" style={{ color: 'var(--success)' }} />
-          <div>
-            <h5>Thanh Toán An Toàn</h5>
-            <p>Bảo mật giao dịch 100%</p>
-          </div>
-        </div>
-        <div className="feature-item">
-          <Clock className="feature-icon" style={{ color: 'var(--warning)' }} />
-          <div>
-            <h5>Hỗ Trợ 24/7</h5>
-            <p>Đội ngũ chuyên nghiệp tận tâm</p>
-          </div>
-        </div>
-        <div className="feature-item">
-          <CreditCard className="feature-icon" style={{ color: 'var(--accent-secondary)' }} />
-          <div>
-            <h5>Trả Góp 0%</h5>
-            <p>Thủ tục xét duyệt trực tuyến nhanh</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Section */}
-      <div id="products-section" style={{
-        scrollMarginTop: '80px',
-        marginBottom: '2.5rem'
-      }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.5rem',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          paddingBottom: '2rem',
-          marginBottom: '2.5rem'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h2 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Danh Mục Sản Phẩm</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '4px' }}>Chọn nhóm sản phẩm yêu thích của bạn</p>
-            </div>
-            {/* Search Input */}
-            <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
-              <Search size={18} style={{
-                position: 'absolute',
-                left: '14px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)'
-              }} />
-              <input
-                type="text"
-                placeholder="Tìm sản phẩm theo tên..."
-                className="input-field search-box"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ paddingLeft: '2.7rem', height: '46px', background: 'rgba(18, 20, 32, 0.4)' }}
-              />
-            </div>
-          </div>
-
-          {/* Categories Horizontal Tabs */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', overflowX: 'auto', paddingBottom: '4px' }}>
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => setCategory('')}
-              className={`category-tab ${category === '' ? 'active' : ''}`}
+              onClick={handleScrollToProducts}
+              className="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2"
             >
-              Tất cả sản phẩm
+              Khám phá ngay <ArrowRight size={18} />
             </button>
+            <a
+              href="https://www.youtube.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-outline text-on-surface px-8 py-4 rounded-full font-bold hover:bg-surface-container transition-all flex items-center justify-center"
+            >
+              Xem phim giới thiệu
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Categories (Bento Grid with Glow Effect) */}
+      <section className="py-24 max-w-container-max mx-auto px-margin-desktop transition-all duration-1000 opacity-100 translate-y-0">
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <h2 className="font-headline-md text-headline-md mb-2 text-navy-dark">Danh mục nổi bật</h2>
+            <div className="w-20 h-1.5 bg-primary rounded-full"></div>
+          </div>
+          <button
+            onClick={() => handleCategorySelect('')}
+            className="text-primary font-bold flex items-center gap-2 hover:underline"
+          >
+            Xem tất cả danh mục <span className="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-gutter h-auto md:h-[600px]">
+          {/* Smart Kitchen (Large) */}
+          <div 
+            onClick={() => {
+              handleCategorySelect('Home & Kitchen');
+              handleScrollToProducts();
+            }}
+            className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+          >
+            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <img
+              alt="Smart Kitchen"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC12OlJza_aD8AP2I4nnng3dAjNvaQJHLfZXV_WU0zA-9O44JTitmrqVOloEu0Igr8lG3Wsh_2mS3rxDMEzyyeU9Ly76jXFf_MnTG9xoXIji_Li51R0iMCg-f2aRfGDt4SOuVWSWpZjlL2halI0Qc_jA0XsMlPrV4DqrnBJkc4wS_Ii1TzxIfWQQL4XK8e3bL-i_smxMJEdrvzcmZM0KXmZ6fAxaX_PSfrfdZnm1KC6aAMUlI0OhLIwE2v8ihF0CHwpX39UIXcDH-ci"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+              <h3 className="text-white font-headline-md text-headline-md">Smart Kitchen</h3>
+              <p className="text-white/70 mb-4 font-body-md">Công nghệ nấu nướng hiện đại nhất</p>
+              <button className="bg-white text-black px-6 py-2 rounded-full w-fit font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                Khám Phá
+              </button>
+            </div>
+          </div>
+
+          {/* Premium Audio */}
+          <div 
+            onClick={() => {
+              handleCategorySelect('Audio');
+              handleScrollToProducts();
+            }}
+            className="relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+          >
+            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <img
+              alt="Premium Audio"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtTsPD5PQ5XucxbkZDcdTHqotWhjcwvxKG6CcyacrvneZbqdhOkrFAXl3WDehncpvRHybj1g6LO4h3iezqDrRts12cDbBP6TaZQ2pRPevruGnG4k20JQMjYN3MSug9iXbD54pdhMfsvo478E3akj2YNWY36uAwCjaId0PUfEzvdR8_OmiYkFj8egHkg9krdGXuGHD5mGOqgVTQr7QPLgk6YaVrwJsert9ccCGYm4pTy3hY4rIYEOXIGLQ5oDVSH0muDXJEdavOq03p"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end">
+              <h3 className="text-white font-bold font-title-lg">Premium Audio</h3>
+            </div>
+          </div>
+
+          {/* Home Cinema */}
+          <div 
+            onClick={() => {
+              handleCategorySelect('Electronics');
+              handleScrollToProducts();
+            }}
+            className="relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+          >
+            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <img
+              alt="Home Cinema"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFshPtdsmM01VDSzYJCRjrjrXxU5gCJgfZvD0Wwq4-N33lAoZKWuJbRH_hEFP1fk9K6VjvgpG92e16iXooBfIP3YKzzZelouhFIs93jtQAWoOy-AiUzlzm-4a6aHZixvt_l57ZIntn1xfuLOY95UJyh5jDBlQoFiLyDqZpXU9lgehNUZdDEXfYif-K0sPKJ-5Dvz4GuirwqR4h--kf9jSuy4nx3s_PsX2oPwQ62OO3ACZDHdJwnT_-IU7ZBfqdbpX4CAM8oEWmqS7h"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end">
+              <h3 className="text-white font-bold font-title-lg">Home Cinema</h3>
+            </div>
+          </div>
+
+          {/* Air Treatment */}
+          <div 
+            onClick={() => {
+              handleCategorySelect('Accessories');
+              handleScrollToProducts();
+            }}
+            className="md:col-span-2 relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+          >
+            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <img
+              alt="Air Treatment"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-w28NnAFIInT0qFs4n_V8zgeaUNCHCvBPOSmhOHuWEj3maUBIS86W3u2DDIFlWY-OHefYL187WXQYT-EULQuHQZ3lU8CED5aPQ_8pY5mdg9MFULmp66LCnLizB-V-n_TT21wphm0QEpmgQXoVsTHMoJkIlvmaoUcQEbfBFSKPAyY76631aG5rfvVDZZHox--CUDRnDrxreXl_tn37ntExPfm68FN-pZgxsKLfrarGaiImFelJ4MqKq5zheNgNsStKPvLFyqrtfIiM"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
+              <h3 className="text-white font-title-lg text-headline-md">Air Treatment</h3>
+              <p className="text-white/70 font-body-md">Không khí trong lành, cuộc sống khỏe mạnh</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Dynamic Products Catalog */}
+      <section 
+        id="products-section"
+        className="py-20 max-w-container-max mx-auto px-margin-desktop border-t border-outline-variant"
+        style={{ scrollMarginTop: '90px' }}
+      >
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+          <div>
+            <h2 className="font-headline-md text-headline-md mb-2 text-navy-dark">Bộ Sưu Tập Sản Phẩm</h2>
+            <p className="text-on-surface-variant font-body-md">
+              {search ? `Kết quả tìm kiếm cho "${search}"` : 'Những thiết bị đỉnh cao nhất phục vụ cuộc sống của bạn'}
+            </p>
+          </div>
+
+          {/* Categories Tab Pills */}
+          <div className="flex flex-wrap gap-2 overflow-x-auto w-full md:w-auto">
             {categories.map((cat) => (
               <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`category-tab ${category === cat ? 'active' : ''}`}
+                key={cat.key}
+                onClick={() => handleCategorySelect(cat.key)}
+                className={`px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-300 ${
+                  category === cat.key
+                    ? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
+                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
+                }`}
               >
-                {cat}
+                {cat.label}
               </button>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Product List Section */}
-      {loading ? (
-        <Spinner message="Đang khám phá kho hàng..." />
-      ) : products.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '5rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <SlidersHorizontal size={48} style={{ color: 'var(--accent-primary)', marginBottom: '1.2rem', opacity: 0.7 }} />
-          <h3 style={{ fontSize: '1.4rem', fontWeight: 700 }}>Không Tìm Thấy Sản Phẩm Phù Hợp</h3>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
-            Hãy thử tìm kiếm với từ khóa khác hoặc thay đổi bộ lọc danh mục phía trên.
-          </p>
-        </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '2.5rem',
-          marginBottom: '5rem'
-        }}>
-          {products.map((product) => {
-            const isLowStock = product.stock <= 15;
-            const stockPercent = Math.min((product.stock / 50) * 100, 100);
+        {/* Dynamic List */}
+        {loading ? (
+          <div className="py-20 flex justify-center w-full">
+            <Spinner message="Đang kết nối kho hàng..." />
+          </div>
+        ) : products.length === 0 ? (
+          <div className="py-24 text-center rounded-3xl bg-surface-container-low border border-outline-variant p-10 flex flex-col items-center">
+            <Inbox size={48} className="text-outline mb-4" />
+            <h3 className="text-title-lg font-bold mb-2 text-navy-dark">Không tìm thấy sản phẩm</h3>
+            <p className="text-on-surface-variant max-w-md">
+              Hiện tại không có sản phẩm nào khớp với từ khóa tìm kiếm hoặc bộ lọc danh mục đã chọn. Vui lòng thử lại.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {products.map((product) => {
+              const isLowStock = product.stock <= 10;
+              const stockPercent = Math.min((product.stock / 50) * 100, 100);
 
-            return (
-              <div 
-                key={product.id} 
-                className="glass-panel product-card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '100%',
-                  overflow: 'hidden',
-                  borderRadius: 'var(--radius-md)',
-                  position: 'relative',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                  background: 'rgba(18, 20, 32, 0.45)',
-                  cursor: 'default'
-                }}
-              >
-                {/* Product Image Cover Container */}
-                <div style={{ position: 'relative', width: '100%', paddingTop: '75%', overflow: 'hidden', background: '#08080c' }}>
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                    className="card-image"
-                  />
-                  
-                  {/* Glowing Backlight Overlay */}
-                  <div className="card-overlay" />
-
-                  {/* Hot Deal / Stock Alert Overlay Tag */}
-                  {isLowStock && (
-                    <span className="badge-hot" style={{
-                      position: 'absolute',
-                      top: '12px',
-                      right: '12px',
-                      background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
-                      color: '#fff',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-full)',
-                      boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)',
-                      zIndex: 3
-                    }}>
-                      BÁN CHẠY 🔥
+              return (
+                <div
+                  key={product.id}
+                  className="bg-surface-container-lowest border border-outline-variant rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col group relative"
+                >
+                  {/* Image Frame */}
+                  <div className="relative pt-[75%] overflow-hidden bg-surface-container">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    {isLowStock && (
+                      <span className="absolute top-4 right-4 bg-error text-white font-bold text-[10px] px-3 py-1 rounded-full shadow-md">
+                        SẮP HẾT HÀNG
+                      </span>
+                    )}
+                    <span className="absolute top-4 left-4 bg-white/80 dark:bg-black/60 text-primary dark:text-inverse-primary backdrop-blur-md font-bold text-xs px-3 py-1 rounded-full border border-outline-variant">
+                      {product.category}
                     </span>
-                  )}
-
-                  {/* Category badge */}
-                  <span className="badge badge-category" style={{
-                    position: 'absolute',
-                    top: '12px',
-                    left: '12px',
-                    background: 'rgba(10, 11, 16, 0.75)',
-                    color: '#c084fc',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(139, 92, 246, 0.25)',
-                    zIndex: 3
-                  }}>
-                    {product.category}
-                  </span>
-
-                  {/* Star Rating Badge */}
-                  <span className="badge badge-rating" style={{
-                    position: 'absolute',
-                    bottom: '12px',
-                    left: '12px',
-                    background: 'rgba(10, 11, 16, 0.85)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    zIndex: 3,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontWeight: 700
-                  }}>
-                    <Star size={12} fill="#f59e0b" style={{ color: '#f59e0b' }} />
-                    <span style={{ color: '#fff' }}>{product.rating}</span>
-                  </span>
-                </div>
-
-                {/* Product Detail Info */}
-                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flexGrow: 1, position: 'relative' }}>
-                  
-                  {/* Title & Brand */}
-                  <h3 className="product-title" style={{ 
-                    fontSize: '1.15rem', 
-                    fontWeight: 600, 
-                    marginBottom: '0.6rem', 
-                    lineHeight: 1.4, 
-                    height: '46px', 
-                    overflow: 'hidden',
-                    color: '#fff',
-                    transition: 'color 0.2s ease'
-                  }}>
-                    {product.name}
-                  </h3>
-
-                  {/* Description text */}
-                  <p style={{ 
-                    color: 'var(--text-secondary)', 
-                    fontSize: '0.85rem', 
-                    marginBottom: '1.25rem', 
-                    lineHeight: 1.5,
-                    height: '52px',
-                    overflow: 'hidden',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical'
-                  }}>
-                    {product.description}
-                  </p>
-
-                  {/* Progress Stock Indicator */}
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '6px' }}>
-                      <span style={{ color: isLowStock ? '#fb923c' : 'var(--text-secondary)' }}>
-                        {isLowStock ? `Sắp cháy hàng (Còn ${product.stock})` : `Còn lại: ${product.stock} sản phẩm`}
-                      </span>
-                      <span style={{ fontWeight: 600 }}>{product.stock} sản phẩm</span>
-                    </div>
-                    <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                      <div style={{ 
-                        width: `${stockPercent}%`, 
-                        height: '100%', 
-                        background: isLowStock ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))',
-                        borderRadius: 'var(--radius-full)',
-                        transition: 'width 0.8s ease'
-                      }} />
+                    <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-md text-white font-bold text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                      <Star size={12} className="fill-warning text-warning" />
+                      <span>{product.rating}</span>
                     </div>
                   </div>
 
-                  {/* Footer Card Pricing & Interactive Buttons */}
-                  <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
-                    <div>
-                      <span className="price-tag" style={{ fontSize: '1.5rem', fontWeight: 800, background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        ${product.price.toFixed(2)}
-                      </span>
+                  {/* Body Details */}
+                  <div className="p-6 flex flex-col flex-1">
+                    <h3 className="font-bold text-body-lg text-on-surface group-hover:text-primary transition-colors line-clamp-1 mb-2">
+                      {product.name}
+                    </h3>
+                    <p className="text-on-surface-variant text-body-md line-clamp-2 mb-4 h-12">
+                      {product.description}
+                    </p>
+
+                    {/* Stock Bar */}
+                    <div className="mb-6">
+                      <div className="flex justify-between text-xs font-semibold mb-2">
+                        <span className={isLowStock ? 'text-error' : 'text-on-surface-variant'}>
+                          {isLowStock ? `Chỉ còn ${product.stock} sản phẩm` : `Kho: ${product.stock}`}
+                        </span>
+                        <span className="text-on-surface-variant">{product.stock} SP</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
+                        <div
+                          style={{ width: `${stockPercent}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isLowStock ? 'bg-error' : 'bg-primary'
+                          }`}
+                        />
+                      </div>
                     </div>
 
-                    <button className="card-quick-buy" style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '8px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                      transition: 'all 0.25s ease',
-                      color: '#fff',
-                      fontSize: '0.8rem',
-                      fontWeight: 600
-                    }}>
-                      <ShoppingBag size={14} style={{ color: 'var(--accent-primary)' }} />
-                      <span>Chọn mua</span>
-                    </button>
+                    {/* Footer Row */}
+                    <div className="mt-auto flex justify-between items-center">
+                      <span className="font-display-lg text-primary text-title-lg font-black">
+                        ${product.price.toLocaleString('vi-VN')}
+                      </span>
+                      <button className="flex items-center gap-2 px-5 py-2.5 bg-primary/5 hover:bg-primary hover:text-white text-primary font-bold text-xs rounded-xl transition-all">
+                        <ShoppingBag size={14} />
+                        <span>Chọn mua</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Member Benefits Section (Styled like Showcase Section) */}
+      <section className="bg-inverse-surface py-32 relative overflow-hidden transition-all duration-1000 opacity-100 translate-y-0 border-t border-outline-variant">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.1),transparent_50%)]"></div>
+        <div className="max-w-container-max mx-auto px-margin-desktop relative z-10">
+          <div className="text-center mb-16">
+            <span className="text-primary font-bold tracking-[0.3em] uppercase mb-4 block">CỘNG ĐỒNG VOLITIFY</span>
+            <h2 className="text-display-md font-display-md text-white mb-6 leading-tight">Đặc quyền Thành viên</h2>
+            <p className="text-body-lg text-surface-variant/80 max-w-2xl mx-auto">
+              Tham gia cộng đồng Volitify ngay hôm nay để nhận được những ưu đãi độc quyền và trải nghiệm mua sắm cá nhân hóa.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-10 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all group flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Percent size={30} className="text-primary" />
               </div>
-            );
-          })}
+              <h4 className="font-bold text-headline-md text-white mb-4">Giảm 10%</h4>
+              <p className="text-body-md text-surface-variant/70 leading-relaxed">
+                Cho đơn hàng đầu tiên khi bạn đăng ký tài khoản mới.
+              </p>
+            </div>
+            <div className="p-10 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all group flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Truck size={30} className="text-primary" />
+              </div>
+              <h4 className="font-bold text-headline-md text-white mb-4">Miễn phí vận chuyển</h4>
+              <p className="text-body-md text-surface-variant/70 leading-relaxed">
+                Giao hàng tận nơi miễn phí cho mọi đơn hàng trên toàn quốc.
+              </p>
+            </div>
+            <div className="p-10 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all group flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Sparkles size={30} className="text-primary" />
+              </div>
+              <h4 className="font-bold text-headline-md text-white mb-4">Truy cập sớm</h4>
+              <p className="text-body-md text-surface-variant/70 leading-relaxed">
+                Ưu tiên trải nghiệm và đặt trước các sản phẩm mới ra mắt.
+              </p>
+            </div>
+          </div>
+          <div className="mt-20 text-center">
+            <button className="bg-primary text-white px-12 py-5 rounded-full font-bold hover:shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all text-title-lg">
+              Gia nhập ngay
+            </button>
+            {!isAuthenticated && (
+              <p className="mt-6 text-surface-variant/40 font-body-md">
+                Đã có tài khoản? <Link className="text-primary hover:underline" to="/login">Đăng nhập</Link>
+              </p>
+            )}
+          </div>
         </div>
-      )}
+      </section>
 
       {/* Special Promotional Banner Section */}
-      <div className="glass-panel promo-banner" style={{
-        padding: '3rem',
-        borderRadius: 'var(--radius-lg)',
-        background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '2rem',
-        marginBottom: '3rem',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <div style={{ zIndex: 2 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(236, 72, 153, 0.15)',
-            border: '1px solid rgba(236, 72, 153, 0.3)',
-            borderRadius: 'var(--radius-full)',
-            padding: '4px 12px',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            color: '#f472b6',
-            marginBottom: '1rem'
-          }}>
-            <Percent size={12} />
-            <span>ƯU ĐÃI VIP HÔM NAY</span>
+      <section className="py-20 max-w-container-max mx-auto px-margin-desktop">
+        <div className="p-12 rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-outline-variant flex flex-col lg:flex-row items-center justify-between gap-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold text-xs uppercase tracking-widest mb-4">
+              <Percent size={12} />
+              <span>ƯU ĐÃI VIP HÔM NAY</span>
+            </div>
+            <h3 className="text-headline-md font-bold text-on-surface mb-3">
+              Giảm Ngay 15% Cho Đơn Hàng Đầu Tiên
+            </h3>
+            <p className="text-on-surface-variant font-body-md max-w-xl">
+              Nhập mã ưu đãi khi thanh toán để được chiết khấu trực tiếp và nhận phần quà công nghệ giới hạn cực kỳ hấp dẫn.
+            </p>
           </div>
-          <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.5rem', color: '#fff' }}>
-            Giảm Ngay 15% Cho Đơn Hàng Đầu Tiên
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '500px' }}>
-            Nhập mã ưu đãi khi thanh toán để được chiết khấu trực tiếp và nhận phần quà công nghệ giới hạn.
-          </p>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 2, flexWrap: 'wrap' }}>
-          <div style={{
-            border: '2px dashed rgba(236, 72, 153, 0.4)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.75rem 1.5rem',
-            background: 'rgba(0,0,0,0.2)',
-            fontWeight: 800,
-            fontSize: '1.25rem',
-            letterSpacing: '1px',
-            color: '#f472b6'
-          }}>
-            ECOM2026
+          <div className="flex items-center gap-4 z-10 flex-wrap shrink-0">
+            <div className="border-2 border-dashed border-primary/40 rounded-2xl px-6 py-3 bg-surface-container font-black text-xl tracking-wider text-primary">
+              ECOM2026
+            </div>
+            <button
+              onClick={handleCopyCode}
+              className="bg-primary text-on-primary px-6 py-4 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-xl transition-all"
+            >
+              {copied ? (
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle size={16} /> Đã Sao Chép!
+                </span>
+              ) : (
+                'Sao Chép Mã'
+              )}
+            </button>
           </div>
-          <button 
-            onClick={handleCopyCode} 
-            className="gradient-btn" 
-            style={{ 
-              height: '48px', 
-              padding: '0 1.5rem', 
-              fontSize: '0.9rem',
-              boxShadow: '0 4px 15px -3px rgba(236, 72, 153, 0.4)',
-              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)'
-            }}
-          >
-            {copied ? (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle size={16} /> Đã Sao Chép!
-              </span>
-            ) : 'Sao Chép Mã'}
-          </button>
         </div>
-      </div>
-
-      {/* Global CSS Inject for Premium Aesthetics */}
-      <style dangerouslySetInnerHTML={{__html: `
-        /* Pulsating Blur Blob Effects */
-        .glow-blob {
-          position: absolute;
-          width: 400px;
-          height: 400px;
-          border-radius: 50%;
-          filter: blur(140px);
-          opacity: 0.15;
-          pointer-events: none;
-          z-index: 0;
-          animation: floatBlob 10s ease-in-out infinite alternate;
-        }
-        .blob-1 {
-          background: var(--accent-primary);
-          top: 10%;
-          right: -100px;
-        }
-        .blob-2 {
-          background: var(--accent-secondary);
-          bottom: 20%;
-          left: -150px;
-          animation-delay: -5s;
-        }
-        @keyframes floatBlob {
-          0% { transform: translateY(0) scale(1); }
-          100% { transform: translateY(40px) scale(1.15); }
-        }
-
-        /* Hero Text Highlights */
-        .text-underline {
-          position: absolute;
-          bottom: -4px;
-          left: 0;
-          width: 100%;
-          height: 4px;
-          background: var(--accent-gradient);
-          border-radius: var(--radius-full);
-          opacity: 0.7;
-        }
-
-        /* Hero buttons styling */
-        .hero-btn, .hero-btn-sec {
-          transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease;
-        }
-        .hero-btn:hover {
-          transform: translateY(-3px) scale(1.02);
-        }
-        .hero-btn-sec:hover {
-          transform: translateY(-3px);
-          background: rgba(255,255,255,0.08);
-        }
-
-        /* Feature items */
-        .feature-item {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1.25rem 1.5rem;
-          background: rgba(18, 20, 32, 0.3);
-          border: 1px solid rgba(255, 255, 255, 0.04);
-          border-radius: var(--radius-md);
-          transition: all 0.3s ease;
-        }
-        .feature-item:hover {
-          transform: translateY(-3px);
-          background: rgba(18, 20, 32, 0.5);
-          border-color: rgba(255,255,255,0.08);
-          box-shadow: 0 8px 20px -10px rgba(0,0,0,0.3);
-        }
-        .feature-icon {
-          width: 24px;
-          height: 24px;
-          flex-shrink: 0;
-        }
-        .feature-item h5 {
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: #fff;
-          margin-bottom: 2px;
-        }
-        .feature-item p {
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-        }
-
-        /* Category Tab Pills */
-        .category-tab {
-          padding: 0.6rem 1.5rem;
-          font-size: 0.9rem;
-          font-weight: 600;
-          border-radius: var(--radius-full);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          background: rgba(18, 20, 32, 0.4);
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          white-space: nowrap;
-        }
-        .category-tab:hover {
-          border-color: rgba(139, 92, 246, 0.3);
-          color: #fff;
-          transform: translateY(-1px);
-        }
-        .category-tab.active {
-          background: var(--accent-gradient);
-          color: #fff;
-          border-color: transparent;
-          box-shadow: 0 4px 15px -4px rgba(139, 92, 246, 0.5);
-        }
-
-        /* Product Card & Hover Effects */
-        .product-card {
-          transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), border-color 0.3s ease, box-shadow 0.4s ease;
-        }
-        .product-card:hover {
-          transform: translateY(-8px);
-          border-color: rgba(139, 92, 246, 0.3) !important;
-          box-shadow: 0 20px 35px -10px rgba(139, 92, 246, 0.15), var(--shadow-lg) !important;
-        }
-        .product-card:hover .card-image {
-          transform: scale(1.06);
-        }
-        .product-card:hover .product-title {
-          color: var(--accent-primary) !important;
-        }
-        .card-image {
-          transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
-        }
-        .card-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(to top, rgba(8, 8, 12, 0.5) 0%, transparent 100%);
-          z-index: 2;
-          pointer-events: none;
-        }
-
-        /* Card Button styling */
-        .card-quick-buy:hover {
-          background: var(--accent-gradient) !important;
-          border-color: transparent !important;
-          box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.4);
-          transform: scale(1.05);
-        }
-        .card-quick-buy:hover svg {
-          color: #fff !important;
-        }
-
-        /* Stats Cards in Hero */
-        .stat-card {
-          transition: all 0.3s ease;
-        }
-        .stat-card:hover {
-          background: rgba(255, 255, 255, 0.04) !important;
-          transform: translateY(-2px);
-          border-color: rgba(255,255,255,0.12) !important;
-        }
-
-        /* Keyframes */
-        @keyframes sparkleAnimation {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.7; }
-        }
-        .animate-sparkle {
-          animation: sparkleAnimation 2s infinite ease-in-out;
-        }
-      `}} />
+      </section>
     </div>
   );
 }
