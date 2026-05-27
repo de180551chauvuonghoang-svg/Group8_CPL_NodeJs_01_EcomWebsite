@@ -3,9 +3,9 @@ import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-do
 import { AuthContext } from '../../context/AuthContext';
 
 // Logo URL constructed with env var fallback
-const logoUrl = import.meta.env.VITE_CDN_URL 
-  ? `${import.meta.env.VITE_CDN_URL}/favicon.png` 
-  : '/favicon.png';
+const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined')
+  ? `${import.meta.env.VITE_CDN_URL}/favicon.png`
+  : 'https://lh3.googleusercontent.com/aida/ADBb0uiy1x6g5DybSsrmO0aWGsaLaupq1Rte0xzHJObUVSZMRiC8GSDzCQHes4EqwN4fj0nPEAk-LulJTRkFINgcIggUM_8dIqWl6FNu4plcKRe1dW_5yq217PNVGf5ZrK-Dmj3MJvB3WhCP3jG970Klk2JOrkyirfLuk4vt6CBZjaqGi0Md0c0B1NUUw8pvj3ZBkZ7p53rfVgUeKx-rzn05fcuqBZ6-mL4DPxMOiNoe-pM-ysrsH5HCghtlUIbi';
 
 
 export default function Header() {
@@ -56,7 +56,7 @@ export default function Header() {
     } else {
       newParams.set('category', categoryName);
     }
-    
+
     navigate(`/?${newParams.toString()}`);
   };
 

@@ -22,6 +22,10 @@ export default function Login() {
     }
   }, [isAuthenticated, navigate]);
 
+  useEffect(() => {
+    (window as any).handleQuickLogin = handleQuickLogin;
+  }, []);
+
   // Motion values for cinematic bento/card hover tilt
   const mouseX = useMotionValue(0.5);
   const mouseY = useMotionValue(0.5);

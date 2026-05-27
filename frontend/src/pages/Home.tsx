@@ -5,7 +5,6 @@ import {
   ShoppingBag, 
   ArrowRight, 
   Sparkles, 
-  Flame, 
   CheckCircle, 
   Percent, 
   Truck, 
