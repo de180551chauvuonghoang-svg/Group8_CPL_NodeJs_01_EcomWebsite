@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { 
   Star, 
   ShoppingBag, 
@@ -77,15 +77,14 @@ export default function Home() {
   };
 
   const handleCategorySelect = (catKey: string) => {
+    const params: Record<string, string> = {};
     if (catKey) {
-      setSearchParams({ category: catKey, search });
-    } else {
-      if (search) {
-        setSearchParams({ search });
-      } else {
-        setSearchParams({});
-      }
+      params.category = catKey;
     }
+    if (search && search.trim() !== '') {
+      params.search = search;
+    }
+    setSearchParams(params);
   };
 
   return (
@@ -398,7 +397,7 @@ export default function Home() {
             </button>
             {!isAuthenticated && (
               <p className="mt-6 text-surface-variant/40 font-body-md">
-                Đã có tài khoản? <a className="text-primary hover:underline" href="/login">Đăng nhập</a>
+                Đã có tài khoản? <Link className="text-primary hover:underline" to="/login">Đăng nhập</Link>
               </p>
             )}
           </div>

@@ -1,6 +1,12 @@
 import { useContext, useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+
+// Logo URL constructed with env var fallback
+const logoUrl = import.meta.env.VITE_CDN_URL 
+  ? `${import.meta.env.VITE_CDN_URL}/favicon.png` 
+  : '/favicon.png';
+
 
 export default function Header() {
   const auth = useContext(AuthContext);
@@ -9,6 +15,7 @@ export default function Header() {
   }
   const { user, logout, isAuthenticated } = auth;
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState(searchParams.get('search') || '');
@@ -27,26 +34,30 @@ export default function Header() {
     const val = e.target.value;
     setSearchValue(val);
 
-    // Automatically update query parameters to trigger product search on Home page
+    // Merge search query with existing parameters
+    const newParams = new URLSearchParams(searchParams);
     if (val) {
-      setSearchParams({ search: val });
+      newParams.set('search', val);
     } else {
-      searchParams.delete('search');
-      setSearchParams(searchParams);
+      newParams.delete('search');
     }
+    setSearchParams(newParams);
 
-    // If not on Home page, redirect to Home with the query parameter
-    if (window.location.pathname !== '/') {
-      navigate(`/?search=${encodeURIComponent(val)}`);
+    // If not on Home page, redirect to Home with the merged parameters
+    if (location.pathname !== '/') {
+      navigate(`/?${newParams.toString()}`);
     }
   };
 
   const handleCategoryClick = (categoryName: string) => {
+    const newParams = new URLSearchParams(searchParams);
     if (categoryName === 'all') {
-      navigate('/');
+      newParams.delete('category');
     } else {
-      navigate(`/?category=${encodeURIComponent(categoryName)}`);
+      newParams.set('category', categoryName);
     }
+    
+    navigate(`/?${newParams.toString()}`);
   };
 
   return (
@@ -58,7 +69,7 @@ export default function Header() {
             <img
               alt="Volitify Logo"
               className="h-10 w-auto shrink-0 object-contain"
-              src="https://lh3.googleusercontent.com/aida/ADBb0uiy1x6g5DybSsrmO0aWGsaLaupq1Rte0xzHJObUVSZMRiC8GSDzCQHes4EqwN4fj0nPEAk-LulJTRkFINgcIggUM_8dIqWl6FNu4plcKRe1dW_5yq217PNVGf5ZrK-Dmj3MJvB3WhCP3jG970Klk2JOrkyirfLuk4vt6CBZjaqGi0Md0c0B1NUUw8pvj3ZBkZ7p53rfVgUeKx-rzn05fcuqBZ6-mL4DPxMOiNoe-pM-ysrsH5HCghtlUIbi"
+              src={logoUrl}
             />
             <span className="text-title-lg font-black tracking-tight text-primary dark:text-inverse-primary hidden md:block">
               VOLITIFY

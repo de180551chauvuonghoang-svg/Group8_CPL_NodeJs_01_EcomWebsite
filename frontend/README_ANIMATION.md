@@ -1,6 +1,6 @@
 # 📘 Hướng Dẫn Chi Tiết Cách Thiết Lập Animation Trượt Đẩy Trang (Auth Slide Transition)
 
-Tài liệu này hướng dẫn chi tiết cách hoạt động và các bước thiết lập hiệu ứng hoạt ảnh lướt đẩy ngang (horizontal push slide transition) khi chuyển đổi qua lại giữa trang **Đăng nhập (Login)** và **Đăng ký (Register)** bằng **Framer Motion** kết hợp **React Router v6**.
+Tài liệu này hướng dẫn chi tiết cách hoạt động và các bước thiết lập hiệu ứng hoạt ảnh lướt đẩy ngang (horizontal push slide transition) khi chuyển đổi qua lại giữa trang **Đăng nhập (Login)** và **Đăng ký (Register)** bằng **Framer Motion** kết hợp **React Router v7 (react-router-dom ^7.15.1)**.
 
 ---
 

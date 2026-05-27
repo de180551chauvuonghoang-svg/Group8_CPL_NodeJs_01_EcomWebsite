@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
 export default function Register() {
   const auth = useContext(AuthContext);
@@ -18,7 +18,6 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [parallaxStyle, setParallaxStyle] = useState<React.CSSProperties>({});
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,19 +25,26 @@ export default function Register() {
     }
   }, [isAuthenticated, navigate]);
 
-  // Handle subtle mouse parallax movement on the hero image
+  // Motion values for high-performance parallax mouse movement on the hero image
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const springConfig = { damping: 30, stiffness: 150 };
+  const x = useSpring(useTransform(mouseX, [-window.innerWidth / 2, window.innerWidth / 2], [-15, 15]), springConfig);
+  const y = useSpring(useTransform(mouseY, [-window.innerHeight / 2, window.innerHeight / 2], [-15, 15]), springConfig);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      const moveX = (e.clientX - window.innerWidth / 2) * 0.01;
-      const moveY = (e.clientY - window.innerHeight / 2) * 0.01;
-      setParallaxStyle({
-        transform: `scale(1.1) translate(${moveX}px, ${moveY}px)`,
-        transition: 'transform 0.1s ease-out'
-      });
+      const moveX = e.clientX - window.innerWidth / 2;
+      const moveY = e.clientY - window.innerHeight / 2;
+      mouseX.set(moveX);
+      mouseY.set(moveY);
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [mouseX, mouseY]);
+
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,8 +72,12 @@ export default function Register() {
       setTimeout(() => {
         navigate('/login');
       }, 2000);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi đăng ký tài khoản. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'message' in err) {
+        setErrorMsg(String((err as { message: unknown }).message) || 'Lỗi đăng ký tài khoản. Vui lòng thử lại.');
+      } else {
+        setErrorMsg('Lỗi đăng ký tài khoản. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -84,10 +94,10 @@ export default function Register() {
       {/* Cinematic Side: Visual Anchor */}
       <section className="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden bg-primary items-center justify-center p-margin-desktop">
         <div className="absolute inset-0 z-0">
-          <img
+          <motion.img
             alt="Smart Home Cinematic"
-            className="w-full h-full object-cover brightness-[0.7] contrast-[1.1] transition-transform duration-300"
-            style={parallaxStyle}
+            className="w-full h-full object-cover brightness-[0.7] contrast-[1.1]"
+            style={{ x, y, scale: 1.1 }}
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKw7yAcRKLtliKbu9dEy5TTZp4PAe0vwFVv6gm-truJBi6Os_YtO5vsfo7sm3W8vzAQdf1HkolYOH-7902diHu_S-VuMg4EKt6nC4UoXHrzBIsueAP43DZimNW4MP3BHsRnMHI3GuCXVyMXpW11AE-mj_iwsTaQcWv5APjAWuCPRvL5mcCVYbpqZNoTZatpPDepKu_xfod7WYPMwIR6NBXJvMMWjo5hMpPWQ4BR49OTBnUGxQAh92xPF_Z30yMM4UzB7RFZko8M06q"
           />
           <div className="absolute inset-0 bg-gradient-to-tr from-primary/60 via-transparent to-transparent"></div>
@@ -244,13 +254,15 @@ export default function Register() {
             </div>
 
             {/* Submit Button */}
-            <button
-              className="w-full h-14 bg-primary text-white font-label-md rounded-xl transition-all duration-300 hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] active:scale-[0.98] flex items-center justify-center gap-2 font-bold focus:outline-none"
+            <motion.button
+              className="w-full h-14 bg-primary text-white font-label-md rounded-xl transition-all duration-300 hover:bg-primary/90 flex items-center justify-center gap-2 font-bold focus:outline-none"
               type="submit"
+              whileHover={{ scale: 1.03, boxShadow: '0 8px 20px rgba(37,99,235,0.12)' }}
+              whileTap={{ scale: 0.98 }}
             >
               <span>Đăng ký Tài khoản</span>
               <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
+            </motion.button>
           </form>
 
           {/* Footer Link */}
@@ -269,18 +281,28 @@ export default function Register() {
               Hoặc đăng ký bằng
             </p>
             <div className="flex gap-4">
-              <button className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white">
+              <motion.button
+                type="button"
+                className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white"
+                whileHover={{ scale: 1.03, boxShadow: '0 8px 20px rgba(37,99,235,0.12)' }}
+                whileTap={{ scale: 0.98 }}
+              >
                 <img
                   alt="Google"
                   className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXCSbdMH3PUdGgWzIAFJJbtLUaUu_Tt3ElYSAkK4A7r-PLg7P4aN1vHvnMPlR36nLYMEvUvCtaeA5WoN0FiSG5IHQDFVwLc67Dr940Xws7a4fh7GZgcHJTbfz8BEGfT7TuXN8FtEwLAZRU4U6KTiqjzs8XcSbeUousbB5q5fZZORtdroAV2eOwaFPLNm29C_pz2tE07eCj7O535acCss9uNzf-eeVefiWWNunFvmwlt316kYIbJKD2ofTOZ-yPFYTwU392Fp8Tkpe5"
                 />
-              </button>
-              <button className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white text-on-surface-variant hover:text-primary">
+              </motion.button>
+              <motion.button
+                type="button"
+                className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white text-on-surface-variant hover:text-primary"
+                whileHover={{ scale: 1.03, boxShadow: '0 8px 20px rgba(37,99,235,0.12)' }}
+                whileTap={{ scale: 0.98 }}
+              >
                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
                   ios
                 </span>
-              </button>
+              </motion.button>
             </div>
           </div>
         </div>

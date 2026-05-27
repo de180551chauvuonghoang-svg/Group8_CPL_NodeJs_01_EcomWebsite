@@ -16,16 +16,9 @@ function AppContent() {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
+    <div className="app-root">
       {!isAuthPage && <Header />}
-      <main style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flexGrow: 1,
-        width: '100%',
-        minHeight: !isAuthPage ? 'calc(100vh - 70px - 100px)' : '100vh',
-        overflow: 'hidden'
-      }}>
+      <main className={`app-main ${isAuthPage ? 'auth-page' : ''}`}>
         <AnimatePresence mode="popLayout">
           <Routes location={location} key={location.pathname}>
             {/* Public routes */}

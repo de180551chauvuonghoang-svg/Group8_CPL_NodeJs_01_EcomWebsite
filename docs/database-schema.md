@@ -55,7 +55,7 @@
 **Công dụng:** Lưu danh mục sản phẩm. Hỗ trợ cấu trúc **cây phân cấp** (danh mục cha → danh mục con) thông qua self-join qua cột `parent_id`.
 
 **Ví dụ cây danh mục:**
-```
+```text
 Điện Tử (cat_electronics)
 ├── Âm Thanh (cat_audio)
 ├── Máy Tính (cat_computers)
@@ -501,7 +501,7 @@ Gia Dụng (cat_home)
 
 ## 🔗 Tổng Hợp Quan Hệ Giữa Các Bảng
 
-```
+```text
 USERS
  ├── 1:1  → Carts          (mỗi user có 1 giỏ hàng)
  ├── 1:1  → Wishlists      (mỗi user có 1 wishlist)

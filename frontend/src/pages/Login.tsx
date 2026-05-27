@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
 export default function Login() {
   const auth = useContext(AuthContext);
@@ -16,13 +16,19 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [tiltStyle, setTiltStyle] = useState<React.CSSProperties>({});
-
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
+
+  // Motion values for cinematic bento/card hover tilt
+  const mouseX = useMotionValue(0.5);
+  const mouseY = useMotionValue(0.5);
+
+  const springConfig = { damping: 25, stiffness: 200 };
+  const rotateX = useSpring(useTransform(mouseY, [0, 1], [10, -10]), springConfig);
+  const rotateY = useSpring(useTransform(mouseX, [0, 1], [-10, 10]), springConfig);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,8 +41,12 @@ export default function Login() {
       setErrorMsg('');
       await login(email, password);
       navigate('/');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Sai tài khoản hoặc mật khẩu');
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'message' in err) {
+        setErrorMsg(String((err as { message: unknown }).message) || 'Sai tài khoản hoặc mật khẩu');
+      } else {
+        setErrorMsg('Sai tài khoản hoặc mật khẩu');
+      }
     }
   };
 
@@ -52,21 +62,17 @@ export default function Login() {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const xAxis = (rect.width / 2 - x) / 50;
-    const yAxis = (rect.height / 2 - y) / 50;
-    setTiltStyle({
-      transform: `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`,
-      transition: 'none'
-    });
+    const width = rect.width;
+    const height = rect.height;
+    const x = (e.clientX - rect.left) / width;
+    const y = (e.clientY - rect.top) / height;
+    mouseX.set(x);
+    mouseY.set(y);
   };
 
   const handleMouseLeave = () => {
-    setTiltStyle({
-      transform: 'rotateY(0deg) rotateX(0deg)',
-      transition: 'transform 0.5s ease'
-    });
+    mouseX.set(0.5);
+    mouseY.set(0.5);
   };
 
   if (loading) return <Spinner fullPage message="Đang xác minh thông tin tài khoản..." />;
@@ -184,12 +190,14 @@ export default function Login() {
                 </a>
               </div>
 
-              <button
-                className="w-full h-[56px] bg-primary text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-2 btn-primary-hover active:scale-[0.98] transition-all duration-200 font-bold"
+              <motion.button
+                className="w-full h-[56px] bg-primary text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-2 btn-primary-hover transition-all duration-200 font-bold"
                 type="submit"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
                 Đăng Nhập
-              </button>
+              </motion.button>
             </form>
 
             {/* Divider */}
@@ -206,20 +214,30 @@ export default function Login() {
 
             {/* Social Logins */}
             <div className="grid grid-cols-2 gap-4">
-              <button className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors active:scale-[0.98] focus:outline-none bg-white">
+              <motion.button
+                type="button"
+                className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
                 <img
                   alt="Google"
                   className="w-6 h-6"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-sElvOzl0O8c2NzCmfIJ_UAUpIG0cBFlaaTgvq4BXwF0uxm6N2yZfpFpOF_BLUEO1iFLzjXzWu6rH1He4pYdlFvbiNM_FTxiCkUlrGUncQ6gxOyQ7ZBaP9bu_zErFJkJwRkAGE0XTiFnKAHSZ9hIbuAd0t2MmV5xXiLfylRpCm58w85S0KG2FQmx7ePD9qrEU1bWpBheYCYudvkEOOl2CMYLynvbi9VF1_pSYqsBSMca_vwgoS8Qi3D64AeLo7TcRijkzFXYp9AJY"
                 />
                 <span className="font-label-md text-label-md text-on-surface">Google</span>
-              </button>
-              <button className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors active:scale-[0.98] focus:outline-none bg-white">
+              </motion.button>
+              <motion.button
+                type="button"
+                className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
                 <span className="material-symbols-outlined text-on-surface" style={{ fontVariationSettings: "'FILL' 1" }}>
                   ios
                 </span>
                 <span className="font-label-md text-label-md text-on-surface">Apple</span>
-              </button>
+              </motion.button>
             </div>
 
             {/* Signup Link */}
@@ -241,17 +259,19 @@ export default function Login() {
         >
           <div className="absolute inset-0 hero-gradient z-10"></div>
           <img
-            className="absolute inset-0 w-full h-full object-cover transform hover:scale-105 transition-transform duration-[10s] ease-out"
+            className="absolute inset-0 w-full h-full object-cover transform hover:scale-105 transition-transform duration-300 ease-out"
             alt="Volitify Smart Home"
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRM09VtSXxLNxY8Ht7kxxD4WeQbC6-YG84_9_0t_CeydXBCspatCow0wNxGLzY1-N9vz7z3-LjlMmoaZDdErIbnKI5K3SvTfStr4vT7yIFIdwO6vSZXxpfwBk1HMoIFldbeFM8W9O-_KddHz93OUE7XPKalr2T6LDSmsAX1YHf84GYdgUKRs1yoytqqq_BfFTwJMyDnjP_-IPY3uyzkL-vU3KWEt8ISG2eoBSBnMvU5DHUh4UabBtjGEPF8t7EicfDMd0onn1iCA2K"
           />
           {/* Floating Feature Card */}
-          <div
+          <motion.div
             className="absolute bottom-16 left-16 right-16 z-20 glass-effect p-8 rounded-3xl border border-white/20 shadow-2xl space-y-4"
             style={{
               backdropFilter: 'blur(20px)',
               background: 'rgba(255, 255, 255, 0.8)',
-              ...tiltStyle
+              rotateX,
+              rotateY,
+              transformStyle: 'preserve-3d'
             }}
           >
             <div className="flex items-center gap-3">
@@ -271,7 +291,7 @@ export default function Login() {
               <div className="h-1 w-4 bg-outline-variant rounded-full"></div>
               <div className="h-1 w-4 bg-outline-variant rounded-full"></div>
             </div>
-          </div>
+          </motion.div>
         </section>
       </main>
 
