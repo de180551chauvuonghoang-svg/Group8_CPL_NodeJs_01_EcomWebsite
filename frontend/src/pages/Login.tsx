@@ -56,10 +56,10 @@ export default function Login() {
 
   const handleQuickLogin = (role: 'customer' | 'admin') => {
     if (role === 'customer') {
-      setEmail('customer@ecom.com');
+      setEmail('customer');
       setPassword('password123');
     } else if (role === 'admin') {
-      setEmail('admin@ecom.com');
+      setEmail('admin');
       setPassword('password123');
     }
   };
@@ -130,19 +130,19 @@ export default function Login() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="email">
-                  Email
+                  Tên đăng nhập
                 </label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">
-                    alternate_email
+                    person
                   </span>
                   <input
                     className="w-full h-[56px] pl-12 pr-4 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                     id="email"
                     name="email"
-                    placeholder="customer@ecom.com"
+                    placeholder="customer"
                     required
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />

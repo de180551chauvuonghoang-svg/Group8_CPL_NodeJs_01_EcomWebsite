@@ -12,6 +12,7 @@
 export const initDb = async (pool, sql) => {
   try {
     await createUsersTable(pool);
+    await createSessionsTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
     await createProductImagesTable(pool);
@@ -21,7 +22,7 @@ export const initDb = async (pool, sql) => {
     await createProductVariantsTable(pool);
     await createVariantAttributeValuesTable(pool);
     await createInventoryLogsTable(pool);
-    await createReviewsTable(pool);          // order_item_id FK added later
+    await createReviewsTable(pool); // order_item_id FK added later
     await createCartsTable(pool);
     await createCartItemsTable(pool);
     await createWishlistsTable(pool);
@@ -31,18 +32,17 @@ export const initDb = async (pool, sql) => {
     await createCouponCategoriesTable(pool);
     await createOrdersTable(pool);
     await createOrderItemsTable(pool);
-    await addReviewsOrderItemFk(pool);       // deferred FK
+    await addReviewsOrderItemFk(pool); // deferred FK
     await createPaymentsTable(pool);
     await createRefundsTable(pool);
     await createRefundItemsTable(pool);
     await createCouponUsageTable(pool);
 
-    console.log('[✓] initDb: All 24 tables verified/created.');
+    console.log("[✓] initDb: All 24 tables verified/created.");
 
     await seedData(pool, sql);
-
   } catch (err) {
-    console.error('[🚨 initDb ERROR]', err.message);
+    console.error("[🚨 initDb ERROR]", err.message);
     throw err;
   }
 };
@@ -68,6 +68,30 @@ const createUsersTable = async (pool) => {
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       PRINT '[✓] Table Users created';
+    END
+  `);
+};
+
+// ============================================================
+//  GROUP 1B: SESSIONS
+// ============================================================
+
+const createSessionsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Sessions')
+    BEGIN
+      CREATE TABLE Sessions (
+        id             VARCHAR(50)    NOT NULL PRIMARY KEY,
+        user_id        VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+        refresh_token  VARCHAR(255)   NOT NULL UNIQUE,
+        expires_at     DATETIME2      NOT NULL,
+        is_active      BIT            NOT NULL DEFAULT 1,
+        created_at     DATETIME2      NOT NULL DEFAULT GETDATE(),
+        updated_at     DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Sessions_user_id ON Sessions(user_id);
+      CREATE INDEX IX_Sessions_refresh_token ON Sessions(refresh_token);
+      PRINT '[✓] Table Sessions created';
     END
   `);
 };
@@ -555,205 +579,344 @@ const seedData = async (pool, sql) => {
 
 const seedUsers = async (pool, sql) => {
   // Never seed in production — avoids leaking dev credentials
-  if (process.env.NODE_ENV === 'production') {
-    console.log('[Seed] Skipping user seed in production environment.');
+  if (process.env.NODE_ENV === "production") {
+    console.log("[Seed] Skipping user seed in production environment.");
     return;
   }
 
-  const { recordset } = await pool.request()
+  const { recordset } = await pool
+    .request()
     .query(`SELECT COUNT(*) AS cnt FROM Users`);
   if (recordset[0].cnt > 0) return;
 
   // Read seed password from env var; fall back to a dev-only default
   const seedPassword =
     process.env.SEED_PASSWORD ??
-    (process.env.NODE_ENV === 'development' ? 'password123' : undefined);
+    (process.env.NODE_ENV === "development" ? "password123" : undefined);
   if (!seedPassword) {
-    throw new Error('SEED_PASSWORD env var is required when seeding users outside development.');
+    throw new Error(
+      "SEED_PASSWORD env var is required when seeding users outside development.",
+    );
   }
 
-  console.log('[Seed] Seeding initial users...');
-  const bcrypt = await import('bcryptjs');
+  console.log("[Seed] Seeding initial users...");
+  const bcrypt = await import("bcryptjs");
   const hashed = await bcrypt.default.hash(seedPassword, 10);
 
-  await pool.request()
-    .input('id',       sql.VarChar,   'usr_admin001')
-    .input('name',     sql.NVarChar,  'Admin Manager')
-    .input('email',    sql.VarChar,   'admin@ecom.com')
-    .input('password', sql.VarChar,   hashed)
-    .input('phone',    sql.VarChar,   '0901234567')
-    .input('role',     sql.VarChar,   'admin')
+  await pool
+    .request()
+    .input("id", sql.VarChar, "usr_admin001")
+    .input("name", sql.NVarChar, "Admin Manager")
+    .input("email", sql.VarChar, "admin@ecom.com")
+    .input("password", sql.VarChar, hashed)
+    .input("phone", sql.VarChar, "0901234567")
+    .input("role", sql.VarChar, "admin")
     .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
             VALUES (@id,@name,@email,@password,@phone,@role)`);
 
-  await pool.request()
-    .input('id',       sql.VarChar,   'usr_cust001')
-    .input('name',     sql.NVarChar,  'Nguyen Van A')
-    .input('email',    sql.VarChar,   'customer@ecom.com')
-    .input('password', sql.VarChar,   hashed)
-    .input('phone',    sql.VarChar,   '0909876543')
-    .input('role',     sql.VarChar,   'customer')
+  await pool
+    .request()
+    .input("id", sql.VarChar, "usr_cust001")
+    .input("name", sql.NVarChar, "Nguyen Van A")
+    .input("email", sql.VarChar, "customer@ecom.com")
+    .input("password", sql.VarChar, hashed)
+    .input("phone", sql.VarChar, "0909876543")
+    .input("role", sql.VarChar, "customer")
     .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
             VALUES (@id,@name,@email,@password,@phone,@role)`);
 
-  console.log('[Seed] ✓ Users seeded.');
+  console.log("[Seed] ✓ Users seeded.");
 };
 
 const seedCategories = async (pool, sql) => {
-  const { recordset } = await pool.request()
+  const { recordset } = await pool
+    .request()
     .query(`SELECT COUNT(*) AS cnt FROM Categories`);
   if (recordset[0].cnt > 0) return;
 
-  console.log('[Seed] Seeding categories...');
+  console.log("[Seed] Seeding categories...");
   const cats = [
-    { id: 'cat_electronics',  name: 'Điện Tử',         slug: 'dien-tu',        parent: null },
-    { id: 'cat_audio',        name: 'Âm Thanh',         slug: 'am-thanh',       parent: 'cat_electronics' },
-    { id: 'cat_computers',    name: 'Máy Tính',         slug: 'may-tinh',       parent: 'cat_electronics' },
-    { id: 'cat_accessories',  name: 'Phụ Kiện',         slug: 'phu-kien',       parent: 'cat_electronics' },
-    { id: 'cat_wearables',    name: 'Đồng Hồ & Wear',  slug: 'dong-ho-wear',   parent: 'cat_electronics' },
-    { id: 'cat_home',         name: 'Gia Dụng',         slug: 'gia-dung',       parent: null },
-    { id: 'cat_kitchen',      name: 'Nhà Bếp',          slug: 'nha-bep',        parent: 'cat_home' },
-    { id: 'cat_fashion',      name: 'Thời Trang',       slug: 'thoi-trang',     parent: null },
+    { id: "cat_electronics", name: "Điện Tử", slug: "dien-tu", parent: null },
+    {
+      id: "cat_audio",
+      name: "Âm Thanh",
+      slug: "am-thanh",
+      parent: "cat_electronics",
+    },
+    {
+      id: "cat_computers",
+      name: "Máy Tính",
+      slug: "may-tinh",
+      parent: "cat_electronics",
+    },
+    {
+      id: "cat_accessories",
+      name: "Phụ Kiện",
+      slug: "phu-kien",
+      parent: "cat_electronics",
+    },
+    {
+      id: "cat_wearables",
+      name: "Đồng Hồ & Wear",
+      slug: "dong-ho-wear",
+      parent: "cat_electronics",
+    },
+    { id: "cat_home", name: "Gia Dụng", slug: "gia-dung", parent: null },
+    { id: "cat_kitchen", name: "Nhà Bếp", slug: "nha-bep", parent: "cat_home" },
+    { id: "cat_fashion", name: "Thời Trang", slug: "thoi-trang", parent: null },
   ];
 
   for (const c of cats) {
-    await pool.request()
-      .input('id',       sql.VarChar,   c.id)
-      .input('name',     sql.NVarChar,  c.name)
-      .input('slug',     sql.VarChar,   c.slug)
-      .input('parentId', sql.VarChar,   c.parent)
+    await pool
+      .request()
+      .input("id", sql.VarChar, c.id)
+      .input("name", sql.NVarChar, c.name)
+      .input("slug", sql.VarChar, c.slug)
+      .input("parentId", sql.VarChar, c.parent)
       .query(`INSERT INTO Categories (id,name,slug,parent_id)
               VALUES (@id,@name,@slug,@parentId)`);
   }
-  console.log('[Seed] ✓ Categories seeded.');
+  console.log("[Seed] ✓ Categories seeded.");
 };
 
 const seedAttributes = async (pool, sql) => {
-  const { recordset } = await pool.request()
+  const { recordset } = await pool
+    .request()
     .query(`SELECT COUNT(*) AS cnt FROM Attributes`);
   if (recordset[0].cnt > 0) return;
 
-  console.log('[Seed] Seeding attributes...');
+  console.log("[Seed] Seeding attributes...");
 
   const attrs = [
     {
-      id: 'attr_color', name: 'Màu sắc',
+      id: "attr_color",
+      name: "Màu sắc",
       values: [
-        { id: 'av_black',  value: 'Đen',   hex: '#1a1a1a' },
-        { id: 'av_white',  value: 'Trắng', hex: '#f5f5f5' },
-        { id: 'av_silver', value: 'Bạc',   hex: '#c0c0c0' },
-        { id: 'av_blue',   value: 'Xanh',  hex: '#2563eb' },
-        { id: 'av_red',    value: 'Đỏ',    hex: '#dc2626' },
-      ]
+        { id: "av_black", value: "Đen", hex: "#1a1a1a" },
+        { id: "av_white", value: "Trắng", hex: "#f5f5f5" },
+        { id: "av_silver", value: "Bạc", hex: "#c0c0c0" },
+        { id: "av_blue", value: "Xanh", hex: "#2563eb" },
+        { id: "av_red", value: "Đỏ", hex: "#dc2626" },
+      ],
     },
     {
-      id: 'attr_storage', name: 'Dung lượng',
+      id: "attr_storage",
+      name: "Dung lượng",
       values: [
-        { id: 'av_128gb', value: '128GB', hex: null },
-        { id: 'av_256gb', value: '256GB', hex: null },
-        { id: 'av_512gb', value: '512GB', hex: null },
-      ]
+        { id: "av_128gb", value: "128GB", hex: null },
+        { id: "av_256gb", value: "256GB", hex: null },
+        { id: "av_512gb", value: "512GB", hex: null },
+      ],
     },
     {
-      id: 'attr_size', name: 'Kích thước',
+      id: "attr_size",
+      name: "Kích thước",
       values: [
-        { id: 'av_s',  value: 'S',  hex: null },
-        { id: 'av_m',  value: 'M',  hex: null },
-        { id: 'av_l',  value: 'L',  hex: null },
-        { id: 'av_xl', value: 'XL', hex: null },
-      ]
+        { id: "av_s", value: "S", hex: null },
+        { id: "av_m", value: "M", hex: null },
+        { id: "av_l", value: "L", hex: null },
+        { id: "av_xl", value: "XL", hex: null },
+      ],
     },
   ];
 
   for (const a of attrs) {
-    await pool.request()
-      .input('id',   sql.VarChar,  a.id)
-      .input('name', sql.NVarChar, a.name)
+    await pool
+      .request()
+      .input("id", sql.VarChar, a.id)
+      .input("name", sql.NVarChar, a.name)
       .query(`INSERT INTO Attributes (id,name) VALUES (@id,@name)`);
 
     for (const v of a.values) {
-      await pool.request()
-        .input('id',          sql.VarChar,  v.id)
-        .input('attributeId', sql.VarChar,  a.id)
-        .input('value',       sql.NVarChar, v.value)
-        .input('hex',         sql.VarChar,  v.hex)
+      await pool
+        .request()
+        .input("id", sql.VarChar, v.id)
+        .input("attributeId", sql.VarChar, a.id)
+        .input("value", sql.NVarChar, v.value)
+        .input("hex", sql.VarChar, v.hex)
         .query(`INSERT INTO AttributeValues (id,attribute_id,value,color_hex)
                 VALUES (@id,@attributeId,@value,@hex)`);
     }
   }
-  console.log('[Seed] ✓ Attributes & values seeded.');
+  console.log("[Seed] ✓ Attributes & values seeded.");
 };
 
 const seedProducts = async (pool, sql) => {
-  const { recordset } = await pool.request()
+  const { recordset } = await pool
+    .request()
     .query(`SELECT COUNT(*) AS cnt FROM Products`);
   if (recordset[0].cnt > 0) return;
 
-  console.log('[Seed] Seeding products & variants...');
+  console.log("[Seed] Seeding products & variants...");
 
   const products = [
     {
-      id: 'prod_001', name: 'Tai Nghe Chống Ồn Premium', slug: 'tai-nghe-chong-on-premium',
-      short_desc: 'Âm thanh đỉnh cao, chống ồn chủ động 40dB, pin 40 giờ',
-      desc: 'Trải nghiệm âm thanh đỉnh cao với công nghệ chống ồn chủ động tiên tiến, pin sử dụng 40 giờ và đệm tai bằng memory foam cao cấp.',
-      base_price: 4599000, category: 'cat_audio',
+      id: "prod_001",
+      name: "Tai Nghe Chống Ồn Premium",
+      slug: "tai-nghe-chong-on-premium",
+      short_desc: "Âm thanh đỉnh cao, chống ồn chủ động 40dB, pin 40 giờ",
+      desc: "Trải nghiệm âm thanh đỉnh cao với công nghệ chống ồn chủ động tiên tiến, pin sử dụng 40 giờ và đệm tai bằng memory foam cao cấp.",
+      base_price: 4599000,
+      category: "cat_audio",
       variants: [
-        { id: 'var_001_black', sku: 'HP-PREM-BLK', price: 4599000, compare: 5999000, stock: 15, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80', avIds: ['av_black'] },
-        { id: 'var_001_white', sku: 'HP-PREM-WHT', price: 4599000, compare: 5999000, stock: 10, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80', avIds: ['av_white'] },
+        {
+          id: "var_001_black",
+          sku: "HP-PREM-BLK",
+          price: 4599000,
+          compare: 5999000,
+          stock: 15,
+          image:
+            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+        {
+          id: "var_001_white",
+          sku: "HP-PREM-WHT",
+          price: 4599000,
+          compare: 5999000,
+          stock: 10,
+          image:
+            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_white"],
+        },
       ],
-      primaryImage: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+      primaryImage:
+        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
     },
     {
-      id: 'prod_002', name: 'Bàn Phím Cơ Gaming RGB', slug: 'ban-phim-co-gaming-rgb',
-      short_desc: 'Switch Blue cơ học, RGB tùy chỉnh, khung nhôm bền bỉ',
-      desc: 'Switch cơ học Blue tactile, đèn RGB tùy chỉnh từng phím, khung nhôm cao cấp và phím media chuyên dụng.',
-      base_price: 2099000, category: 'cat_accessories',
+      id: "prod_002",
+      name: "Bàn Phím Cơ Gaming RGB",
+      slug: "ban-phim-co-gaming-rgb",
+      short_desc: "Switch Blue cơ học, RGB tùy chỉnh, khung nhôm bền bỉ",
+      desc: "Switch cơ học Blue tactile, đèn RGB tùy chỉnh từng phím, khung nhôm cao cấp và phím media chuyên dụng.",
+      base_price: 2099000,
+      category: "cat_accessories",
       variants: [
-        { id: 'var_002_black', sku: 'KB-RGB-BLK', price: 2099000, compare: 2599000, stock: 25, image: 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80', avIds: ['av_black'] },
-        { id: 'var_002_white', sku: 'KB-RGB-WHT', price: 2199000, compare: 2599000, stock: 18, image: 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80', avIds: ['av_white'] },
+        {
+          id: "var_002_black",
+          sku: "KB-RGB-BLK",
+          price: 2099000,
+          compare: 2599000,
+          stock: 25,
+          image:
+            "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+        {
+          id: "var_002_white",
+          sku: "KB-RGB-WHT",
+          price: 2199000,
+          compare: 2599000,
+          stock: 18,
+          image:
+            "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_white"],
+        },
       ],
-      primaryImage: 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80',
+      primaryImage:
+        "https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80",
     },
     {
-      id: 'prod_003', name: 'Chuột Không Dây Ergonomic', slug: 'chuot-khong-day-ergonomic',
-      short_desc: 'DPI điều chỉnh 400-3200, thiết kế ergonomic, pin 60 giờ',
-      desc: 'Chuột không dây chính xác cao, DPI tùy chỉnh linh hoạt, thiết kế ergonomic phù hợp cho cả ngày làm việc.',
-      base_price: 1199000, category: 'cat_accessories',
+      id: "prod_003",
+      name: "Chuột Không Dây Ergonomic",
+      slug: "chuot-khong-day-ergonomic",
+      short_desc: "DPI điều chỉnh 400-3200, thiết kế ergonomic, pin 60 giờ",
+      desc: "Chuột không dây chính xác cao, DPI tùy chỉnh linh hoạt, thiết kế ergonomic phù hợp cho cả ngày làm việc.",
+      base_price: 1199000,
+      category: "cat_accessories",
       variants: [
-        { id: 'var_003_black', sku: 'MS-ERG-BLK', price: 1199000, compare: null, stock: 40, image: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=600&q=80', avIds: ['av_black'] },
+        {
+          id: "var_003_black",
+          sku: "MS-ERG-BLK",
+          price: 1199000,
+          compare: null,
+          stock: 40,
+          image:
+            "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
       ],
-      primaryImage: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=600&q=80',
+      primaryImage:
+        "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=600&q=80",
     },
     {
-      id: 'prod_004', name: 'Đồng Hồ Thông Minh Fitness Pro', slug: 'dong-ho-thong-minh-fitness-pro',
-      short_desc: 'Màn hình AMOLED, theo dõi nhịp tim, GPS tích hợp',
-      desc: 'Theo dõi hoạt động thể thao, nhịp tim, giấc ngủ với màn hình AMOLED sắc nét và nhận thông báo điện thoại.',
-      base_price: 3499000, category: 'cat_wearables',
+      id: "prod_004",
+      name: "Đồng Hồ Thông Minh Fitness Pro",
+      slug: "dong-ho-thong-minh-fitness-pro",
+      short_desc: "Màn hình AMOLED, theo dõi nhịp tim, GPS tích hợp",
+      desc: "Theo dõi hoạt động thể thao, nhịp tim, giấc ngủ với màn hình AMOLED sắc nét và nhận thông báo điện thoại.",
+      base_price: 3499000,
+      category: "cat_wearables",
       variants: [
-        { id: 'var_004_black', sku: 'SW-FIT-BLK', price: 3499000, compare: 4299000, stock: 12, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80', avIds: ['av_black'] },
-        { id: 'var_004_silver', sku: 'SW-FIT-SLV', price: 3699000, compare: 4299000, stock: 8,  image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80', avIds: ['av_silver'] },
+        {
+          id: "var_004_black",
+          sku: "SW-FIT-BLK",
+          price: 3499000,
+          compare: 4299000,
+          stock: 12,
+          image:
+            "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+        {
+          id: "var_004_silver",
+          sku: "SW-FIT-SLV",
+          price: 3699000,
+          compare: 4299000,
+          stock: 8,
+          image:
+            "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_silver"],
+        },
       ],
-      primaryImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+      primaryImage:
+        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80",
     },
     {
-      id: 'prod_005', name: 'Máy Pha Cà Phê Cold-Brew', slug: 'may-pha-ca-phe-cold-brew',
-      short_desc: 'Bình thủy tinh cao cấp, pha lạnh 12 giờ, giữ tươi 2 tuần',
-      desc: 'Tự pha cà phê cold brew thơm ngon tại nhà. Nắp silicon kín khí giữ cà phê tươi đến 2 tuần, bình thủy tinh cao cấp.',
-      base_price: 799000, category: 'cat_kitchen',
+      id: "prod_005",
+      name: "Máy Pha Cà Phê Cold-Brew",
+      slug: "may-pha-ca-phe-cold-brew",
+      short_desc: "Bình thủy tinh cao cấp, pha lạnh 12 giờ, giữ tươi 2 tuần",
+      desc: "Tự pha cà phê cold brew thơm ngon tại nhà. Nắp silicon kín khí giữ cà phê tươi đến 2 tuần, bình thủy tinh cao cấp.",
+      base_price: 799000,
+      category: "cat_kitchen",
       variants: [
-        { id: 'var_005_std', sku: 'CB-MAKER-STD', price: 799000, compare: null, stock: 8, image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80', avIds: [] },
+        {
+          id: "var_005_std",
+          sku: "CB-MAKER-STD",
+          price: 799000,
+          compare: null,
+          stock: 8,
+          image:
+            "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80",
+          avIds: [],
+        },
       ],
-      primaryImage: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80',
+      primaryImage:
+        "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=600&q=80",
     },
     {
-      id: 'prod_006', name: 'Màn Hình Cong UltraWide 34"', slug: 'man-hinh-cong-ultrawide-34',
-      short_desc: '144Hz, HDR10, tỷ lệ 21:9, loa tích hợp kép',
-      desc: 'Trải nghiệm gaming và làm việc đắm chìm với màn hình cong 144Hz, HDR10, tỷ lệ 21:9 và loa kép tích hợp.',
-      base_price: 10499000, category: 'cat_computers',
+      id: "prod_006",
+      name: 'Màn Hình Cong UltraWide 34"',
+      slug: "man-hinh-cong-ultrawide-34",
+      short_desc: "144Hz, HDR10, tỷ lệ 21:9, loa tích hợp kép",
+      desc: "Trải nghiệm gaming và làm việc đắm chìm với màn hình cong 144Hz, HDR10, tỷ lệ 21:9 và loa kép tích hợp.",
+      base_price: 10499000,
+      category: "cat_computers",
       variants: [
-        { id: 'var_006_std', sku: 'MON-UW34-BLK', price: 10499000, compare: 12999000, stock: 5, image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80', avIds: ['av_black'] },
+        {
+          id: "var_006_std",
+          sku: "MON-UW34-BLK",
+          price: 10499000,
+          compare: 12999000,
+          stock: 5,
+          image:
+            "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
       ],
-      primaryImage: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80',
+      primaryImage:
+        "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80",
     },
   ];
 
@@ -766,49 +929,49 @@ const seedProducts = async (pool, sql) => {
     for (const p of products) {
       // Insert product
       await req()
-        .input('id',         sql.VarChar,        p.id)
-        .input('name',       sql.NVarChar,        p.name)
-        .input('slug',       sql.VarChar,         p.slug)
-        .input('desc',       sql.NVarChar,        p.desc)
-        .input('shortDesc',  sql.NVarChar,        p.short_desc)
-        .input('basePrice',  sql.Decimal(18, 2),  p.base_price)
+        .input("id", sql.VarChar, p.id)
+        .input("name", sql.NVarChar, p.name)
+        .input("slug", sql.VarChar, p.slug)
+        .input("desc", sql.NVarChar, p.desc)
+        .input("shortDesc", sql.NVarChar, p.short_desc)
+        .input("basePrice", sql.Decimal(18, 2), p.base_price)
         .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured)
                 VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1)`);
 
       // Link to category
       await req()
-        .input('productId',  sql.VarChar, p.id)
-        .input('categoryId', sql.VarChar, p.category)
+        .input("productId", sql.VarChar, p.id)
+        .input("categoryId", sql.VarChar, p.category)
         .query(`INSERT INTO ProductCategories (product_id,category_id)
                 VALUES (@productId,@categoryId)`);
 
       // Primary image
       await req()
-        .input('id',        sql.VarChar,  `img_${p.id}_primary`)
-        .input('productId', sql.VarChar,  p.id)
-        .input('imageUrl',  sql.VarChar,  p.primaryImage)
-        .input('altText',   sql.NVarChar, p.name)
+        .input("id", sql.VarChar, `img_${p.id}_primary`)
+        .input("productId", sql.VarChar, p.id)
+        .input("imageUrl", sql.VarChar, p.primaryImage)
+        .input("altText", sql.NVarChar, p.name)
         .query(`INSERT INTO ProductImages (id,product_id,image_url,alt_text,is_primary)
                 VALUES (@id,@productId,@imageUrl,@altText,1)`);
 
       // Variants
       for (const v of p.variants) {
         await req()
-          .input('id',        sql.VarChar,        v.id)
-          .input('productId', sql.VarChar,         p.id)
-          .input('sku',       sql.VarChar,         v.sku)
-          .input('price',     sql.Decimal(18, 2),  v.price)
-          .input('compare',   sql.Decimal(18, 2),  v.compare)
-          .input('stock',     sql.Int,             v.stock)
-          .input('imageUrl',  sql.VarChar,         v.image)
+          .input("id", sql.VarChar, v.id)
+          .input("productId", sql.VarChar, p.id)
+          .input("sku", sql.VarChar, v.sku)
+          .input("price", sql.Decimal(18, 2), v.price)
+          .input("compare", sql.Decimal(18, 2), v.compare)
+          .input("stock", sql.Int, v.stock)
+          .input("imageUrl", sql.VarChar, v.image)
           .query(`INSERT INTO ProductVariants (id,product_id,sku,price,compare_price,stock_qty,image_url)
                   VALUES (@id,@productId,@sku,@price,@compare,@stock,@imageUrl)`);
 
         // Link attribute values to variant
         for (const avId of v.avIds) {
           await req()
-            .input('variantId', sql.VarChar, v.id)
-            .input('avId',      sql.VarChar, avId)
+            .input("variantId", sql.VarChar, v.id)
+            .input("avId", sql.VarChar, avId)
             .query(`INSERT INTO VariantAttributeValues (variant_id,attribute_value_id)
                     VALUES (@variantId,@avId)`);
         }
@@ -816,7 +979,7 @@ const seedProducts = async (pool, sql) => {
     }
 
     await transaction.commit();
-    console.log('[Seed] ✓ Products, variants & categories seeded.');
+    console.log("[Seed] ✓ Products, variants & categories seeded.");
   } catch (err) {
     await transaction.rollback();
     throw err;
