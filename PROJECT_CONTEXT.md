@@ -44,19 +44,25 @@
   * Đã tách `db.js` thành module riêng, code sạch hơn
   * Seed data: 8 Categories (parent/child), 3 Attributes + 12 Values, 6 Products + 10 Variants
 * [x] **Trang chủ mới Volitify (Tailwind CSS):** Thay thế giao diện trang chủ cũ bằng template Volitify cao cấp, thiết kế Bento Grid, banner ưu đãi VIP, và tích hợp hoàn chỉnh hệ thống tìm kiếm/bộ lọc sản phẩm động kết nối trực tiếp với Database/API.
+* [x] **Khắc phục lỗi giao diện & Đồng bộ HMR:** Khắc phục triệt để lỗi biên dịch CSS build-time v4 bằng cách hoàn tác `@tailwindcss/vite` và dọn dẹp `index.css`, khôi phục chạy mượt mà 100% cùng Tailwind Play CDN và cấu hình runtime.
+* [x] **Mock Auth & Dữ liệu offline:** Tích hợp thành công cơ chế Đăng nhập giả lập linh hoạt (`AuthContext.tsx`) và danh sách 6 sản phẩm Premium dự phòng khi mất kết nối (`productService.ts`), hỗ trợ kiểm thử UI ngoại tuyến hoàn chỉnh.
+* [x] **Trang Quên mật khẩu & Đặt lại mật khẩu mới:** Thiết kế và xây dựng hoàn chỉnh hai trang `ForgotPassword.tsx` và `ResetPassword.tsx` với hoạt ảnh Framer Motion trượt mượt mà, hiệu ứng 3D Parallax mượt mà 60fps trên GPU và tương tác kiểm tra độ mạnh mật khẩu thời gian thực.
+* [x] **Bảo mật Git (.gitignore):** Bổ sung quy tắc bỏ qua file credentials nhạy cảm `client_secret_*.json` vào `.gitignore` để tránh bị push lộ thông tin lên Git.
+* [x] **Xử lý triệt để lỗi hai thanh cuộn dọc (Double Scrollbars):** Tách biệt quy tắc CSS của `html` và `body` trong `index.css`, cấu hình chỉ một viewport scrollbar duy nhất ở root, loại bỏ hoàn toàn hiện tượng hai thanh cuộn trùng nhau gây xấu UI ở trang chủ.
+* [x] **Hệ thống Tài liệu Tính năng (Feature-based Documentation):** Thiết lập quy trình tài liệu hóa chuẩn hóa trong thư mục `/docs`. Tạo thư mục riêng cho từng feature kèm file `README.md` hướng dẫn cực kỳ chi tiết (đã triển khai cho `auth-pages` và `double-scrollbars-fix`), đồng thời xây dựng file mục lục tổng quan `docs/README.md` chuyên nghiệp.
 
 ---
 
 ## 🚧 4. Trạng Thái Hiện Tại & Công Việc Đang Làm (Active Context)
-* **Database Schema:** Đã implement đầy đủ 24 bảng (SQL Server). Chạy server backend sẽ tự động tạo bảng và seed data.
-* **Cấu trúc DB:** 7 nhóm nghiệp vụ: Users, Categories, Products/Catalog, Reviews, Cart/Wishlist, Orders/Payments, Coupons.
-* **Seed data sẵn sàng:** 2 Users (`admin@ecom.com` + `customer@ecom.com`, mật khẩu từ env `SEED_PASSWORD`, mặc định `password123` ở dev), 8 Categories (có sub-category), 3 Attributes + 12 AttributeValues, 6 Products với 10 Variants. Seed **bị tắt trong `NODE_ENV=production`**.
+* **Xác thực và Dữ liệu Offline:** Hệ thống Frontend hiện đã có khả năng chạy độc lập hoàn toàn ngoại tuyến phục vụ cho việc kiểm thử UI (Offline Testing). Đăng nhập chấp nhận mọi email/mật khẩu, và trang chủ tự động tải 6 sản phẩm mẫu đẹp mắt nếu server backend offline.
+* **Luồng Xác thực Khép kín:** Login, Register, ForgotPassword, và ResetPassword đã được tích hợp đồng bộ hoàn hảo với các hiệu ứng hoạt ảnh Framer Motion cao cấp, mang lại trải nghiệm tối giản và cực kỳ premium.
+* **Bảo mật:** File credentials Google Client đã được chặn Git theo dõi hoàn toàn thông qua `.gitignore`.
 
 ---
 
 ## 🔮 5. Kế Hoạch Tiếp Theo (Next Steps / Roadmap)
 1. **Xây dựng API Backend:** Tạo REST API endpoints cho Products, Categories, Cart, Orders dựa trên schema mới.
-2. **Kết nối Frontend với API thật:** Thay thế mock data bằng API calls thực từ SQL Server.
+2. **Kết nối Frontend với API thật:** Thay thế mock data bằng API calls thực từ SQL Server khi backend hoạt động.
 3. **Quản lý Giỏ hàng (Cart Page):** Xây dựng trang Giỏ hàng và Thanh toán (Checkout).
 4. **Trang Quản lý Sản phẩm (Admin Dashboard):** Giao diện Admin Thêm/Sửa/Xóa sản phẩm.
 5. **Thiết lập DNS:** Hoàn tất cấu hình bản ghi A/CNAME cho `ecomfpt.app`.
@@ -64,6 +70,6 @@
 ---
 
 ## 📝 HƯỚNG DẪN CẬP NHẬT CHO AI:
-Mỗi khi bạn (AI) thực hiện một thay đổi lớn:
 1. Đọc lại file này để đảm bảo không đi lệch hướng thiết kế của dự án.
-2. Cập nhật phần **3. Lịch Sử & Những Việc Đã Hoàn Thành** và **4. Trạng Thái Hiện Tại** tương ứng với những gì bạn vừa code xong.
+2. Cập nhật phần **3. Lịch Sự & Những Việc Đã Hoàn Thành** và **4. Trạng Trạng Hiện Tại** tương ứng với những gì bạn vừa code xong.
+

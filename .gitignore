@@ -29,3 +29,11 @@ yarn-error.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Credentials and secrets
+client_secret_*.json
+
+# Documentation files
+docs/
+
+
