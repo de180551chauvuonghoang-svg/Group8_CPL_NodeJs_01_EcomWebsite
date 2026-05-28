@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion, Variants } from 'framer-motion';
 
-// Logo URL constructed with env var fallback
+// Logo URL - use local favicon.png
 const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined')
   ? `${import.meta.env.VITE_CDN_URL}/favicon.png`
-  : 'https://lh3.googleusercontent.com/aida/ADBb0uiy1x6g5DybSsrmO0aWGsaLaupq1Rte0xzHJObUVSZMRiC8GSDzCQHes4EqwN4fj0nPEAk-LulJTRkFINgcIggUM_8dIqWl6FNu4plcKRe1dW_5yq217PNVGf5ZrK-Dmj3MJvB3WhCP3jG970Klk2JOrkyirfLuk4vt6CBZjaqGi0Md0c0B1NUUw8pvj3ZBkZ7p53rfVgUeKx-rzn05fcuqBZ6-mL4DPxMOiNoe-pM-ysrsH5HCghtlUIbi';
+  : '/favicon.png';
 
 // Framer Motion animation variants
 const footerVariants: Variants = {

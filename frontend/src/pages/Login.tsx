@@ -95,7 +95,7 @@ export default function Login() {
           <img
             alt="Volitify Logo"
             className="h-10 w-auto shrink-0 object-contain"
-            src="https://lh3.googleusercontent.com/aida/ADBb0uiy1x6g5DybSsrmO0aWGsaLaupq1Rte0xzHJObUVSZMRiC8GSDzCQHes4EqwN4fj0nPEAk-LulJTRkFINgcIggUM_8dIqWl6FNu4plcKRe1dW_5yq217PNVGf5ZrK-Dmj3MJvB3WhCP3jG970Klk2JOrkyirfLuk4vt6CBZjaqGi0Md0c0B1NUUw8pvj3ZBkZ7p53rfVgUeKx-rzn05fcuqBZ6-mL4DPxMOiNoe-pM-ysrsH5HCghtlUIbi"
+            src="/favicon.png"
           />
         </Link>
         <div className="hidden md:flex gap-gutter items-center">
