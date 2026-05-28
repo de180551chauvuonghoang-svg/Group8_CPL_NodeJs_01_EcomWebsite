@@ -16,6 +16,7 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -51,7 +52,7 @@ export default function Register() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !password || !confirmPassword || !phone) {
       setErrorMsg('Vui lòng nhập đầy đủ thông tin');
       return;
     }
@@ -67,7 +68,7 @@ export default function Register() {
     }
 
     try {
-      await register(name, email, password);
+      await register(name, email, password, phone);
       setSuccessMsg('Đăng ký tài khoản thành công! Đang chuyển hướng...');
       setTimeout(() => {
         navigate('/login');
@@ -194,6 +195,24 @@ export default function Register() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Phone Number */}
+            <div className="space-y-2 group">
+              <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="phone">
+                Số điện thoại
+              </label>
+              <div className="relative">
+                <input
+                  className="w-full h-14 bg-surface-container-low border-transparent rounded-xl px-4 font-body-md transition-all duration-300 focus:ring-0 focus:border-primary focus:bg-white border-2 hover:bg-surface-container-high outline-none text-on-surface"
+                  id="phone"
+                  placeholder="0912345678"
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
             </div>

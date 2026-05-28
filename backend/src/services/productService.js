@@ -3,28 +3,47 @@ import { sql, pool } from '../config/db.js';
 export const productService = {
   // Get all products with optional category filter and search
   getAll: async ({ category, search }) => {
-    let query = 'SELECT * FROM Products WHERE 1=1';
+    let query = `
+      WITH product_variants AS (
+        SELECT 
+          p.id, p.name, p.description,
+          COALESCE(pv.price, p.base_price) AS price,
+          COALESCE(pv.stock_qty, 0) AS stock,
+          COALESCE(pv.image_url, pi.image_url, '') AS image,
+          ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY pv.id) AS rn
+        FROM Products p
+        LEFT JOIN ProductVariants pv ON p.id = pv.product_id
+        LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
+        LEFT JOIN ProductCategories pc ON p.id = pc.product_id
+        LEFT JOIN Categories c ON pc.category_id = c.id
+        WHERE 1=1
+    `;
     const request = pool.request();
 
     if (category) {
-      query += ' AND LOWER(category) = LOWER(@category)';
+      query += ' AND LOWER(c.slug) = LOWER(@category)';
       request.input('category', sql.NVarChar, category);
     }
 
     if (search) {
-      query += ' AND (LOWER(name) LIKE LOWER(@search) OR LOWER(description) LIKE LOWER(@search))';
+      query += ' AND (LOWER(p.name) LIKE LOWER(@search) OR LOWER(p.description) LIKE LOWER(@search))';
       request.input('search', sql.NVarChar, `%${search}%`);
     }
+
+    query += `
+      )
+      SELECT id, name, description, price, stock, image
+      FROM product_variants
+      WHERE rn = 1
+    `;
 
     const result = await request.query(query);
     
     // Ensure correct types for numeric values from decimal SQL columns
     return result.recordset.map(product => ({
       ...product,
-      price: parseFloat(product.price),
-      rating: parseFloat(product.rating),
-      stock: parseInt(product.stock),
-      reviewsCount: parseInt(product.reviewsCount)
+      price: parseFloat(product.price || 0),
+      stock: parseInt(product.stock || 0)
     }));
   },
 
@@ -32,7 +51,17 @@ export const productService = {
   getById: async (productId) => {
     const result = await pool.request()
       .input('id', sql.VarChar, productId)
-      .query('SELECT * FROM Products WHERE id = @id');
+      .query(`
+        SELECT 
+          p.id, p.name, p.description,
+          COALESCE(pv.price, p.base_price) AS price,
+          COALESCE(pv.stock_qty, 0) AS stock,
+          COALESCE(pv.image_url, pi.image_url, '') AS image
+        FROM Products p
+        LEFT JOIN ProductVariants pv ON p.id = pv.product_id
+        LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
+        WHERE p.id = @id
+      `);
 
     const product = result.recordset[0];
     if (!product) {
@@ -41,10 +70,8 @@ export const productService = {
 
     return {
       ...product,
-      price: parseFloat(product.price),
-      rating: parseFloat(product.rating),
-      stock: parseInt(product.stock),
-      reviewsCount: parseInt(product.reviewsCount)
+      price: parseFloat(product.price || 0),
+      stock: parseInt(product.stock || 0)
     };
   },
 

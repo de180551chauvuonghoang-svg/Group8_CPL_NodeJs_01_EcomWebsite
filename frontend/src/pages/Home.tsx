@@ -276,8 +276,9 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {products.map((product) => {
-              const isLowStock = product.stock <= 10;
-              const stockPercent = Math.min((product.stock / 50) * 100, 100);
+              const stock = product.stock || 0;
+              const isLowStock = stock <= 10;
+              const stockPercent = Math.min((stock / 50) * 100, 100);
 
               return (
                 <div
@@ -318,9 +319,9 @@ export default function Home() {
                     <div className="mb-6">
                       <div className="flex justify-between text-xs font-semibold mb-2">
                         <span className={isLowStock ? 'text-error' : 'text-on-surface-variant'}>
-                          {isLowStock ? `Chỉ còn ${product.stock} sản phẩm` : `Kho: ${product.stock}`}
+                          {isLowStock ? `Chỉ còn ${stock} sản phẩm` : `Kho: ${stock}`}
                         </span>
-                        <span className="text-on-surface-variant">{product.stock} SP</span>
+                        <span className="text-on-surface-variant">{stock} SP</span>
                       </div>
                       <div className="w-full h-1.5 bg-surface-container rounded-full overflow-hidden">
                         <div
@@ -335,7 +336,7 @@ export default function Home() {
                     {/* Footer Row */}
                     <div className="mt-auto flex justify-between items-center">
                       <span className="font-display-lg text-primary text-title-lg font-black">
-                        ${product.price.toLocaleString('vi-VN')}
+                        ${(product.price || 0).toLocaleString('vi-VN')}
                       </span>
                       <button className="flex items-center gap-2 px-5 py-2.5 bg-primary/5 hover:bg-primary hover:text-white text-primary font-bold text-xs rounded-xl transition-all">
                         <ShoppingBag size={14} />

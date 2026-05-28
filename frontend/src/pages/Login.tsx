@@ -56,10 +56,10 @@ export default function Login() {
 
   const handleQuickLogin = (role: 'customer' | 'admin') => {
     if (role === 'customer') {
-      setEmail('customer@ecom.com');
+      setEmail('customer');
       setPassword('password123');
     } else if (role === 'admin') {
-      setEmail('admin@ecom.com');
+      setEmail('admin');
       setPassword('password123');
     }
   };
@@ -95,7 +95,7 @@ export default function Login() {
           <img
             alt="Volitify Logo"
             className="h-10 w-auto shrink-0 object-contain"
-            src="https://lh3.googleusercontent.com/aida/ADBb0uiy1x6g5DybSsrmO0aWGsaLaupq1Rte0xzHJObUVSZMRiC8GSDzCQHes4EqwN4fj0nPEAk-LulJTRkFINgcIggUM_8dIqWl6FNu4plcKRe1dW_5yq217PNVGf5ZrK-Dmj3MJvB3WhCP3jG970Klk2JOrkyirfLuk4vt6CBZjaqGi0Md0c0B1NUUw8pvj3ZBkZ7p53rfVgUeKx-rzn05fcuqBZ6-mL4DPxMOiNoe-pM-ysrsH5HCghtlUIbi"
+            src="/favicon.png"
           />
         </Link>
         <div className="hidden md:flex gap-gutter items-center">
@@ -130,19 +130,19 @@ export default function Login() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="email">
-                  Email
+                  Tên đăng nhập
                 </label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">
-                    alternate_email
+                    person
                   </span>
                   <input
                     className="w-full h-[56px] pl-12 pr-4 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                     id="email"
                     name="email"
-                    placeholder="customer@ecom.com"
+                    placeholder="customer"
                     required
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
