@@ -189,9 +189,9 @@ export default function Login() {
                     Ghi nhớ đăng nhập
                   </span>
                 </label>
-                <a className="font-label-md text-label-md text-primary hover:underline decoration-2 underline-offset-4" href="#">
+                <Link className="font-label-md text-label-md text-primary hover:underline decoration-2 underline-offset-4 font-semibold" to="/forgot-password">
                   Quên mật khẩu?
-                </a>
+                </Link>
               </div>
 
               <motion.button

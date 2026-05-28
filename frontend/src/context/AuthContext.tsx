@@ -20,6 +20,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (storedToken && storedUser) {
         setUser(storedUser);
+        // Skip server sync if it is the mock test token
+        if (storedToken === 'mock_token_123456') {
+          setLoading(false);
+          return;
+        }
         try {
           // Sync with server profile to ensure it is valid
           const freshUser = await authService.getProfile();
@@ -39,6 +44,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string): Promise<User> => {
     setLoading(true);
     try {
+      // Mock login to easily test UI without BE running
+      if (email && password) {
+        const mockUser: User = {
+          id: 'mock-user-123',
+          name: email.split('@')[0] || 'Tester',
+          email: email,
+          role: 'user'
+        };
+        localStorage.setItem('ecom_token', 'mock_token_123456');
+        localStorage.setItem('ecom_user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        return mockUser;
+      }
+      
       const data = await authService.login(email, password);
       setUser(data.user);
       return data.user;
@@ -53,6 +72,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (name: string, email: string, password: string): Promise<any> => {
     setLoading(true);
     try {
+      // Mock registration to easily test UI without BE running
+      if (name && email && password) {
+        const mockUser: User = {
+          id: 'mock-user-123',
+          name: name,
+          email: email,
+          role: 'user'
+        };
+        localStorage.setItem('ecom_token', 'mock_token_123456');
+        localStorage.setItem('ecom_user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        return { success: true, user: mockUser };
+      }
       return await authService.register(name, email, password);
     } finally {
       setLoading(false);
