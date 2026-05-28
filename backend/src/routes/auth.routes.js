@@ -1,11 +1,26 @@
-import express from 'express';
-import { register, login, getMe } from '../controllers/auth.controller.js';
-import { protect } from '../middlewares/auth.middleware.js';
+import express from "express";
+import {
+  signUp,
+  login,
+  logout,
+  logoutEverywhere,
+  refreshAccessToken,
+  getMe,
+} from "../controllers/auth.controller.js";
+import { protect } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
-router.get('/me', protect, getMe);
+// Public routes
+router.post("/signup", signUp);
+router.post("/login", login);
+
+// Protected routes (require authentication)
+router.get("/me", protect, getMe);
+router.post("/logout", logout);
+router.post("/logout-everywhere", protect, logoutEverywhere);
+
+// Token refresh route
+router.post("/refresh", refreshAccessToken);
 
 export default router;

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* Color Palette - Premium Dark Theme */
@@ -51,16 +50,21 @@
   padding: 0;
 }
 
-html, body {
+html {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  width: 100%;
+  min-height: 100%;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
 }
 
 #root {
@@ -222,3 +226,31 @@ a {
 .badge-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
 .badge-error { background: rgba(239, 68, 68, 0.15); color: var(--error); }
 .badge-info { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+
+/* App Layout Container Classes using Glassmorphic layout tokens */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Height calculations responsive to auth pages */
+.app-main:not(.auth-page) {
+  min-height: calc(100vh - 70px - 100px);
+}
+
+.app-main.auth-page {
+  min-height: 100vh;
+}
+

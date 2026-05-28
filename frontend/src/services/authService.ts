@@ -7,18 +7,20 @@ export interface LoginResponse {
 }
 
 export const authService = {
-  login: async (email: string, password: string): Promise<LoginResponse> => {
-    const response: any = await API.post('/auth/login', { email, password });
+  login: async (name: string, password: string): Promise<LoginResponse> => {
+    const response: any = await API.post('/auth/login', { name, password });
     const data = response.data || response;
-    if (response.token) {
-      localStorage.setItem('ecom_token', response.token);
+    if (data.accessToken) {
+      localStorage.setItem('ecom_token', data.accessToken);
       localStorage.setItem('ecom_user', JSON.stringify(data.user));
     }
-    return data;
+    return { token: data.accessToken, user: data.user };
   },
 
-  register: async (name: string, email: string, password: string): Promise<any> => {
-    return await API.post('/auth/register', { name, email, password });
+  register: async (name: string, email: string, password: string, phone: string): Promise<any> => {
+    // Pass phone number to backend
+    const response = await API.post('/auth/signup', { name, email, password, phonenumber: phone });
+    return response;
   },
 
   logout: (): void => {

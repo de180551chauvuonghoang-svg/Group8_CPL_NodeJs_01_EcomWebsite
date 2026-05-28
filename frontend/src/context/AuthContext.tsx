@@ -20,6 +20,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (storedToken && storedUser) {
         setUser(storedUser);
+        // Skip server sync if it is the mock test token
+        if (storedToken === 'mock_token_123456') {
+          setLoading(false);
+          return;
+        }
         try {
           // Sync with server profile to ensure it is valid
           const freshUser = await authService.getProfile();
@@ -39,6 +44,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string): Promise<User> => {
     setLoading(true);
     try {
+      // For the backend, email field should be used as name/username
       const data = await authService.login(email, password);
       setUser(data.user);
       return data.user;
@@ -50,10 +56,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string): Promise<any> => {
+  const register = async (name: string, email: string, password: string, phone: string): Promise<any> => {
     setLoading(true);
     try {
-      return await authService.register(name, email, password);
+      return await authService.register(name, email, password, phone);
     } finally {
       setLoading(false);
     }

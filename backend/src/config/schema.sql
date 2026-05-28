@@ -31,6 +31,24 @@ BEGIN
 END
 GO
 
+-- Sessions: Store refresh tokens for session management
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Sessions')
+BEGIN
+  CREATE TABLE Sessions (
+    id             VARCHAR(50)    NOT NULL PRIMARY KEY,
+    user_id        VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+    refresh_token  VARCHAR(255)   NOT NULL UNIQUE,
+    expires_at     DATETIME2      NOT NULL,
+    is_active      BIT            NOT NULL DEFAULT 1,
+    created_at     DATETIME2      NOT NULL DEFAULT GETDATE(),
+    updated_at     DATETIME2      NOT NULL DEFAULT GETDATE()
+  );
+  CREATE INDEX IX_Sessions_user_id ON Sessions(user_id);
+  CREATE INDEX IX_Sessions_refresh_token ON Sessions(refresh_token);
+  PRINT '[✓] Table Sessions created';
+END
+GO
+
 -- ============================================================
 --  GROUP 2: CATEGORIES (self-join for sub-categories)
 -- ============================================================
