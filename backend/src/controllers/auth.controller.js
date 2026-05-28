@@ -7,6 +7,16 @@ import crypto from "crypto";
 const ACCESS_TOKEN_TTL = "30m"; // thông thường là dưới 15m để tăng bảo mật, nhưng ở đây để tiện test thì để 30m
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // refresh token thường có thời gian sống dài hơn access token, ở đây là 14 ngày theo mls
 
+// Centralized secret retrieval - fail fast if not set
+const ACCESS_TOKEN_SECRET = (() => {
+  const secret = process.env.ACCESS_TOKEN_SECRET;
+  if (!secret) {
+    console.error("FATAL: ACCESS_TOKEN_SECRET environment variable is not set");
+    process.exit(1);
+  }
+  return secret;
+})();
+
 export const signUp = async (req, res, next) => {
   try {
     const { name, email, password, phonenumber } = req.body;
@@ -42,12 +52,33 @@ export const signUp = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10); // saltRounds = 10 thực hiện 2 mũ 10 lần tốn 200mls để mã hoá password
 
     //tạo user mới
-    await userService.create({
-      name,
-      email,
-      password: hashedPassword,
-      phonenumber,
-    });
+    try {
+      await userService.create({
+        name,
+        email,
+        password: hashedPassword,
+        phonenumber,
+      });
+    } catch (dbErr) {
+      // Handle DB-level unique constraint violations
+      // SQL Server error codes: 2627 (unique constraint), 2601 (unique index)
+      if (dbErr.number === 2627 || dbErr.number === 2601) {
+        if (dbErr.message.includes('UQ_Users_name') || dbErr.message.toLowerCase().includes('name')) {
+          return res.status(400).json({
+            status: "fail",
+            message: "Name already exists",
+          });
+        }
+        if (dbErr.message.includes('UQ_Users_email') || dbErr.message.toLowerCase().includes('email')) {
+          return res.status(400).json({
+            status: "fail",
+            message: "Email already exists",
+          });
+        }
+      }
+      throw dbErr; // Re-throw if not a handled unique constraint error
+    }
+    
     res.status(201).json({
       status: "success",
       message: "User created successfully",
@@ -95,8 +126,7 @@ export const login = async (req, res, next) => {
     //nếu khớp, tạo accessToken với Jwt
     const accessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET ||
-        "01c62f4196e6488021229bb62f40a56ae126977b956c8274571150ad01eb434a5a28b2deefbdd4f248be407a51089e4813cadd6daa44fd6eb88d4d273dce71d6",
+      ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 
@@ -129,7 +159,6 @@ export const login = async (req, res, next) => {
           role: user.role || "customer",
         },
         accessToken: accessToken,
-        refreshToken: refreshToken,
       },
     });
   } catch (err) {
@@ -143,7 +172,7 @@ export const login = async (req, res, next) => {
  */
 export const refreshAccessToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
       return res.status(400).json({
@@ -173,7 +202,7 @@ export const refreshAccessToken = async (req, res, next) => {
     // Tạo access token mới
     const newAccessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET || "access_secret_key_dev",
+      ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 
@@ -194,7 +223,7 @@ export const refreshAccessToken = async (req, res, next) => {
  */
 export const logout = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
       return res.status(400).json({

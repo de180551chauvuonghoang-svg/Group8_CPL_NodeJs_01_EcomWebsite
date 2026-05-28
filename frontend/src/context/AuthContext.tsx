@@ -1,8 +1,10 @@
-import { createContext, useState, useEffect, ReactNode } from 'react';
-import { authService } from '../services/authService';
-import { User, AuthContextType } from '../types';
+import { createContext, useState, useEffect, ReactNode } from "react";
+import { authService } from "../services/authService";
+import { User, AuthContextType } from "../types";
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -15,13 +17,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Check if user token exists on application mount
   useEffect(() => {
     const fetchUser = async () => {
-      const storedToken = localStorage.getItem('ecom_token');
+      const storedToken = localStorage.getItem("ecom_token");
       const storedUser = authService.getCurrentUser();
 
       if (storedToken && storedUser) {
         setUser(storedUser);
         // Skip server sync if it is the mock test token
-        if (storedToken === 'mock_token_123456') {
+        if (storedToken === "mock_token_123456") {
           setLoading(false);
           return;
         }
@@ -30,7 +32,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           const freshUser = await authService.getProfile();
           setUser(freshUser);
         } catch (error) {
-          console.warn('Session expired or invalid, logging out automatically.');
+          console.warn(
+            "Session expired or invalid, logging out automatically.",
+          );
           authService.logout();
           setUser(null);
         }
@@ -56,7 +60,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string, phone: string): Promise<any> => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string,
+  ): Promise<any> => {
     setLoading(true);
     try {
       return await authService.register(name, email, password, phone);
@@ -71,7 +80,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,16 @@
 import jwt from "jsonwebtoken";
 import { userService } from "../services/userService.js";
 
+// Centralized secret retrieval - fail fast if not set
+const ACCESS_TOKEN_SECRET = (() => {
+  const secret = process.env.ACCESS_TOKEN_SECRET;
+  if (!secret) {
+    console.error("FATAL: ACCESS_TOKEN_SECRET environment variable is not set");
+    process.exit(1);
+  }
+  return secret;
+})();
+
 // authorization - xác minh user là ai
 export const protect = async (req, res, next) => {
   try {
@@ -16,11 +26,7 @@ export const protect = async (req, res, next) => {
     }
 
     // Verify token
-    const decodedUser = jwt.verify(
-      token,
-      process.env.ACCESS_TOKEN_SECRET ||
-        "01c62f4196e6488021229bb62f40a56ae126977b956c8274571150ad01eb434a5a28b2deefbdd4f248be407a51089e4813cadd6daa44fd6eb88d4d273dce71d6",
-    );
+    const decodedUser = jwt.verify(token, ACCESS_TOKEN_SECRET);
 
     // Tìm user
     const user = await userService.findById(decodedUser.userID);
