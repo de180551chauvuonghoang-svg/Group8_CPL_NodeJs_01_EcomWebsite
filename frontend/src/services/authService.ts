@@ -40,5 +40,17 @@ export const authService = {
       localStorage.setItem('ecom_user', JSON.stringify(user));
     }
     return user;
+  },
+
+  forgotPassword: async (email: string): Promise<any> => {
+    return await API.post('/auth/forgot-password', { email });
+  },
+
+  verifyOtp: async (email: string, otp: string): Promise<any> => {
+    return await API.post('/auth/verify-otp', { email, otp });
+  },
+
+  resetPassword: async (email: string, otp: string, newPassword: string): Promise<any> => {
+    return await API.post('/auth/reset-password', { email, otp, newPassword });
   }
 };

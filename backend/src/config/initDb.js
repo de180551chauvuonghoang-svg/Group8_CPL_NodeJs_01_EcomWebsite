@@ -13,6 +13,7 @@ export const initDb = async (pool, sql) => {
   try {
     await createUsersTable(pool);
     await createSessionsTable(pool);
+    await createOtpsTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
     await createProductImagesTable(pool);
@@ -38,7 +39,7 @@ export const initDb = async (pool, sql) => {
     await createRefundItemsTable(pool);
     await createCouponUsageTable(pool);
 
-    console.log("[✓] initDb: All 24 tables verified/created.");
+    console.log("[✓] initDb: All 25 tables verified/created.");
 
     await seedData(pool, sql);
   } catch (err) {
@@ -92,6 +93,28 @@ const createSessionsTable = async (pool) => {
       CREATE INDEX IX_Sessions_user_id ON Sessions(user_id);
       CREATE INDEX IX_Sessions_refresh_token ON Sessions(refresh_token);
       PRINT '[✓] Table Sessions created';
+    END
+  `);
+};
+
+// ============================================================
+//  GROUP 1C: OTPS (For forgot password flow)
+// ============================================================
+
+const createOtpsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Otps')
+    BEGIN
+      CREATE TABLE Otps (
+        id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+        email         VARCHAR(150)   NOT NULL,
+        otp           VARCHAR(10)    NOT NULL,
+        expires_at    DATETIME2      NOT NULL,
+        is_verified   BIT            NOT NULL DEFAULT 0,
+        created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Otps_email ON Otps(email);
+      PRINT '[✓] Table Otps created';
     END
   `);
 };

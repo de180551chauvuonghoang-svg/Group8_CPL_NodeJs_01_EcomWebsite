@@ -7,18 +7,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Volitify | Điện tử Tiêu dùng Tương lai</title>
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-
-  <!-- Fonts -->
+  <!-- Google Fonts (optional — falls back to system stack if offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-    rel="stylesheet" />
 
   <style>
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       scroll-behavior: smooth;
     }
 
@@ -54,104 +51,6 @@
       transition: all 0.3s ease;
     }
   </style>
-
-  <!-- Tailwind Config -->
-  <script>
-    window.tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          "colors": {
-            "secondary-fixed": "#dae2fd",
-            "surface-tint": "#0053db",
-            "on-secondary": "#ffffff",
-            "primary-fixed-dim": "#b4c5ff",
-            "inverse-on-surface": "#eff1f3",
-            "surface-bright": "#f7f9fb",
-            "on-surface-variant": "#434655",
-            "error-container": "#ffdad6",
-            "inverse-surface": "#2d3133",
-            "outline": "#737686",
-            "on-tertiary-container": "#ffeedd",
-            "on-secondary-fixed": "#131b2e",
-            "primary-container": "#2563eb",
-            "on-tertiary-fixed-variant": "#653e00",
-            "tertiary-container": "#996100",
-            "error": "#ba1a1a",
-            "secondary-container": "#dae2fd",
-            "surface-container": "#eceef0",
-            "on-primary-container": "#eeefff",
-            "surface-container-low": "#f2f4f6",
-            "on-background": "#191c1e",
-            "on-tertiary-fixed": "#2a1700",
-            "secondary": "#565e74",
-            "surface": "#f7f9fb",
-            "on-tertiary": "#ffffff",
-            "on-error": "#ffffff",
-            "on-secondary-fixed-variant": "#3f465c",
-            "on-surface": "#191c1e",
-            "on-primary-fixed-variant": "#003ea8",
-            "on-primary": "#ffffff",
-            "background": "#f7f9fb",
-            "surface-variant": "#e0e3e5",
-            "inverse-primary": "#b4c5ff",
-            "on-error-container": "#93000a",
-            "tertiary": "#784b00",
-            "secondary-fixed-dim": "#bec6e0",
-            "primary": "#004ac6",
-            "surface-container-lowest": "#ffffff",
-            "surface-container-high": "#e6e8ea",
-            "on-secondary-container": "#5c647a",
-            "tertiary-fixed-dim": "#ffb95f",
-            "surface-dim": "#d8dadc",
-            "outline-variant": "#c3c6d7",
-            "surface-container-highest": "#e0e3e5",
-            "tertiary-fixed": "#ffddb8",
-            "primary-fixed": "#dbe1ff",
-            "on-primary-fixed": "#00174b",
-            "navy-dark": "#0F172A"
-          },
-          "borderRadius": {
-            "DEFAULT": "0.25rem",
-            "lg": "0.5rem",
-            "xl": "0.75rem",
-            "full": "9999px",
-            "3xl": "1.5rem"
-          },
-          "spacing": {
-            "container-max": "1440px",
-            "margin-mobile": "20px",
-            "gutter": "32px",
-            "unit": "8px",
-            "margin-tablet": "32px",
-            "margin-desktop": "64px"
-          },
-          "fontFamily": {
-            "headline-lg": ["Inter"],
-            "title-lg": ["Inter"],
-            "display-md": ["Inter"],
-            "headline-md": ["Inter"],
-            "body-md": ["Inter"],
-            "label-md": ["Inter"],
-            "display-lg": ["Inter"],
-            "headline-lg-mobile": ["Inter"],
-            "body-lg": ["Inter"]
-          },
-          "fontSize": {
-            "headline-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-            "title-lg": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
-            "display-md": ["60px", { "lineHeight": "72px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
-            "headline-md": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
-            "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
-            "display-lg": ["72px", { "lineHeight": "80px", "letterSpacing": "-0.04em", "fontWeight": "800" }],
-            "headline-lg-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-            "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
-          }
-        },
-      },
-    };
-  </script>
 </head>
 
 <body class="bg-background text-on-surface">
