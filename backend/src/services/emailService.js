@@ -153,19 +153,14 @@ export const emailService = {
       await transporter.sendMail({
         from: `"Volitify Security" <${user}>`,
         to: email,
-        subject: `[Volitify] Mã OTP xác thực khôi phục mật khẩu: ${otp}`,
+        subject: "[Volitify] Yêu cầu khôi phục mật khẩu",
         html: htmlContent,
       });
       console.log(`[📧 EMAIL] Actual OTP email sent successfully to ${email}`);
       return { success: true, mock: false };
     } catch (error) {
-      console.error(`[🚨 Nodemailer Error] Failed to send email via SMTP:`, error);
-      console.log("\n========================================================");
-      console.log("       📧 [MOCK EMAIL SERVICE] - FALLBACK LOGGED 📧");
-      console.log(`👉 EMAIL: ${email}`);
-      console.log(`👉 MÃ OTP (6 CHỮ SỐ): ${otp}`);
-      console.log("========================================================\n");
-      return { success: true, mock: true, error: error.message };
+      console.error(`[🚨 Nodemailer Error] Failed to send email via SMTP to ${email}:`, error);
+      return { success: false, mock: false, error: error.message };
     }
   },
 };

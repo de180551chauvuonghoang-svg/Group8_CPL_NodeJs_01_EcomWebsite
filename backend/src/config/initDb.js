@@ -111,10 +111,28 @@ const createOtpsTable = async (pool) => {
         otp           VARCHAR(10)    NOT NULL,
         expires_at    DATETIME2      NOT NULL,
         is_verified   BIT            NOT NULL DEFAULT 0,
+        attempts      INT            NOT NULL DEFAULT 0,
+        locked_until  DATETIME2      NULL,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_Otps_email ON Otps(email);
+      CREATE INDEX IX_Otps_expires_at ON Otps(expires_at);
       PRINT '[✓] Table Otps created';
+    END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Otps') AND name = 'attempts')
+      BEGIN
+        ALTER TABLE Otps ADD attempts INT NOT NULL DEFAULT 0;
+      END
+      IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Otps') AND name = 'locked_until')
+      BEGIN
+        ALTER TABLE Otps ADD locked_until DATETIME2 NULL;
+      END
+      IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('Otps') AND name = 'IX_Otps_expires_at')
+      BEGIN
+        CREATE INDEX IX_Otps_expires_at ON Otps(expires_at);
+      END
     END
   `);
 };

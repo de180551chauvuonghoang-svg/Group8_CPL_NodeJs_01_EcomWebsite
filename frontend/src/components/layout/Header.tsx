@@ -174,7 +174,7 @@ export default function Header() {
         >
           <span className="material-symbols-outlined text-[26px]">shopping_cart</span>
           {cartItems.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-md" style={{ backgroundColor: '#ba1a1a' }}>
+            <span className="absolute -top-1 -right-1 bg-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-md">
               {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
             </span>
           )}

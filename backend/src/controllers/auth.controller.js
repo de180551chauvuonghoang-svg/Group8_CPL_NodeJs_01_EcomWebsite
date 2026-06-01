@@ -327,23 +327,19 @@ export const forgotPassword = async (req, res, next) => {
 
     // Check if user exists
     const user = await userService.findByEmail(email);
-    if (!user) {
-      return res.status(404).json({
-        status: "fail",
-        message: "Email không tồn tại trong hệ thống.",
-      });
+    let mock = false;
+    
+    if (user) {
+      // Generate and send OTP
+      const result = await otpService.createOTP(email);
+      mock = result.mock;
     }
-
-    // Generate and send OTP
-    const result = await otpService.createOTP(email);
 
     res.status(200).json({
       status: "success",
-      message: result.mock
-        ? "Mã OTP đã được tạo (giao diện thử nghiệm - hãy kiểm tra logs backend)."
-        : "Mã OTP khôi phục mật khẩu đã được gửi đến email của bạn.",
+      message: "Mã OTP khôi phục mật khẩu đã được gửi đến email của bạn nếu tài khoản tồn tại.",
       data: {
-        mock: result.mock,
+        mock: mock,
       },
     });
   } catch (err) {

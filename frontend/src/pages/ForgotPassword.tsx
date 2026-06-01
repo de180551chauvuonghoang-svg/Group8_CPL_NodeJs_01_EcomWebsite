@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
-import { authService } from '../services/authService';
+import { authService, AuthResponse } from '../services/authService';
+
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as any).message === 'string'
+  );
+}
+
+function getErrorMessage(error: unknown): string {
+  if (isErrorWithMessage(error)) return error.message;
+  return 'Có lỗi xảy ra, vui lòng thử lại sau.';
+}
 
 export default function ForgotPassword(): React.ReactElement {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -91,7 +105,7 @@ export default function ForgotPassword(): React.ReactElement {
     setSuccessMsg('');
 
     try {
-      const response: any = await authService.forgotPassword(email);
+      const response: AuthResponse = await authService.forgotPassword(email);
       setIsMockOtp(!!response?.data?.mock);
       setSuccessMsg(response?.message || 'Mã OTP đã được gửi đến email của bạn.');
       
@@ -100,8 +114,8 @@ export default function ForgotPassword(): React.ReactElement {
       setTimer(300);
       setIsTimerActive(true);
       setOtp(Array(6).fill('')); // Clear previous OTP entries
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Có lỗi xảy ra, vui lòng thử lại sau.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -121,11 +135,11 @@ export default function ForgotPassword(): React.ReactElement {
     setSuccessMsg('');
 
     try {
-      const response: any = await authService.verifyOtp(email, otpCode);
+      const response: AuthResponse = await authService.verifyOtp(email, otpCode);
       setSuccessMsg(response?.message || 'Mã OTP đã được xác nhận thành công.');
       setStep(3); // Go to set new password
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Mã OTP không đúng hoặc đã hết hạn.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -139,7 +153,7 @@ export default function ForgotPassword(): React.ReactElement {
     setSuccessMsg('');
 
     try {
-      const response: any = await authService.forgotPassword(email);
+      const response: AuthResponse = await authService.forgotPassword(email);
       setIsMockOtp(!!response?.data?.mock);
       setSuccessMsg(response?.message || 'Mã OTP mới đã được gửi.');
       setTimer(300);
@@ -150,8 +164,8 @@ export default function ForgotPassword(): React.ReactElement {
       setTimeout(() => {
         otpRefs.current[0]?.focus();
       }, 50);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Gửi lại mã OTP thất bại, vui lòng thử lại sau.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -171,11 +185,11 @@ export default function ForgotPassword(): React.ReactElement {
 
     try {
       const otpCode = otp.join('');
-      const response: any = await authService.resetPassword(email, otpCode, newPassword);
+      const response: AuthResponse = await authService.resetPassword(email, otpCode, newPassword);
       setSuccessMsg(response?.message || 'Đặt lại mật khẩu thành công!');
       setStep(4); // Show success screen
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Đặt lại mật khẩu thất bại. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -264,7 +278,7 @@ export default function ForgotPassword(): React.ReactElement {
         </section>
 
         {/* Right Side: Interaction Form */}
-        <section className="w-full lg:w-1/2 flex flex-col px-margin-mobile md:px-margin-desktop py-12 bg-white relative overflow-y-auto h-full">
+        <section className="w-full lg:w-1/2 flex flex-col px-margin-mobile md:px-margin-desktop py-12 bg-background/80 backdrop-blur-md border-l border-outline-variant/20 relative overflow-y-auto h-full">
           {/* Mobile Logo */}
           <div className="lg:hidden absolute top-8 left-8">
             <Link to="/" className="font-display-md text-title-lg font-extrabold tracking-tighter text-primary">
@@ -289,11 +303,11 @@ export default function ForgotPassword(): React.ReactElement {
             {/* Success Notification Alert */}
             {successMsg && step !== 4 && (
               <motion.div 
-                className="bg-emerald-50 text-emerald-800 p-4 rounded-xl flex items-start gap-2 text-sm border border-emerald-200"
+                className="bg-success/10 text-success p-4 rounded-xl flex items-start gap-2 text-sm border border-success/20"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <span className="material-symbols-outlined text-emerald-600 flex-shrink-0 mt-0.5">check_circle</span>
+                <span className="material-symbols-outlined text-success flex-shrink-0 mt-0.5">check_circle</span>
                 <span className="font-semibold">{successMsg}</span>
               </motion.div>
             )}
@@ -301,16 +315,16 @@ export default function ForgotPassword(): React.ReactElement {
             {/* Development Mock Otp Tip */}
             {isMockOtp && step === 2 && (
               <motion.div 
-                className="bg-blue-50 text-blue-800 p-4 rounded-xl flex flex-col gap-1.5 text-sm border border-blue-200"
+                className="bg-primary/10 text-primary p-4 rounded-xl flex flex-col gap-1.5 text-sm border border-primary/20"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-600">info</span>
+                  <span className="material-symbols-outlined text-primary">info</span>
                   <span className="font-bold">Môi trường Thử nghiệm (Dev Mode)</span>
                 </div>
-                <p className="text-blue-700 leading-relaxed font-medium">
-                  Vì bạn chưa thiết lập cấu hình SMTP thực tế, hệ thống đã in mã OTP 6 chữ số ra **Terminal (Console) của backend**. Hãy mở Terminal chạy backend để lấy mã nhập nhé!
+                <p className="text-primary/90 leading-relaxed font-medium">
+                  Vì bạn chưa thiết lập cấu hình SMTP thực tế, hệ thống đã in mã OTP 6 chữ số ra <strong>Terminal (Console) của backend</strong>. Hãy mở Terminal chạy backend để lấy mã nhập nhé!
                 </p>
               </motion.div>
             )}
@@ -345,7 +359,7 @@ export default function ForgotPassword(): React.ReactElement {
                           mail
                         </span>
                         <input
-                          className="w-full h-[56px] pl-12 pr-4 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
+                          className="w-full h-[56px] pl-12 pr-4 bg-surface-variant/40 border border-outline-variant/30 rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                           id="email"
                           name="email"
                           placeholder="ten@congty.vn"
@@ -359,7 +373,8 @@ export default function ForgotPassword(): React.ReactElement {
 
                     <div className="space-y-6">
                       <motion.button
-                        className="w-full h-[60px] bg-primary text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 btn-primary-hover font-bold transition-all duration-200"
+                        className="w-full h-[60px] text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 btn-primary-hover font-bold transition-all duration-200"
+                        style={{ background: 'var(--accent-gradient)' }}
                         type="submit"
                         disabled={submitting}
                         whileHover={{ scale: 1.02 }}
@@ -433,7 +448,7 @@ export default function ForgotPassword(): React.ReactElement {
                             onChange={(e) => handleOtpChange(e.target.value, index)}
                             onKeyDown={(e) => handleOtpKeyDown(e, index)}
                             onPaste={index === 0 ? handleOtpPaste : undefined}
-                            className="w-12 h-14 md:w-14 md:h-16 text-center text-2xl font-bold bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all text-on-surface"
+                             className="w-12 h-14 md:w-14 md:h-16 text-center text-2xl font-bold bg-surface-variant/40 border border-outline-variant/30 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all text-on-surface"
                           />
                         ))}
                       </div>
@@ -464,7 +479,8 @@ export default function ForgotPassword(): React.ReactElement {
 
                     <div className="space-y-6">
                       <motion.button
-                        className="w-full h-[60px] bg-primary text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 btn-primary-hover font-bold transition-all duration-200"
+                        className="w-full h-[60px] text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 btn-primary-hover font-bold transition-all duration-200"
+                        style={{ background: 'var(--accent-gradient)' }}
                         type="submit"
                         disabled={submitting}
                         whileHover={{ scale: 1.02 }}
@@ -535,7 +551,7 @@ export default function ForgotPassword(): React.ReactElement {
                           lock
                         </span>
                         <input
-                          className="w-full h-[56px] pl-12 pr-12 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
+                          className="w-full h-[56px] pl-12 pr-12 bg-surface-variant/40 border border-outline-variant/30 rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                           id="newPassword"
                           name="newPassword"
                           placeholder="Nhập mật khẩu mới"
@@ -549,7 +565,6 @@ export default function ForgotPassword(): React.ReactElement {
                           aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                           onClick={() => setShowNewPassword((v) => !v)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-outline hover:text-primary hover:bg-primary/8 transition-all"
-                          tabIndex={-1}
                         >
                           <span className="material-symbols-outlined text-[22px] select-none">
                             {showNewPassword ? 'visibility_off' : 'visibility'}
@@ -568,7 +583,7 @@ export default function ForgotPassword(): React.ReactElement {
                           lock_reset
                         </span>
                         <input
-                          className="w-full h-[56px] pl-12 pr-12 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
+                          className="w-full h-[56px] pl-12 pr-12 bg-surface-variant/40 border border-outline-variant/30 rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                           id="confirmPassword"
                           name="confirmPassword"
                           placeholder="Nhập lại mật khẩu"
@@ -582,7 +597,6 @@ export default function ForgotPassword(): React.ReactElement {
                           aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                           onClick={() => setShowConfirmPassword((v) => !v)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-outline hover:text-primary hover:bg-primary/8 transition-all"
-                          tabIndex={-1}
                         >
                           <span className="material-symbols-outlined text-[22px] select-none">
                             {showConfirmPassword ? 'visibility_off' : 'visibility'}
@@ -592,7 +606,7 @@ export default function ForgotPassword(): React.ReactElement {
                     </div>
 
                     {/* Backend validation check points display */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+                    <div className="bg-surface-variant/20 border border-outline-variant/30 p-4 rounded-xl space-y-3">
                       <div className="text-[12px] font-bold text-outline uppercase tracking-wider">
                         RÀNG BUỘC BẢO MẬT (BACKEND RULES)
                       </div>
@@ -628,9 +642,10 @@ export default function ForgotPassword(): React.ReactElement {
                       <motion.button
                         className={`w-full h-[60px] font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 font-bold transition-all duration-200 ${
                           isPasswordFormValid
-                            ? 'bg-primary text-on-primary btn-primary-hover'
+                            ? 'text-on-primary btn-primary-hover'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         }`}
+                        style={isPasswordFormValid ? { background: 'var(--accent-gradient)' } : {}}
                         type="submit"
                         disabled={submitting || !isPasswordFormValid}
                         whileHover={isPasswordFormValid ? { scale: 1.02 } : {}}
@@ -665,7 +680,7 @@ export default function ForgotPassword(): React.ReactElement {
                   transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                   className="text-center space-y-8"
                 >
-                  <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-100">
+                  <div className="w-20 h-20 bg-success/15 text-success rounded-full flex items-center justify-center mx-auto border border-success/30">
                     <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                       check_circle
                     </span>
@@ -682,7 +697,8 @@ export default function ForgotPassword(): React.ReactElement {
                   <div className="pt-4">
                     <motion.button
                       onClick={() => navigate('/login')}
-                      className="w-full h-[60px] bg-primary text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 btn-primary-hover font-bold transition-all duration-200 shadow-md shadow-primary/20"
+                      className="w-full h-[60px] text-on-primary font-title-lg text-title-lg rounded-xl flex items-center justify-center gap-3 btn-primary-hover font-bold transition-all duration-200 shadow-md shadow-primary/20"
+                      style={{ background: 'var(--accent-gradient)' }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >

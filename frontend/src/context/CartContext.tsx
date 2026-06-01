@@ -73,12 +73,26 @@ const defaultCartItems: CartItem[] = [
   }
 ];
 
+function isValidCartItem(item: any): boolean {
+  if (!item || typeof item !== 'object') return false;
+  if (typeof item.id !== 'string') return false;
+  if (typeof item.quantity !== 'number' || isNaN(item.quantity)) return false;
+  if (!item.product || typeof item.product !== 'object') return false;
+  if (typeof item.product.id !== 'string') return false;
+  if (typeof item.product.name !== 'string') return false;
+  if (typeof item.product.price !== 'number' || isNaN(item.product.price)) return false;
+  return true;
+}
+
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem('ecom_cart');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.every(isValidCartItem)) {
+          return parsed;
+        }
       } catch (e) {
         console.error('Lỗi khi đọc giỏ hàng từ localStorage:', e);
       }
@@ -87,12 +101,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const [promoCode, setPromoCode] = useState<string>(() => {
-    return localStorage.getItem('ecom_cart_promo') || '';
+    const stored = localStorage.getItem('ecom_cart_promo');
+    return typeof stored === 'string' ? stored : '';
   });
 
   const [discountPercentage, setDiscountPercentage] = useState<number>(() => {
     const pct = localStorage.getItem('ecom_cart_discount');
-    return pct ? parseFloat(pct) : 0;
+    if (pct) {
+      const parsed = parseFloat(pct);
+      if (Number.isFinite(parsed) && !isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    return 0;
   });
 
   useEffect(() => {
@@ -165,6 +186,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setDiscountPercentage(10); // 10% discount
       return true;
     }
+    setPromoCode('');
+    setDiscountPercentage(0);
     return false;
   };
 

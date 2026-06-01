@@ -8,6 +8,7 @@ function useAnimatedNumber(value: number) {
   const [display, setDisplay] = useState(value);
   useEffect(() => {
     let start: number | null = null;
+    let frameId: number;
     const from = display;
     const to = value;
     const duration = 500;
@@ -16,9 +17,14 @@ function useAnimatedNumber(value: number) {
       const progress = Math.min((timestamp - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplay(Math.round(from + (to - from) * eased));
-      if (progress < 1) requestAnimationFrame(step);
+      if (progress < 1) {
+        frameId = requestAnimationFrame(step);
+      }
     };
-    requestAnimationFrame(step);
+    frameId = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
   }, [value]);
   return display;
 }
@@ -72,9 +78,9 @@ const cardVariants = {
   hidden: { opacity: 0, y: 40, scale: 0.96 },
   visible: (i: number) => ({
     opacity: 1, y: 0, scale: 1,
-    transition: { delay: i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] as any }
+    transition: { delay: i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }
   }),
-  exit: { opacity: 0, x: 120, scale: 0.92, transition: { duration: 0.35, ease: [0.4, 0, 1, 1] as any } }
+  exit: { opacity: 0, x: 120, scale: 0.92, transition: { duration: 0.35, ease: [0.4, 0, 1, 1] as const } }
 };
 
 const containerVariants = {
@@ -181,7 +187,7 @@ export default function Cart() {
               animate={{ scale: 1, rotate: 0 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
               className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20"
-              style={{ background: 'linear-gradient(135deg, #004ac6, #2563eb)' }}
+              style={{ background: 'var(--accent-gradient)' }}
             >
               <span className="material-symbols-outlined text-white text-[22px]">shopping_cart</span>
             </motion.div>
@@ -309,7 +315,7 @@ export default function Cart() {
                       layout
                     >
                       <TiltCard className="relative overflow-hidden rounded-3xl border bg-white/60 backdrop-blur-sm shadow-sm hover:shadow-xl hover:shadow-primary/8 transition-all duration-500"
-                        style={{ borderColor: 'rgba(195,198,215,0.4)' } as any}
+                        style={{ borderColor: 'rgba(195,198,215,0.4)' }}
                       >
                         <div className="flex flex-col md:flex-row gap-0 rounded-3xl overflow-hidden">
                           {/* Product image */}
@@ -558,7 +564,7 @@ export default function Cart() {
                         style={{
                           background: checkoutSuccess
                             ? '#9ca3af'
-                            : 'linear-gradient(135deg, #004ac6 0%, #2563eb 50%, #3b82f6 100%)',
+                            : 'var(--accent-gradient)',
                           boxShadow: checkoutSuccess
                             ? 'none'
                             : '0 16px 40px -8px rgba(0,74,198,0.4)',
