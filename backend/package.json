@@ -21,7 +21,9 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "mssql": "^12.5.4",
-    "nodemailer": "^8.0.10"
+    "nodemailer": "^8.0.10",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

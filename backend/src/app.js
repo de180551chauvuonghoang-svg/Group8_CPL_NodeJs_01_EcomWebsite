@@ -5,6 +5,9 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger.js";
+
 // Routes imports
 import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
@@ -14,8 +17,10 @@ import { errorHandler } from "./middlewares/error.middleware.js";
 
 const app = express();
 
-// 1. Security Middlewares
-app.use(helmet());
+// 1. Security Middlewares - Disable CSP to allow Swagger UI resources to load
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
 
 // Configure CORS to allow our React frontend (typically runs on 5173 for Vite)
 app.use(
@@ -48,6 +53,9 @@ app.use("/api", limiter);
 
 // 3. Logging Middleware
 app.use(morgan("dev"));
+
+// Swagger Interactive API Docs Route
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 3. API Routes Setup
 app.get("/api/health", (req, res) => {

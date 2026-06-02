@@ -1,6 +1,8 @@
 packages:
   - 'backend'
   - 'frontend'
+allowBuilds:
+  '@scarf/scarf': set this to true or false
 minimumReleaseAgeExclude:
   - framer-motion@12.40.0
   - motion-dom@12.40.0
