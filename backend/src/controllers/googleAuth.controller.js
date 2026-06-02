@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 const ACCESS_TOKEN_TTL = "30m";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "734823516510-615m6j17mtnd74cfai29j8ug97hrn8r1.apps.googleusercontent.com");
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const googleLogin = async (req, res, next) => {
   try {
@@ -27,7 +27,7 @@ export const googleLogin = async (req, res, next) => {
     try {
       ticket = await client.verifyIdToken({
         idToken: idToken,
-        audience: process.env.GOOGLE_CLIENT_ID || "734823516510-615m6j17mtnd74cfai29j8ug97hrn8r1.apps.googleusercontent.com",
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
     } catch (verifyErr) {
       console.error("[🚨 Google Verification Failed]", verifyErr.message);
@@ -109,8 +109,7 @@ export const googleLogin = async (req, res, next) => {
     // 3. Tạo JWT Access Token & Refresh Token
     const accessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET ||
-        "01c62f4196e6488021229bb62f40a56ae126977b956c8274571150ad01eb434a5a28b2deefbdd4f248be407a51089e4813cadd6daa44fd6eb88d4d273dce71d6",
+      process.env.ACCESS_TOKEN_SECRET || "default_dev_secret_key_123456",
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 

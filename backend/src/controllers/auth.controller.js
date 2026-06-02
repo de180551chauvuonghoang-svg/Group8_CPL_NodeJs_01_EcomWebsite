@@ -96,8 +96,7 @@ export const login = async (req, res, next) => {
     //nếu khớp, tạo accessToken với Jwt
     const accessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET ||
-        "01c62f4196e6488021229bb62f40a56ae126977b956c8274571150ad01eb434a5a28b2deefbdd4f248be407a51089e4813cadd6daa44fd6eb88d4d273dce71d6",
+      process.env.ACCESS_TOKEN_SECRET || "default_dev_secret_key_123456",
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 
