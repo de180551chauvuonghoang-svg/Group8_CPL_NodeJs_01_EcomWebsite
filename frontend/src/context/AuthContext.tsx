@@ -84,8 +84,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   };
 
+  const updateUser = (updatedUser: User): void => {
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithGoogle, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithGoogle, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

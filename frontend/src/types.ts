@@ -3,6 +3,11 @@ export interface User {
   name: string;
   email: string;
   role?: string;
+  phone_number?: string;
+  avatar_url?: string;
+  bio?: string;
+  country?: string;
+  timezone?: string;
 }
 
 export interface Product {
@@ -24,4 +29,5 @@ export interface AuthContextType {
   loginWithGoogle: (idToken: string) => Promise<User>;
   register: (name: string, email: string, password: string, phone: string) => Promise<any>;
   logout: () => void;
+  updateUser: (updatedUser: User) => void;
 }

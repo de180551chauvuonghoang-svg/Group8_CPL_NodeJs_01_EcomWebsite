@@ -41,6 +41,9 @@ BEGIN
     password      VARCHAR(255)   NOT NULL,
     phone_number  VARCHAR(20)    NULL,
     avatar_url    VARCHAR(2083)  NULL,
+    bio           NVARCHAR(MAX)  NULL,
+    country       NVARCHAR(100)  NULL,
+    timezone      NVARCHAR(100)  NULL,
     role          VARCHAR(20)    NOT NULL DEFAULT 'customer',  -- 'customer' | 'admin' | 'staff'
     is_active     BIT            NOT NULL DEFAULT 1,
     created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),

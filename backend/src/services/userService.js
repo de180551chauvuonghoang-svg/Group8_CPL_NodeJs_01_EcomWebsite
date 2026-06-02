@@ -104,7 +104,7 @@ export const userService = {
       .request()
       .input("id", sql.VarChar, userId)
       .query(
-        "SELECT id, name, email, role, phone_number, avatar_url, is_active, created_at FROM Users WHERE id = @id",
+        "SELECT id, name, email, role, phone_number, avatar_url, bio, country, timezone, is_active, created_at FROM Users WHERE id = @id",
       );
 
     return result.recordset[0];
@@ -171,5 +171,49 @@ export const userService = {
       .input("avatar_url", sql.VarChar, avatarUrl)
       .query("UPDATE Users SET avatar_url = @avatar_url WHERE id = @id");
     return true;
+  },
+
+  // Update full profile information
+  updateProfile: async (userId, { name, phone_number, avatar_url, bio, country, timezone }) => {
+    if (!userId) {
+      throw new Error("User ID is required for updateProfile");
+    }
+
+    const payload = { name, phone_number, avatar_url, bio, country, timezone };
+    const hasAvatar = Object.prototype.hasOwnProperty.call(payload, 'avatar_url');
+
+    const req = pool.request()
+      .input("id", sql.VarChar, userId)
+      .input("name", sql.NVarChar, name)
+      .input("phone_number", sql.VarChar, phone_number || null)
+      .input("bio", sql.NVarChar, bio || null)
+      .input("country", sql.NVarChar, country || null)
+      .input("timezone", sql.NVarChar, timezone || null);
+
+    let queryStr = `
+      UPDATE Users 
+      SET name = @name, 
+          phone_number = @phone_number, 
+          bio = @bio,
+          country = @country,
+          timezone = @timezone,
+          updated_at = GETDATE()
+    `;
+
+    if (hasAvatar) {
+      req.input("avatar_url", sql.VarChar, avatar_url || null);
+      queryStr += `, avatar_url = @avatar_url`;
+    }
+
+    queryStr += ` WHERE id = @id`;
+
+    await req.query(queryStr);
+
+    // Get the freshly updated user record including new fields
+    const result = await pool.request()
+      .input("id", sql.VarChar, userId)
+      .query("SELECT id, name, email, role, phone_number, avatar_url, bio, country, timezone, is_active FROM Users WHERE id = @id");
+    
+    return result.recordset[0];
   },
 };
