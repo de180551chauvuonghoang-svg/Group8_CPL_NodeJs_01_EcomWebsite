@@ -39,6 +39,17 @@ const googleAuthLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const uploadRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP/user to 5 uploads per windowMs
+  message: {
+    status: "fail",
+    message: "Quá nhiều yêu cầu tải ảnh lên từ địa chỉ IP này. Vui lòng thử lại sau 15 phút.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const router = express.Router();
 
 // Public routes
@@ -52,7 +63,7 @@ router.post("/reset-password", resetPassword);
 // Protected routes (require authentication)
 router.get("/me", protect, getMe);
 router.put("/update-profile", protect, updateProfile);
-router.post("/upload", protect, uploadImage);
+router.post("/upload", protect, uploadRateLimiter, uploadImage);
 router.post("/logout", logout);
 router.post("/logout-everywhere", protect, logoutEverywhere);
 

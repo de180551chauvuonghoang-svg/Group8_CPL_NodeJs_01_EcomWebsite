@@ -37,6 +37,9 @@ export default function Profile() {
       setEmail(user.email || '');
       setPhone(user.phone_number || '');
       setAvatarUrl(user.avatar_url || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhH6M7taxWH1fH8jTLXjRXGASClEEtDR2CeN1In1IG7iwj64RxGDXue_IrlAPsCh41fcDvOX2I0Y5f1uqquYN8sj-82ClnMvoTNMJUiR0vgoRIFfmu1IL2QzFIFxE-VtnptRxpbOCPz8UXctOdWuPrMrdikuSt8hWHnj0pMEtwfY_X2BVQw9jHTwuIeohbkOIiyDL6muCfSyf8AQug9Zm-78TqSIfnEjCyMBV52LNRsPfZpq9fldsRuAOW9wiGUUhzBuM0rXTpKIXR');
+      setBio(user.bio || '');
+      setCountry(user.country || 'Việt Nam');
+      setTimezone(user.timezone || '(GMT+07:00) Bangkok, Hanoi, Jakarta');
     }
   }, [user, isAuthenticated, loading, navigate]);
 
@@ -69,8 +72,14 @@ export default function Profile() {
         } else {
           throw new Error('Không nhận được URL ảnh từ server.');
         }
-      } catch (err: any) {
-        setErrorMsg(err.message || 'Lỗi hệ thống khi tải ảnh lên server.');
+      } catch (err: unknown) {
+        let errMsg = 'Lỗi hệ thống khi tải ảnh lên server.';
+        if (err instanceof Error) {
+          errMsg = err.message;
+        } else if (typeof err === 'string') {
+          errMsg = err;
+        }
+        setErrorMsg(errMsg);
       } finally {
         setUploading(false);
       }
@@ -93,7 +102,7 @@ export default function Profile() {
     setErrorMsg('');
     
     try {
-      const updatedUser = await authService.updateProfile(name, phone, avatarUrl);
+      const updatedUser = await authService.updateProfile(name, phone, avatarUrl, bio, country, timezone);
       setSuccessMsg('Đã lưu các thay đổi hồ sơ thành công!');
       
       // Update global context state immediately
@@ -102,8 +111,14 @@ export default function Profile() {
       setTimeout(() => {
         setSuccessMsg('');
       }, 3000);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Cập nhật hồ sơ thất bại. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      let errMsg = 'Cập nhật hồ sơ thất bại. Vui lòng thử lại.';
+      if (err instanceof Error) {
+        errMsg = err.message;
+      } else if (typeof err === 'string') {
+        errMsg = err;
+      }
+      setErrorMsg(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -114,9 +129,10 @@ export default function Profile() {
   return (
     <div className="bg-background text-on-surface min-h-screen">
       <main className="pt-8 pb-16 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full flex flex-col lg:flex-row gap-gutter">
-        {/* Side Navigation Shell */}
+        
+        {/* Side Navigation Shell - Centralized glass style applied */}
         <aside className="w-full lg:w-64 flex-shrink-0">
-          <div className="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/30 shadow-sm space-y-2 sticky top-28 transition-all duration-300">
+          <div className="glass-panel p-6 shadow-xl space-y-2 sticky top-28 transition-all duration-300">
             <div className="mb-8 px-2">
               <h2 className="font-headline-md text-title-lg font-black text-primary">Cài đặt</h2>
               <p className="font-label-md text-xs text-on-surface-variant">Quản lý tài khoản của bạn</p>
@@ -158,32 +174,32 @@ export default function Profile() {
             </p>
           </div>
 
-          {/* Success Notification Alert */}
+          {/* Success Notification - Glassmorphism alert applied */}
           {successMsg && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-primary/5 text-primary p-4 rounded-xl flex items-center gap-2 text-sm border border-primary/20"
+              className="glass-alert glass-alert--success"
             >
-              <span className="material-symbols-outlined text-primary">check_circle</span>
+              <span className="material-symbols-outlined">check_circle</span>
               <span className="font-semibold">{successMsg}</span>
             </motion.div>
           )}
 
-          {/* Error Notification Alert */}
+          {/* Error Notification - Glassmorphism alert applied */}
           {errorMsg && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-error-container text-on-error-container p-4 rounded-xl flex items-center gap-2 text-sm border border-error/20"
+              className="glass-alert glass-alert--error"
             >
-              <span className="material-symbols-outlined text-error">error</span>
+              <span className="material-symbols-outlined">error</span>
               <span className="font-semibold">{errorMsg}</span>
             </motion.div>
           )}
 
-          {/* Profile Form Container */}
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl p-8 lg:p-12 shadow-sm">
+          {/* Profile Form Container - Centralized glass panel applied */}
+          <div className="glass-panel p-8 lg:p-12 shadow-xl">
             <form className="space-y-12" onSubmit={handleSubmit}>
               
               {/* Avatar Section */}
@@ -223,11 +239,11 @@ export default function Profile() {
                 
                 <div className="space-y-4 text-center md:text-left">
                   <h3 className="font-title-lg text-title-lg text-on-surface font-bold">Ảnh đại diện của bạn</h3>
-                  <p className="font-body-md text-xs text-on-surface-variant">PNG hoặc JPG. Tối đa 800px mỗi cạnh.</p>
+                  <p className="font-body-md text-xs text-on-surface-variant">PNG hoặc JPG. Tối đa 4MB.</p>
                   <div className="flex flex-wrap justify-center md:justify-start gap-4">
                     <button 
                       onClick={() => document.getElementById('avatar-file-input')?.click()}
-                      className="bg-primary text-white px-6 py-2 rounded-full font-bold text-xs hover:shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all flex items-center gap-2" 
+                      className="pill-button pill-button--accent" 
                       type="button"
                       disabled={uploading || submitting}
                     >
@@ -235,7 +251,7 @@ export default function Profile() {
                     </button>
                     <button 
                       onClick={handleRemoveAvatar}
-                      className="border border-outline text-on-surface-variant px-6 py-2 rounded-full font-bold text-xs hover:bg-surface-container-low transition-all" 
+                      className="pill-button" 
                       type="button"
                       disabled={uploading || submitting}
                     >
@@ -245,12 +261,12 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Personal Info Form */}
+              {/* Personal Info Form - Centralized glass inputs applied */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Họ và tên</label>
                   <input 
-                    className="w-full h-14 bg-surface-container-low border border-transparent rounded-2xl px-6 font-body-md focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
+                    className="glass-input" 
                     type="text" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -262,7 +278,7 @@ export default function Profile() {
                   <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Email (Đã xác minh)</label>
                   <div className="relative">
                     <input 
-                      className="w-full h-14 bg-surface-container-high/50 border border-transparent rounded-2xl px-6 font-body-md text-on-surface-variant cursor-not-allowed outline-none" 
+                      className="glass-input" 
                       disabled 
                       type="email" 
                       value={email}
@@ -274,7 +290,7 @@ export default function Profile() {
                 <div className="space-y-2">
                   <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Số điện thoại</label>
                   <input 
-                    className="w-full h-14 bg-surface-container-low border border-transparent rounded-2xl px-6 font-body-md focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
+                    className="glass-input" 
                     type="tel" 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -284,7 +300,7 @@ export default function Profile() {
                 <div className="space-y-2 md:col-span-2">
                   <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Tiểu sử</label>
                   <textarea 
-                    className="w-full bg-surface-container-low border border-transparent rounded-2xl p-6 font-body-md focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all resize-none outline-none" 
+                    className="glass-input h-32 py-4 resize-none" 
                     placeholder="Viết một chút về bản thân bạn..." 
                     rows={4}
                     value={bio}
@@ -293,7 +309,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Location Section */}
+              {/* Location Section - Centralized glass inputs applied */}
               <div className="space-y-6 pt-6">
                 <h3 className="font-title-lg text-title-lg text-on-surface border-l-4 border-primary pl-4 font-bold">Vị trí &amp; Thời gian</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -302,7 +318,7 @@ export default function Profile() {
                     <select 
                       value={country}
                       onChange={(e) => setCountry(e.target.value)}
-                      className="w-full h-14 bg-surface-container-low border border-transparent rounded-2xl px-6 font-body-md focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all appearance-none outline-none"
+                      className="glass-input appearance-none"
                     >
                       <option>Việt Nam</option>
                       <option>Hoa Kỳ</option>
@@ -316,7 +332,7 @@ export default function Profile() {
                     <select 
                       value={timezone}
                       onChange={(e) => setTimezone(e.target.value)}
-                      className="w-full h-14 bg-surface-container-low border border-transparent rounded-2xl px-6 font-body-md focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all appearance-none outline-none"
+                      className="glass-input appearance-none"
                     >
                       <option>(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
                       <option>(GMT+08:00) Singapore, Taipei</option>
@@ -326,17 +342,17 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Action Footer */}
+              {/* Action Footer - Pill buttons with active effects applied */}
               <div className="pt-12 border-t border-outline-variant/30 flex flex-col sm:flex-row justify-end gap-4">
                 <button 
                   onClick={() => navigate('/')}
-                  className="order-2 sm:order-1 px-10 py-4 border border-outline text-on-surface-variant rounded-full font-bold text-xs hover:bg-surface-container-low transition-all active:scale-95" 
+                  className="order-2 sm:order-1 pill-button" 
                   type="button"
                 >
                   Hủy
                 </button>
                 <button 
-                  className="order-1 sm:order-2 px-10 py-4 bg-primary text-white rounded-full font-bold text-xs hover:shadow-[0_8px_25px_rgba(0,74,198,0.4)] transition-all active:scale-95 flex items-center gap-2 justify-center" 
+                  className="order-1 sm:order-2 pill-button pill-button--accent" 
                   type="submit"
                   disabled={submitting}
                 >

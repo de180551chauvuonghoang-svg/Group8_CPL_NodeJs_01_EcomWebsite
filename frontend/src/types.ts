@@ -5,6 +5,9 @@ export interface User {
   role?: string;
   phone_number?: string;
   avatar_url?: string;
+  bio?: string;
+  country?: string;
+  timezone?: string;
 }
 
 export interface Product {

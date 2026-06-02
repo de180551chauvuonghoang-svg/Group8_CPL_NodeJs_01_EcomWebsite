@@ -73,12 +73,29 @@ export const authService = {
     return await API.post<AuthResponse>('/auth/reset-password', { email, otp, newPassword }) as any;
   },
 
-  updateProfile: async (name: string, phone: string, avatarUrl?: string): Promise<User> => {
-    const response: any = await API.put('/auth/update-profile', { name, phone_number: phone, avatar_url: avatarUrl });
-    const user = response.data?.user || response.user || response;
-    if (user) {
-      localStorage.setItem('ecom_user', JSON.stringify(user));
+  updateProfile: async (
+    name: string, 
+    phone: string, 
+    avatarUrl?: string, 
+    bio?: string, 
+    country?: string, 
+    timezone?: string
+  ): Promise<User> => {
+    const response = await API.put<{ status: string; data: { user: User } }>('/auth/update-profile', { 
+      name, 
+      phone_number: phone, 
+      avatar_url: avatarUrl,
+      bio,
+      country,
+      timezone
+    }) as any;
+
+    const user = response.data?.user;
+    if (!user || !user.id || !user.name || !user.email) {
+      throw new Error("Không nhận được dữ liệu phản hồi người dùng hợp lệ từ máy chủ.");
     }
+
+    localStorage.setItem('ecom_user', JSON.stringify(user));
     return user;
   },
 

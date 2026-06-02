@@ -306,6 +306,9 @@ export const getMe = async (req, res, next) => {
           email: user.email,
           phone_number: user.phone_number,
           avatar_url: user.avatar_url,
+          bio: user.bio,
+          country: user.country,
+          timezone: user.timezone,
           role: user.role,
           is_active: user.is_active,
           created_at: user.created_at,
@@ -331,7 +334,7 @@ export const updateProfile = async (req, res, next) => {
       });
     }
 
-    const { name, phone_number, avatar_url } = req.body;
+    const { name, phone_number, avatar_url, bio, country, timezone } = req.body;
     if (!name || name.trim() === "") {
       return res.status(400).json({
         status: "fail",
@@ -339,7 +342,7 @@ export const updateProfile = async (req, res, next) => {
       });
     }
 
-    const updatedUser = await userService.updateProfile(userId, { name, phone_number, avatar_url });
+    const updatedUser = await userService.updateProfile(userId, { name, phone_number, avatar_url, bio, country, timezone });
 
     res.status(200).json({
       status: "success",
@@ -351,6 +354,9 @@ export const updateProfile = async (req, res, next) => {
           email: updatedUser.email,
           phone_number: updatedUser.phone_number,
           avatar_url: updatedUser.avatar_url,
+          bio: updatedUser.bio,
+          country: updatedUser.country,
+          timezone: updatedUser.timezone,
           role: updatedUser.role,
         },
       },

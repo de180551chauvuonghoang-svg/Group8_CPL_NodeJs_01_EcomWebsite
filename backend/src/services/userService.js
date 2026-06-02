@@ -104,7 +104,7 @@ export const userService = {
       .request()
       .input("id", sql.VarChar, userId)
       .query(
-        "SELECT id, name, email, role, phone_number, avatar_url, is_active, created_at FROM Users WHERE id = @id",
+        "SELECT id, name, email, role, phone_number, avatar_url, bio, country, timezone, is_active, created_at FROM Users WHERE id = @id",
       );
 
     return result.recordset[0];
@@ -174,28 +174,45 @@ export const userService = {
   },
 
   // Update full profile information
-  updateProfile: async (userId, { name, phone_number, avatar_url }) => {
+  updateProfile: async (userId, { name, phone_number, avatar_url, bio, country, timezone }) => {
     if (!userId) {
       throw new Error("User ID is required for updateProfile");
     }
-    await pool.request()
+
+    const payload = { name, phone_number, avatar_url, bio, country, timezone };
+    const hasAvatar = Object.prototype.hasOwnProperty.call(payload, 'avatar_url');
+
+    const req = pool.request()
       .input("id", sql.VarChar, userId)
       .input("name", sql.NVarChar, name)
       .input("phone_number", sql.VarChar, phone_number || null)
-      .input("avatar_url", sql.VarChar, avatar_url || null)
-      .query(`
-        UPDATE Users 
-        SET name = @name, 
-            phone_number = @phone_number, 
-            avatar_url = COALESCE(@avatar_url, avatar_url),
-            updated_at = GETDATE() 
-        WHERE id = @id
-      `);
+      .input("bio", sql.NVarChar, bio || null)
+      .input("country", sql.NVarChar, country || null)
+      .input("timezone", sql.NVarChar, timezone || null);
 
-    // Get the freshly updated user record
+    let queryStr = `
+      UPDATE Users 
+      SET name = @name, 
+          phone_number = @phone_number, 
+          bio = @bio,
+          country = @country,
+          timezone = @timezone,
+          updated_at = GETDATE()
+    `;
+
+    if (hasAvatar) {
+      req.input("avatar_url", sql.VarChar, avatar_url || null);
+      queryStr += `, avatar_url = @avatar_url`;
+    }
+
+    queryStr += ` WHERE id = @id`;
+
+    await req.query(queryStr);
+
+    // Get the freshly updated user record including new fields
     const result = await pool.request()
       .input("id", sql.VarChar, userId)
-      .query("SELECT id, name, email, role, phone_number, avatar_url, is_active FROM Users WHERE id = @id");
+      .query("SELECT id, name, email, role, phone_number, avatar_url, bio, country, timezone, is_active FROM Users WHERE id = @id");
     
     return result.recordset[0];
   },
