@@ -184,15 +184,23 @@ export default function Header() {
         <div className="flex items-center gap-4">
           {isAuthenticated && user ? (
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-md">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
+              <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity" title="Chỉnh sửa hồ sơ">
+                {user.avatar_url ? (
+                  <img 
+                    src={user.avatar_url} 
+                    alt={user.name} 
+                    className="w-9 h-9 rounded-full object-cover shadow-md border border-primary/20"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-md">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="text-left hidden lg:block">
                   <p className="text-body-md font-bold leading-tight">{user.name}</p>
                   <p className="text-xs text-on-surface-variant leading-none">{user.role || 'customer'}</p>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 text-error font-bold border border-error/30 rounded-lg hover:bg-error/5 transition-all text-sm"

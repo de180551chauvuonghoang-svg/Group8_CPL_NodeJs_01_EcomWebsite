@@ -318,6 +318,49 @@ export const getMe = async (req, res, next) => {
 };
 
 /**
+ * Update User Profile
+ */
+export const updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "fail",
+        message: "User not authenticated",
+      });
+    }
+
+    const { name, phone_number, avatar_url } = req.body;
+    if (!name || name.trim() === "") {
+      return res.status(400).json({
+        status: "fail",
+        message: "Vui lòng cung cấp Họ và tên",
+      });
+    }
+
+    const updatedUser = await userService.updateProfile(userId, { name, phone_number, avatar_url });
+
+    res.status(200).json({
+      status: "success",
+      message: "Cập nhật hồ sơ thành công",
+      data: {
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          phone_number: updatedUser.phone_number,
+          avatar_url: updatedUser.avatar_url,
+          role: updatedUser.role,
+        },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Request password reset OTP
  */
 export const forgotPassword = async (req, res, next) => {

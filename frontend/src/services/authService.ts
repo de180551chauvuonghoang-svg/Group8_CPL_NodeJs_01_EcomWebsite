@@ -71,5 +71,20 @@ export const authService = {
 
   resetPassword: async (email: string, otp: string, newPassword: string): Promise<AuthResponse> => {
     return await API.post<AuthResponse>('/auth/reset-password', { email, otp, newPassword }) as any;
+  },
+
+  updateProfile: async (name: string, phone: string, avatarUrl?: string): Promise<User> => {
+    const response: any = await API.put('/auth/update-profile', { name, phone_number: phone, avatar_url: avatarUrl });
+    const user = response.data?.user || response.user || response;
+    if (user) {
+      localStorage.setItem('ecom_user', JSON.stringify(user));
+    }
+    return user;
+  },
+
+  uploadAvatar: async (base64Image: string): Promise<string> => {
+    const response: any = await API.post('/auth/upload', { image: base64Image });
+    const data = response.data || response;
+    return data.secure_url;
   }
 };

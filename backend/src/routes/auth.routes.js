@@ -9,7 +9,9 @@ import {
   forgotPassword,
   verifyOTP,
   resetPassword,
+  updateProfile,
 } from "../controllers/auth.controller.js";
+import { uploadImage } from "../controllers/upload.controller.js";
 import rateLimit from "express-rate-limit";
 import { protect } from "../middlewares/auth.middleware.js";
 import { googleLogin } from "../controllers/googleAuth.controller.js";
@@ -49,6 +51,8 @@ router.post("/reset-password", resetPassword);
 
 // Protected routes (require authentication)
 router.get("/me", protect, getMe);
+router.put("/update-profile", protect, updateProfile);
+router.post("/upload", protect, uploadImage);
 router.post("/logout", logout);
 router.post("/logout-everywhere", protect, logoutEverywhere);
 

@@ -172,4 +172,31 @@ export const userService = {
       .query("UPDATE Users SET avatar_url = @avatar_url WHERE id = @id");
     return true;
   },
+
+  // Update full profile information
+  updateProfile: async (userId, { name, phone_number, avatar_url }) => {
+    if (!userId) {
+      throw new Error("User ID is required for updateProfile");
+    }
+    await pool.request()
+      .input("id", sql.VarChar, userId)
+      .input("name", sql.NVarChar, name)
+      .input("phone_number", sql.VarChar, phone_number || null)
+      .input("avatar_url", sql.VarChar, avatar_url || null)
+      .query(`
+        UPDATE Users 
+        SET name = @name, 
+            phone_number = @phone_number, 
+            avatar_url = COALESCE(@avatar_url, avatar_url),
+            updated_at = GETDATE() 
+        WHERE id = @id
+      `);
+
+    // Get the freshly updated user record
+    const result = await pool.request()
+      .input("id", sql.VarChar, userId)
+      .query("SELECT id, name, email, role, phone_number, avatar_url, is_active FROM Users WHERE id = @id");
+    
+    return result.recordset[0];
+  },
 };
