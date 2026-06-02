@@ -457,7 +457,29 @@ BEGIN
 END
 GO
 
+-- ============================================================
+--  GROUP 1C: OTPS (For forgot password flow)
+-- ============================================================
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Otps')
+BEGIN
+  CREATE TABLE Otps (
+    id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+    email         VARCHAR(150)   NOT NULL,
+    otp           VARCHAR(10)    NOT NULL,
+    expires_at    DATETIME2      NOT NULL,
+    is_verified   BIT            NOT NULL DEFAULT 0,
+    attempts      INT            NOT NULL DEFAULT 0,
+    locked_until  DATETIME2      NULL,
+    created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+  );
+  CREATE INDEX IX_Otps_email ON Otps(email);
+  CREATE INDEX IX_Otps_expires_at ON Otps(expires_at);
+  PRINT '[✓] Table Otps created';
+END
+GO
+
 PRINT '';
 PRINT '============================================================';
-PRINT '  ✅  E-Com FPT Schema applied successfully! (24 tables)';
+PRINT '  ✅  E-Com FPT Schema applied successfully! (25 tables)';
 PRINT '============================================================';

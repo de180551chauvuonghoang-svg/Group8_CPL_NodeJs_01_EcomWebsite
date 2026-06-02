@@ -1,6 +1,7 @@
 import { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 // Logo URL - use local favicon.png
 const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined')
@@ -9,6 +10,7 @@ const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !=
 
 
 export default function Header() {
+  const { cartItems } = useCart();
   const auth = useContext(AuthContext);
   if (!auth) {
     throw new Error('Header must be used within an AuthProvider');
@@ -163,6 +165,20 @@ export default function Header() {
             />
           </div>
         </div>
+
+        {/* Cart Icon Button */}
+        <Link
+          to="/cart"
+          className="relative p-2 text-primary hover:bg-primary/5 active:scale-95 transition-all font-bold rounded-full flex items-center justify-center mr-2"
+          title="Giỏ hàng"
+        >
+          <span className="material-symbols-outlined text-[26px]">shopping_cart</span>
+          {cartItems.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-md">
+              {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+            </span>
+          )}
+        </Link>
 
         {/* Authentication Buttons */}
         <div className="flex items-center gap-4">

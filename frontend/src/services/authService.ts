@@ -6,6 +6,13 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface AuthResponse {
+  success?: boolean;
+  status?: string;
+  message?: string;
+  data?: Record<string, any>;
+}
+
 export const authService = {
   login: async (name: string, password: string): Promise<LoginResponse> => {
     const response: any = await API.post('/auth/login', { name, password });
@@ -40,5 +47,17 @@ export const authService = {
       localStorage.setItem('ecom_user', JSON.stringify(user));
     }
     return user;
+  },
+
+  forgotPassword: async (email: string): Promise<AuthResponse> => {
+    return await API.post<AuthResponse>('/auth/forgot-password', { email }) as any;
+  },
+
+  verifyOtp: async (email: string, otp: string): Promise<AuthResponse> => {
+    return await API.post<AuthResponse>('/auth/verify-otp', { email, otp }) as any;
+  },
+
+  resetPassword: async (email: string, otp: string, newPassword: string): Promise<AuthResponse> => {
+    return await API.post<AuthResponse>('/auth/reset-password', { email, otp, newPassword }) as any;
   }
 };

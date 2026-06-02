@@ -6,14 +6,32 @@ import {
   logoutEverywhere,
   refreshAccessToken,
   getMe,
+  forgotPassword,
+  verifyOTP,
+  resetPassword,
 } from "../controllers/auth.controller.js";
+import rateLimit from "express-rate-limit";
 import { protect } from "../middlewares/auth.middleware.js";
+
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: {
+    status: "fail",
+    message: "Quá nhiều yêu cầu xác thực OTP từ địa chỉ IP này. Vui lòng thử lại sau 15 phút.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = express.Router();
 
 // Public routes
 router.post("/signup", signUp);
 router.post("/login", login);
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-otp", otpLimiter, verifyOTP);
+router.post("/reset-password", resetPassword);
 
 // Protected routes (require authentication)
 router.get("/me", protect, getMe);

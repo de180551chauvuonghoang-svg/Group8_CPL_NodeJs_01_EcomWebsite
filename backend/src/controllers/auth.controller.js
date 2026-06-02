@@ -1,5 +1,6 @@
 import { userService } from "../services/userService.js";
 import { sessionService } from "../services/sessionService.js";
+import { otpService } from "../services/otpService.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -305,6 +306,101 @@ export const getMe = async (req, res, next) => {
           created_at: user.created_at,
         },
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Request password reset OTP
+ */
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Vui lòng cung cấp địa chỉ email.",
+      });
+    }
+
+    // Check if user exists
+    const user = await userService.findByEmail(email);
+    let mock = false;
+    
+    if (user) {
+      // Generate and send OTP
+      const result = await otpService.createOTP(email);
+      mock = result.mock;
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: "Mã OTP khôi phục mật khẩu đã được gửi đến email của bạn nếu tài khoản tồn tại.",
+      data: {
+        mock: mock,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Verify OTP code
+ */
+export const verifyOTP = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Vui lòng cung cấp email và mã OTP.",
+      });
+    }
+
+    const result = await otpService.verifyOTP(email, otp);
+    if (!result.success) {
+      return res.status(400).json({
+        status: "fail",
+        message: result.message,
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Reset password using OTP
+ */
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Vui lòng cung cấp đầy đủ thông tin: email, mã OTP và mật khẩu mới.",
+      });
+    }
+
+    const result = await otpService.resetPassword(email, otp, newPassword);
+    if (!result.success) {
+      return res.status(400).json({
+        status: "fail",
+        message: result.message,
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: result.message,
     });
   } catch (err) {
     next(err);
