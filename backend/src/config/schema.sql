@@ -5,6 +5,25 @@
 --  When you alter a table, update BOTH this file AND initDb.js.
 --  Run this script in SSMS against the [ecomfpt] database.
 -- ============================================================
+--
+-- ============================================================
+--  MIGRATION GUIDE: DECIMAL(18,2) TO BIGINT FOR CURRENCY FIELDS
+-- ============================================================
+-- If you have a legacy DB with DECIMAL(18,2) columns and want to safely migrate them to BIGINT:
+--
+-- 1. Backup your database before performing any DDL changes!
+-- 
+-- 2. RUN MIGRATION:
+--    ALTER TABLE Products ALTER COLUMN base_price BIGINT NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN price BIGINT NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN compare_price BIGINT NULL;
+--
+-- 3. ROLLBACK MIGRATION:
+--    ALTER TABLE Products ALTER COLUMN base_price DECIMAL(18,2) NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN price DECIMAL(18,2) NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN compare_price DECIMAL(18,2) NULL;
+-- ============================================================
+
 
 USE [ecomfpt];
 GO

@@ -1,10 +1,18 @@
 import { OAuth2Client } from "google-auth-library";
 import { userService } from "../services/userService.js";
 import { sessionService } from "../services/sessionService.js";
-import { sql, pool } from "../config/db.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+
+// Fail-fast validations at startup
+if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID.trim() === "") {
+  throw new Error("[🚨 CRITICAL STARTUP ERROR] Missing environment variable: GOOGLE_CLIENT_ID is required for OAuth2Client.");
+}
+
+if (!process.env.ACCESS_TOKEN_SECRET || process.env.ACCESS_TOKEN_SECRET.trim() === "") {
+  throw new Error("[🚨 CRITICAL STARTUP ERROR] Missing environment variable: ACCESS_TOKEN_SECRET is required to sign secure tokens.");
+}
 
 const ACCESS_TOKEN_TTL = "30m";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày
@@ -80,21 +88,15 @@ export const googleLogin = async (req, res, next) => {
       // Lấy lại đầy đủ thông tin user vừa tạo
       user = await userService.findById(newUser.id);
 
-      // Cập nhật ảnh đại diện từ Google (nếu có)
+      // Cập nhật ảnh đại diện từ Google (nếu có) thông qua Service
       if (picture && user) {
-        await pool.request()
-          .input("id", sql.VarChar, user.id)
-          .input("avatar_url", sql.VarChar, picture)
-          .query("UPDATE Users SET avatar_url = @avatar_url WHERE id = @id");
+        await userService.updateAvatar(user.id, picture);
         user.avatar_url = picture;
       }
     } else {
-      // Nếu user đã tồn tại nhưng chưa có avatar, ta cập nhật từ Google
+      // Nếu user đã tồn tại nhưng chưa có avatar, ta cập nhật từ Google thông qua Service
       if (picture && !user.avatar_url) {
-        await pool.request()
-          .input("id", sql.VarChar, user.id)
-          .input("avatar_url", sql.VarChar, picture)
-          .query("UPDATE Users SET avatar_url = @avatar_url WHERE id = @id");
+        await userService.updateAvatar(user.id, picture);
         user.avatar_url = picture;
       }
     }
@@ -109,7 +111,7 @@ export const googleLogin = async (req, res, next) => {
     // 3. Tạo JWT Access Token & Refresh Token
     const accessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET || "default_dev_secret_key_123456",
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 
@@ -126,6 +128,7 @@ export const googleLogin = async (req, res, next) => {
       maxAge: REFRESH_TOKEN_TTL,
     });
 
+    // An toàn tuyệt đối: Không trả về refreshToken trong body phản hồi JSON!
     res.status(200).json({
       status: "success",
       message: "Đăng nhập Google thành công!",
@@ -138,7 +141,6 @@ export const googleLogin = async (req, res, next) => {
           role: user.role || "customer",
         },
         accessToken: accessToken,
-        refreshToken: refreshToken,
       },
     });
 

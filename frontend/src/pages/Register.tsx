@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 export default function Register() {
   const auth = useContext(AuthContext);
@@ -26,41 +27,21 @@ export default function Register() {
     }
   }, [isAuthenticated, navigate]);
 
-  useEffect(() => {
-    const initGoogle = () => {
-      if ((window as any).google?.accounts?.id) {
-        (window as any).google.accounts.id.initialize({
-          client_id: "734823516510-615m6j17mtnd74cfai29j8ug97hrn8r1.apps.googleusercontent.com",
-          callback: async (response: any) => {
-            try {
-              setErrorMsg('');
-              await loginWithGoogle(response.credential);
-              navigate('/');
-            } catch (err: any) {
-              setErrorMsg(err.response?.data?.message || err.message || 'Đăng nhập Google thất bại');
-            }
-          }
-        });
-
-        const btnElement = document.getElementById("google-login-btn");
-        if (btnElement) {
-          (window as any).google.accounts.id.renderButton(
-            btnElement,
-            { 
-              theme: "outline", 
-              size: "large", 
-              width: btnElement.clientWidth || 200,
-              text: "signup_with",
-              shape: "rectangular"
-            }
-          );
-        }
+  useGoogleAuth({
+    onSuccess: async (credential) => {
+      try {
+        setErrorMsg('');
+        await loginWithGoogle(credential);
+        navigate('/');
+      } catch (err: any) {
+        setErrorMsg(err.response?.data?.message || err.message || 'Đăng nhập Google thất bại');
       }
-    };
-
-    const timer = setTimeout(initGoogle, 500);
-    return () => clearTimeout(timer);
-  }, [loginWithGoogle, navigate]);
+    },
+    onError: (error) => {
+      setErrorMsg(error);
+    },
+    buttonElementId: 'google-login-btn'
+  });
 
   // Motion values for high-performance parallax mouse movement on the hero image
   const mouseX = useMotionValue(0);

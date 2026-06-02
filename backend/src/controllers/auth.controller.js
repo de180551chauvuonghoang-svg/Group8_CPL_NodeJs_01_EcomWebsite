@@ -94,9 +94,12 @@ export const login = async (req, res, next) => {
     }
 
     //nếu khớp, tạo accessToken với Jwt
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
+    }
     const accessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET || "default_dev_secret_key_123456",
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 
@@ -171,9 +174,12 @@ export const refreshAccessToken = async (req, res, next) => {
     }
 
     // Tạo access token mới
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
+    }
     const newAccessToken = jwt.sign(
       { userID: user.id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET || "access_secret_key_dev",
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 

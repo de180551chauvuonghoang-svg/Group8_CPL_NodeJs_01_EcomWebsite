@@ -26,12 +26,23 @@ const otpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const googleAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // Limit each IP to 15 requests per windowMs
+  message: {
+    status: "fail",
+    message: "Quá nhiều yêu cầu đăng nhập Google từ địa chỉ IP này. Vui lòng thử lại sau 15 phút.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const router = express.Router();
 
 // Public routes
 router.post("/signup", signUp);
 router.post("/login", login);
-router.post("/google", googleLogin);
+router.post("/google", googleAuthLimiter, googleLogin);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-otp", otpLimiter, verifyOTP);
 router.post("/reset-password", resetPassword);

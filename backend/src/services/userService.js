@@ -160,4 +160,16 @@ export const userService = {
       role,
     };
   },
+
+  // Update user avatar
+  updateAvatar: async (userId, avatarUrl) => {
+    if (!userId || !avatarUrl) {
+      throw new Error("User ID and Avatar URL are required for updateAvatar");
+    }
+    await pool.request()
+      .input("id", sql.VarChar, userId)
+      .input("avatar_url", sql.VarChar, avatarUrl)
+      .query("UPDATE Users SET avatar_url = @avatar_url WHERE id = @id");
+    return true;
+  },
 };

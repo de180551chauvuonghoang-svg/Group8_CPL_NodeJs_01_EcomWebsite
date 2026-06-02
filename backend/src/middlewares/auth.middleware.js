@@ -15,9 +15,12 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
+    }
     const decodedUser = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET || "default_dev_secret_key_123456",
+      process.env.ACCESS_TOKEN_SECRET,
     );
 
     // Tìm user

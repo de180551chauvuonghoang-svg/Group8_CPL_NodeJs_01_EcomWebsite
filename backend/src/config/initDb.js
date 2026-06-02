@@ -975,7 +975,7 @@ const seedProducts = async (pool, sql) => {
         .input("slug", sql.VarChar, p.slug)
         .input("desc", sql.NVarChar, p.desc)
         .input("shortDesc", sql.NVarChar, p.short_desc)
-        .input("basePrice", sql.Decimal(18, 2), p.base_price)
+        .input("basePrice", sql.BigInt, Math.round(p.base_price))
         .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured)
                 VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1)`);
 
@@ -1001,8 +1001,8 @@ const seedProducts = async (pool, sql) => {
           .input("id", sql.VarChar, v.id)
           .input("productId", sql.VarChar, p.id)
           .input("sku", sql.VarChar, v.sku)
-          .input("price", sql.Decimal(18, 2), v.price)
-          .input("compare", sql.Decimal(18, 2), v.compare)
+          .input("price", sql.BigInt, Math.round(v.price))
+          .input("compare", sql.BigInt, v.compare ? Math.round(v.compare) : null)
           .input("stock", sql.Int, v.stock)
           .input("imageUrl", sql.VarChar, v.image)
           .query(`INSERT INTO ProductVariants (id,product_id,sku,price,compare_price,stock_qty,image_url)
