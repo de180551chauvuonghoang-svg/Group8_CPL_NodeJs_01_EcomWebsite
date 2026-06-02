@@ -12,6 +12,8 @@ import {
 } from "../controllers/auth.controller.js";
 import rateLimit from "express-rate-limit";
 import { protect } from "../middlewares/auth.middleware.js";
+import { googleLogin } from "../controllers/googleAuth.controller.js";
+
 
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -29,6 +31,7 @@ const router = express.Router();
 // Public routes
 router.post("/signup", signUp);
 router.post("/login", login);
+router.post("/google", googleLogin);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-otp", otpLimiter, verifyOTP);
 router.post("/reset-password", resetPassword);

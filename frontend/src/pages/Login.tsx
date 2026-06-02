@@ -9,18 +9,55 @@ export default function Login() {
   if (!auth) {
     throw new Error('Login must be used within an AuthProvider');
   }
-  const { login, isAuthenticated, loading } = auth;
+  const { login, loginWithGoogle, isAuthenticated, loading } = auth;
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    const initGoogle = () => {
+      if ((window as any).google?.accounts?.id) {
+        (window as any).google.accounts.id.initialize({
+          client_id: "734823516510-615m6j17mtnd74cfai29j8ug97hrn8r1.apps.googleusercontent.com",
+          callback: async (response: any) => {
+            try {
+              setErrorMsg('');
+              await loginWithGoogle(response.credential);
+              navigate('/');
+            } catch (err: any) {
+              setErrorMsg(err.response?.data?.message || err.message || 'Đăng nhập Google thất bại');
+            }
+          }
+        });
+
+        const btnElement = document.getElementById("google-login-btn");
+        if (btnElement) {
+          (window as any).google.accounts.id.renderButton(
+            btnElement,
+            { 
+              theme: "outline", 
+              size: "large", 
+              width: btnElement.clientWidth || 200,
+              text: "signin_with",
+              shape: "rectangular"
+            }
+          );
+        }
+      }
+    };
+
+    const timer = setTimeout(initGoogle, 500);
+    return () => clearTimeout(timer);
+  }, [loginWithGoogle, navigate]);
 
   useEffect(() => {
     (window as any).handleQuickLogin = handleQuickLogin;
@@ -218,19 +255,7 @@ export default function Login() {
 
             {/* Social Logins */}
             <div className="grid grid-cols-2 gap-4">
-              <motion.button
-                type="button"
-                className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <img
-                  alt="Google"
-                  className="w-6 h-6"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-sElvOzl0O8c2NzCmfIJ_UAUpIG0cBFlaaTgvq4BXwF0uxm6N2yZfpFpOF_BLUEO1iFLzjXzWu6rH1He4pYdlFvbiNM_FTxiCkUlrGUncQ6gxOyQ7ZBaP9bu_zErFJkJwRkAGE0XTiFnKAHSZ9hIbuAd0t2MmV5xXiLfylRpCm58w85S0KG2FQmx7ePD9qrEU1bWpBheYCYudvkEOOl2CMYLynvbi9VF1_pSYqsBSMca_vwgoS8Qi3D64AeLo7TcRijkzFXYp9AJY"
-                />
-                <span className="font-label-md text-label-md text-on-surface">Google</span>
-              </motion.button>
+              <div id="google-login-btn" className="w-full flex justify-center h-[56px] items-center overflow-hidden" />
               <motion.button
                 type="button"
                 className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"

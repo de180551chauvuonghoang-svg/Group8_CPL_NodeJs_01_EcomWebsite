@@ -56,6 +56,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const loginWithGoogle = async (idToken: string): Promise<User> => {
+    setLoading(true);
+    try {
+      const data = await authService.loginWithGoogle(idToken);
+      setUser(data.user);
+      return data.user;
+    } catch (error) {
+      setUser(null);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const register = async (name: string, email: string, password: string, phone: string): Promise<any> => {
     setLoading(true);
     try {
@@ -71,7 +85,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
