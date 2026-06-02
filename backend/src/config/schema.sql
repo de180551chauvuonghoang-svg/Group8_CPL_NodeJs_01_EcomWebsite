@@ -5,6 +5,25 @@
 --  When you alter a table, update BOTH this file AND initDb.js.
 --  Run this script in SSMS against the [ecomfpt] database.
 -- ============================================================
+--
+-- ============================================================
+--  MIGRATION GUIDE: DECIMAL(18,2) TO BIGINT FOR CURRENCY FIELDS
+-- ============================================================
+-- If you have a legacy DB with DECIMAL(18,2) columns and want to safely migrate them to BIGINT:
+--
+-- 1. Backup your database before performing any DDL changes!
+-- 
+-- 2. RUN MIGRATION:
+--    ALTER TABLE Products ALTER COLUMN base_price BIGINT NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN price BIGINT NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN compare_price BIGINT NULL;
+--
+-- 3. ROLLBACK MIGRATION:
+--    ALTER TABLE Products ALTER COLUMN base_price DECIMAL(18,2) NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN price DECIMAL(18,2) NOT NULL;
+--    ALTER TABLE ProductVariants ALTER COLUMN compare_price DECIMAL(18,2) NULL;
+-- ============================================================
+
 
 USE [ecomfpt];
 GO
@@ -83,7 +102,7 @@ BEGIN
     slug            VARCHAR(300)   NOT NULL UNIQUE,
     description     NVARCHAR(MAX)  NULL,
     short_desc      NVARCHAR(500)  NULL,
-    base_price      DECIMAL(18,2)  NOT NULL DEFAULT 0,
+    base_price      BIGINT         NOT NULL DEFAULT 0,
     is_active       BIT            NOT NULL DEFAULT 1,
     is_featured     BIT            NOT NULL DEFAULT 0,
     created_at      DATETIME2      NOT NULL DEFAULT GETDATE(),
@@ -155,8 +174,8 @@ BEGIN
     id            VARCHAR(50)    NOT NULL PRIMARY KEY,
     product_id    VARCHAR(50)    NOT NULL REFERENCES Products(id) ON DELETE CASCADE,
     sku           VARCHAR(100)   NOT NULL UNIQUE,
-    price         DECIMAL(18,2)  NOT NULL,
-    compare_price DECIMAL(18,2)  NULL,  -- Original price for strikethrough display
+    price         BIGINT         NOT NULL,
+    compare_price BIGINT         NULL,  -- Original price for strikethrough display
     stock_qty     INT            NOT NULL DEFAULT 0,
     weight_kg     DECIMAL(8,3)   NULL,
     image_url     VARCHAR(2083)  NULL,
@@ -291,9 +310,9 @@ BEGIN
     code              VARCHAR(50)    NOT NULL UNIQUE,
     description       NVARCHAR(500)  NULL,
     discount_type     VARCHAR(20)    NOT NULL DEFAULT 'percentage',  -- 'percentage' | 'fixed'
-    discount_value    DECIMAL(18,2)  NOT NULL,
-    min_order_amount  DECIMAL(18,2)  NULL,
-    max_discount_amt  DECIMAL(18,2)  NULL,  -- Cap for percentage discounts
+    discount_value    BIGINT         NOT NULL,
+    min_order_amount  BIGINT         NULL,
+    max_discount_amt  BIGINT         NULL,  -- Cap for percentage discounts
     usage_limit       INT            NULL,   -- NULL = unlimited
     used_count        INT            NOT NULL DEFAULT 0,
     user_limit        INT            NULL DEFAULT 1,  -- Uses per user
@@ -341,10 +360,10 @@ BEGIN
     coupon_id           VARCHAR(50)    NULL REFERENCES Coupons(id) ON DELETE SET NULL,
     status              VARCHAR(30)    NOT NULL DEFAULT 'pending',
       -- 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
-    subtotal            DECIMAL(18,2)  NOT NULL,
-    discount_amount     DECIMAL(18,2)  NOT NULL DEFAULT 0,
-    shipping_fee        DECIMAL(18,2)  NOT NULL DEFAULT 0,
-    total               DECIMAL(18,2)  NOT NULL,
+    subtotal            BIGINT         NOT NULL,
+    discount_amount     BIGINT         NOT NULL DEFAULT 0,
+    shipping_fee        BIGINT         NOT NULL DEFAULT 0,
+    total               BIGINT         NOT NULL,
     -- Snapshot of shipping address at order time
     shipping_name       NVARCHAR(150)  NOT NULL,
     shipping_phone      VARCHAR(20)    NOT NULL,
@@ -369,8 +388,8 @@ BEGIN
     variant_id      VARCHAR(50)    NOT NULL REFERENCES ProductVariants(id) ON DELETE NO ACTION,
     quantity        INT            NOT NULL CHECK (quantity > 0),
     -- Snapshot of price at order time
-    unit_price      DECIMAL(18,2)  NOT NULL,
-    total_price     DECIMAL(18,2)  NOT NULL,  -- unit_price * quantity
+    unit_price      BIGINT         NOT NULL,
+    total_price     BIGINT         NOT NULL,  -- unit_price * quantity
     product_name    NVARCHAR(255)  NOT NULL,
     variant_info    NVARCHAR(255)  NULL,       -- e.g. "Red / XL"
     created_at      DATETIME2      NOT NULL DEFAULT GETDATE()
@@ -402,7 +421,7 @@ BEGIN
     method            VARCHAR(50)    NOT NULL,  -- 'cod' | 'bank_transfer' | 'vnpay' | 'momo' | 'stripe'
     status            VARCHAR(30)    NOT NULL DEFAULT 'pending',
       -- 'pending' | 'paid' | 'failed' | 'refunded'
-    amount            DECIMAL(18,2)  NOT NULL,
+    amount            BIGINT         NOT NULL,
     transaction_ref   VARCHAR(255)   NULL,       -- External payment gateway ref
     paid_at           DATETIME2      NULL,
     created_at        DATETIME2      NOT NULL DEFAULT GETDATE()
@@ -419,7 +438,7 @@ BEGIN
     reason          NVARCHAR(500)  NULL,
     status          VARCHAR(30)    NOT NULL DEFAULT 'pending',
       -- 'pending' | 'approved' | 'rejected' | 'completed'
-    refund_amount   DECIMAL(18,2)  NOT NULL,
+    refund_amount   BIGINT         NOT NULL,
     refunded_at     DATETIME2      NULL,
     created_at      DATETIME2      NOT NULL DEFAULT GETDATE()
   );
@@ -434,7 +453,7 @@ BEGIN
     refund_id       VARCHAR(50)  NOT NULL REFERENCES Refunds(id) ON DELETE CASCADE,
     order_item_id   VARCHAR(50)  NOT NULL REFERENCES OrderItems(id) ON DELETE NO ACTION,
     quantity        INT          NOT NULL CHECK (quantity > 0),
-    refund_amount   DECIMAL(18,2) NOT NULL
+    refund_amount   BIGINT       NOT NULL
   );
   CREATE INDEX IX_RefundItems_refund_id ON RefundItems(refund_id);
   PRINT '[✓] Table RefundItems created';

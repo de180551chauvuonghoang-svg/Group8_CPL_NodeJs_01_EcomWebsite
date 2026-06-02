@@ -3,13 +3,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 export default function Register() {
   const auth = useContext(AuthContext);
   if (!auth) {
     throw new Error('Register must be used within an AuthProvider');
   }
-  const { register, isAuthenticated, loading } = auth;
+  const { register, loginWithGoogle, isAuthenticated, loading } = auth;
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -25,6 +26,22 @@ export default function Register() {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
+
+  useGoogleAuth({
+    onSuccess: async (credential) => {
+      try {
+        setErrorMsg('');
+        await loginWithGoogle(credential);
+        navigate('/');
+      } catch (err: any) {
+        setErrorMsg(err.response?.data?.message || err.message || 'Đăng nhập Google thất bại');
+      }
+    },
+    onError: (error) => {
+      setErrorMsg(error);
+    },
+    buttonElementId: 'google-login-btn'
+  });
 
   // Motion values for high-performance parallax mouse movement on the hero image
   const mouseX = useMotionValue(0);
@@ -300,18 +317,7 @@ export default function Register() {
               Hoặc đăng ký bằng
             </p>
             <div className="flex gap-4">
-              <motion.button
-                type="button"
-                className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white"
-                whileHover={{ scale: 1.03, boxShadow: '0 8px 20px rgba(37,99,235,0.12)' }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <img
-                  alt="Google"
-                  className="w-5 h-5 grayscale group-hover:grayscale-0 transition-all"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXCSbdMH3PUdGgWzIAFJJbtLUaUu_Tt3ElYSAkK4A7r-PLg7P4aN1vHvnMPlR36nLYMEvUvCtaeA5WoN0FiSG5IHQDFVwLc67Dr940Xws7a4fh7GZgcHJTbfz8BEGfT7TuXN8FtEwLAZRU4U6KTiqjzs8XcSbeUousbB5q5fZZORtdroAV2eOwaFPLNm29C_pz2tE07eCj7O535acCss9uNzf-eeVefiWWNunFvmwlt316kYIbJKD2ofTOZ-yPFYTwU392Fp8Tkpe5"
-                />
-              </motion.button>
+              <div id="google-login-btn" className="flex-1 h-12 flex items-center justify-center overflow-hidden" />
               <motion.button
                 type="button"
                 className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white text-on-surface-variant hover:text-primary"

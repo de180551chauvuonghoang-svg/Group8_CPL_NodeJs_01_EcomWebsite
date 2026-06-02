@@ -3,24 +3,42 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 export default function Login() {
   const auth = useContext(AuthContext);
   if (!auth) {
     throw new Error('Login must be used within an AuthProvider');
   }
-  const { login, isAuthenticated, loading } = auth;
+  const { login, loginWithGoogle, isAuthenticated, loading } = auth;
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
+
+  useGoogleAuth({
+    onSuccess: async (credential) => {
+      try {
+        setErrorMsg('');
+        await loginWithGoogle(credential);
+        navigate('/');
+      } catch (err: any) {
+        setErrorMsg(err.response?.data?.message || err.message || 'Đăng nhập Google thất bại');
+      }
+    },
+    onError: (error) => {
+      setErrorMsg(error);
+    },
+    buttonElementId: 'google-login-btn'
+  });
 
   useEffect(() => {
     (window as any).handleQuickLogin = handleQuickLogin;
@@ -218,19 +236,7 @@ export default function Login() {
 
             {/* Social Logins */}
             <div className="grid grid-cols-2 gap-4">
-              <motion.button
-                type="button"
-                className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <img
-                  alt="Google"
-                  className="w-6 h-6"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-sElvOzl0O8c2NzCmfIJ_UAUpIG0cBFlaaTgvq4BXwF0uxm6N2yZfpFpOF_BLUEO1iFLzjXzWu6rH1He4pYdlFvbiNM_FTxiCkUlrGUncQ6gxOyQ7ZBaP9bu_zErFJkJwRkAGE0XTiFnKAHSZ9hIbuAd0t2MmV5xXiLfylRpCm58w85S0KG2FQmx7ePD9qrEU1bWpBheYCYudvkEOOl2CMYLynvbi9VF1_pSYqsBSMca_vwgoS8Qi3D64AeLo7TcRijkzFXYp9AJY"
-                />
-                <span className="font-label-md text-label-md text-on-surface">Google</span>
-              </motion.button>
+              <div id="google-login-btn" className="w-full flex justify-center h-[56px] items-center overflow-hidden" />
               <motion.button
                 type="button"
                 className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"

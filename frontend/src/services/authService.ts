@@ -24,6 +24,18 @@ export const authService = {
     return { token: data.accessToken, user: data.user };
   },
 
+  loginWithGoogle: async (idToken: string): Promise<LoginResponse> => {
+    const response: any = await API.post('/auth/google', { idToken });
+    const data = response.data || response;
+    // Map response structure to expected format
+    const actualData = data.data || data;
+    if (actualData.accessToken) {
+      localStorage.setItem('ecom_token', actualData.accessToken);
+      localStorage.setItem('ecom_user', JSON.stringify(actualData.user));
+    }
+    return { token: actualData.accessToken, user: actualData.user };
+  },
+
   register: async (name: string, email: string, password: string, phone: string): Promise<any> => {
     // Pass phone number to backend
     const response = await API.post('/auth/signup', { name, email, password, phonenumber: phone });

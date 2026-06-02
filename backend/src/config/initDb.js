@@ -176,7 +176,7 @@ const createProductsTable = async (pool) => {
         slug          VARCHAR(300)   NOT NULL UNIQUE,
         description   NVARCHAR(MAX)  NULL,
         short_desc    NVARCHAR(500)  NULL,
-        base_price    DECIMAL(18,2)  NOT NULL DEFAULT 0,
+        base_price    BIGINT         NOT NULL DEFAULT 0,
         is_active     BIT            NOT NULL DEFAULT 1,
         is_featured   BIT            NOT NULL DEFAULT 0,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
@@ -260,8 +260,8 @@ const createProductVariantsTable = async (pool) => {
         id            VARCHAR(50)    NOT NULL PRIMARY KEY,
         product_id    VARCHAR(50)    NOT NULL REFERENCES Products(id) ON DELETE CASCADE,
         sku           VARCHAR(100)   NOT NULL UNIQUE,
-        price         DECIMAL(18,2)  NOT NULL,
-        compare_price DECIMAL(18,2)  NULL,
+        price         BIGINT         NOT NULL,
+        compare_price BIGINT         NULL,
         stock_qty     INT            NOT NULL DEFAULT 0,
         weight_kg     DECIMAL(8,3)   NULL,
         image_url     VARCHAR(2083)  NULL,
@@ -434,9 +434,9 @@ const createCouponsTable = async (pool) => {
         code              VARCHAR(50)    NOT NULL UNIQUE,
         description       NVARCHAR(500)  NULL,
         discount_type     VARCHAR(20)    NOT NULL DEFAULT 'percentage',
-        discount_value    DECIMAL(18,2)  NOT NULL,
-        min_order_amount  DECIMAL(18,2)  NULL,
-        max_discount_amt  DECIMAL(18,2)  NULL,
+        discount_value    BIGINT         NOT NULL,
+        min_order_amount  BIGINT         NULL,
+        max_discount_amt  BIGINT         NULL,
         usage_limit       INT            NULL,
         used_count        INT            NOT NULL DEFAULT 0,
         user_limit        INT            NULL DEFAULT 1,
@@ -492,10 +492,10 @@ const createOrdersTable = async (pool) => {
         user_id           VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE NO ACTION,
         coupon_id         VARCHAR(50)    NULL REFERENCES Coupons(id) ON DELETE SET NULL,
         status            VARCHAR(30)    NOT NULL DEFAULT 'pending',
-        subtotal          DECIMAL(18,2)  NOT NULL,
-        discount_amount   DECIMAL(18,2)  NOT NULL DEFAULT 0,
-        shipping_fee      DECIMAL(18,2)  NOT NULL DEFAULT 0,
-        total             DECIMAL(18,2)  NOT NULL,
+        subtotal          BIGINT         NOT NULL,
+        discount_amount   BIGINT         NOT NULL DEFAULT 0,
+        shipping_fee      BIGINT         NOT NULL DEFAULT 0,
+        total             BIGINT         NOT NULL,
         shipping_name     NVARCHAR(150)  NOT NULL,
         shipping_phone    VARCHAR(20)    NOT NULL,
         shipping_address  NVARCHAR(500)  NOT NULL,
@@ -521,8 +521,8 @@ const createOrderItemsTable = async (pool) => {
         order_id       VARCHAR(50)    NOT NULL REFERENCES Orders(id) ON DELETE CASCADE,
         variant_id     VARCHAR(50)    NOT NULL REFERENCES ProductVariants(id) ON DELETE NO ACTION,
         quantity       INT            NOT NULL CHECK (quantity > 0),
-        unit_price     DECIMAL(18,2)  NOT NULL,
-        total_price    DECIMAL(18,2)  NOT NULL,
+        unit_price     BIGINT         NOT NULL,
+        total_price    BIGINT         NOT NULL,
         product_name   NVARCHAR(255)  NOT NULL,
         variant_info   NVARCHAR(255)  NULL,
         created_at     DATETIME2      NOT NULL DEFAULT GETDATE()
@@ -543,7 +543,7 @@ const createPaymentsTable = async (pool) => {
         order_id         VARCHAR(50)    NOT NULL UNIQUE REFERENCES Orders(id) ON DELETE CASCADE,
         method           VARCHAR(50)    NOT NULL,
         status           VARCHAR(30)    NOT NULL DEFAULT 'pending',
-        amount           DECIMAL(18,2)  NOT NULL,
+        amount           BIGINT         NOT NULL,
         transaction_ref  VARCHAR(255)   NULL,
         paid_at          DATETIME2      NULL,
         created_at       DATETIME2      NOT NULL DEFAULT GETDATE()
@@ -562,7 +562,7 @@ const createRefundsTable = async (pool) => {
         payment_id     VARCHAR(50)    NOT NULL UNIQUE REFERENCES Payments(id) ON DELETE CASCADE,
         reason         NVARCHAR(500)  NULL,
         status         VARCHAR(30)    NOT NULL DEFAULT 'pending',
-        refund_amount  DECIMAL(18,2)  NOT NULL,
+        refund_amount  BIGINT         NOT NULL,
         refunded_at    DATETIME2      NULL,
         created_at     DATETIME2      NOT NULL DEFAULT GETDATE()
       );
@@ -580,7 +580,7 @@ const createRefundItemsTable = async (pool) => {
         refund_id      VARCHAR(50)    NOT NULL REFERENCES Refunds(id) ON DELETE CASCADE,
         order_item_id  VARCHAR(50)    NOT NULL REFERENCES OrderItems(id) ON DELETE NO ACTION,
         quantity       INT            NOT NULL CHECK (quantity > 0),
-        refund_amount  DECIMAL(18,2)  NOT NULL
+        refund_amount  BIGINT         NOT NULL
       );
       CREATE INDEX IX_RefundItems_refund_id ON RefundItems(refund_id);
       PRINT '[✓] Table RefundItems created';
@@ -975,7 +975,7 @@ const seedProducts = async (pool, sql) => {
         .input("slug", sql.VarChar, p.slug)
         .input("desc", sql.NVarChar, p.desc)
         .input("shortDesc", sql.NVarChar, p.short_desc)
-        .input("basePrice", sql.Decimal(18, 2), p.base_price)
+        .input("basePrice", sql.BigInt, Math.round(p.base_price))
         .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured)
                 VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1)`);
 
@@ -1001,8 +1001,8 @@ const seedProducts = async (pool, sql) => {
           .input("id", sql.VarChar, v.id)
           .input("productId", sql.VarChar, p.id)
           .input("sku", sql.VarChar, v.sku)
-          .input("price", sql.Decimal(18, 2), v.price)
-          .input("compare", sql.Decimal(18, 2), v.compare)
+          .input("price", sql.BigInt, Math.round(v.price))
+          .input("compare", sql.BigInt, v.compare ? Math.round(v.compare) : null)
           .input("stock", sql.Int, v.stock)
           .input("imageUrl", sql.VarChar, v.image)
           .query(`INSERT INTO ProductVariants (id,product_id,sku,price,compare_price,stock_qty,image_url)
