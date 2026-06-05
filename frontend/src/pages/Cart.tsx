@@ -1,75 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useAnimate } from 'framer-motion';
+import { motion, AnimatePresence, useAnimate } from 'framer-motion';
 
-// ─── Animated counter hook ───────────────────────────────────────────────
-function useAnimatedNumber(value: number) {
-  const [display, setDisplay] = useState(value);
-  useEffect(() => {
-    let start: number | null = null;
-    let frameId: number;
-    const from = display;
-    const to = value;
-    const duration = 500;
-    const step = (timestamp: number) => {
-      if (!start) start = timestamp;
-      const progress = Math.min((timestamp - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(from + (to - from) * eased));
-      if (progress < 1) {
-        frameId = requestAnimationFrame(step);
-      }
-    };
-    frameId = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(frameId);
-    };
-  }, [value]);
-  return display;
-}
-
-// ─── 3D tilt card ─────────────────────────────────────────────────────────
+// ─── Hover card (CSS-only, GPU-friendly) ──────────────────────────────────
 function TiltCard({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [6, -6]), { stiffness: 300, damping: 30 });
-  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-6, 6]), { stiffness: 300, damping: 30 });
-  const glowX = useSpring(useTransform(x, [-0.5, 0.5], [0, 100]), { stiffness: 200, damping: 25 });
-  const glowY = useSpring(useTransform(y, [-0.5, 0.5], [0, 100]), { stiffness: 200, damping: 25 });
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    x.set((e.clientX - rect.left) / rect.width - 0.5);
-    y.set((e.clientY - rect.top) / rect.height - 0.5);
-  };
-  const handleMouseLeave = () => { x.set(0); y.set(0); };
-
   return (
-    <motion.div
-      ref={ref}
-      style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1000, ...style }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      className={className}
+    <div
+      className={`cart-hover-card ${className || ''}`}
+      style={style}
     >
-      {/* Glow overlay that follows cursor */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none rounded-3xl z-0"
-        style={{
-          background: useTransform(
-            [glowX, glowY],
-            ([gx, gy]) =>
-              `radial-gradient(circle at ${gx}% ${gy}%, rgba(0,74,198,0.07) 0%, transparent 60%)`
-          ),
-        }}
-      />
-      <div style={{ transform: 'translateZ(20px)' }} className="relative z-10 h-full">
-        {children}
-      </div>
-    </motion.div>
+      {children}
+    </div>
   );
 }
 
@@ -120,8 +62,6 @@ export default function Cart() {
   const discount   = Math.round(subtotal * (discountPercentage / 100));
   const total      = subtotal + vat - discount;
 
-  const animatedTotal = useAnimatedNumber(total);
-
   const formatPrice = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
 
   const handleApplyPromo = (e: React.FormEvent) => {
@@ -150,25 +90,15 @@ export default function Cart() {
       transition={{ duration: 0.4 }}
       className="min-h-screen bg-background text-on-surface select-none pt-24 pb-28 overflow-hidden relative"
     >
-      {/* ─── ambient background blobs ─── */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <motion.div
-          animate={{ x: [0, 40, 0], y: [0, -30, 0] }}
-          transition={{ repeat: Infinity, duration: 18, ease: 'easeInOut' }}
+      {/* ─── Static ambient background (no infinite animation) ─── */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <div
           className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(0,74,198,0.06) 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, rgba(0,74,198,0.05) 0%, transparent 70%)' }}
         />
-        <motion.div
-          animate={{ x: [0, -50, 0], y: [0, 40, 0] }}
-          transition={{ repeat: Infinity, duration: 22, ease: 'easeInOut', delay: 5 }}
+        <div
           className="absolute -bottom-20 -right-20 w-[500px] h-[500px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(86,94,116,0.07) 0%, transparent 70%)' }}
-        />
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }}
-          transition={{ repeat: Infinity, duration: 12, ease: 'easeInOut', delay: 3 }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full"
-          style={{ background: 'radial-gradient(ellipse, rgba(0,74,198,0.03) 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, rgba(86,94,116,0.06) 0%, transparent 70%)' }}
         />
       </div>
 
@@ -220,13 +150,12 @@ export default function Cart() {
                 boxShadow: '0 20px 60px -10px rgba(0,74,198,0.5)'
               }}
             >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}
+              <div
                 className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center shrink-0"
+                style={{ animation: 'spin 3s linear infinite' }}
               >
                 <span className="material-symbols-outlined text-white text-[32px]">verified</span>
-              </motion.div>
+              </div>
               <div>
                 <h3 className="font-bold text-xl text-white">Đặt hàng thành công! 🎉</h3>
                 <p className="text-white/80 text-body-md">Cảm ơn bạn đã lựa chọn Volitify. Đơn hàng đang được xử lý — chuyển về trang chủ trong giây lát...</p>
@@ -254,10 +183,9 @@ export default function Cart() {
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
               className="flex flex-col items-center justify-center py-32 text-center"
             >
-              <motion.div
-                animate={{ y: [0, -12, 0] }}
-                transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+              <div
                 className="relative mb-8"
+                style={{ animation: 'cart-float 3s ease-in-out infinite' }}
               >
                 <div
                   className="w-32 h-32 rounded-3xl flex items-center justify-center mx-auto shadow-2xl"
@@ -265,13 +193,11 @@ export default function Cart() {
                 >
                   <span className="material-symbols-outlined text-white text-[56px]">shopping_cart_off</span>
                 </div>
-                <motion.div
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                <div
                   className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-20 h-4 rounded-full blur-xl"
-                  style={{ background: 'rgba(0,74,198,0.3)' }}
+                  style={{ background: 'rgba(0,74,198,0.3)', animation: 'cart-shadow 3s ease-in-out infinite' }}
                 />
-              </motion.div>
+              </div>
               <h3 className="font-headline-md text-headline-md text-on-surface mb-3">Giỏ hàng trống</h3>
               <p className="text-on-surface-variant text-body-lg max-w-md mb-10">
                 Bạn chưa có sản phẩm nào trong giỏ. Hãy khám phá hệ sinh thái công nghệ Volitify!
@@ -449,11 +375,9 @@ export default function Cart() {
                   {/* Dark header */}
                   <div className="px-8 pt-8 pb-6 relative overflow-hidden"
                     style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1e2a40 100%)' }}>
-                    <motion.div
-                      animate={{ opacity: [0.3, 0.6, 0.3] }}
-                      transition={{ repeat: Infinity, duration: 4 }}
+                    <div
                       className="absolute top-0 right-0 w-40 h-40 rounded-full -translate-y-1/2 translate-x-1/2"
-                      style={{ background: 'radial-gradient(circle, rgba(0,74,198,0.4) 0%, transparent 70%)' }}
+                      style={{ background: 'radial-gradient(circle, rgba(0,74,198,0.3) 0%, transparent 70%)' }}
                     />
                     <p className="text-white/50 text-sm font-semibold uppercase tracking-widest mb-1">Đơn hàng</p>
                     <h2 className="text-white font-black text-2xl">Tóm tắt</h2>
@@ -542,11 +466,13 @@ export default function Cart() {
                       <div className="flex justify-between items-center mb-6">
                         <span className="font-bold text-on-surface text-lg">Tổng thanh toán</span>
                         <motion.span
-                          key={animatedTotal}
+                          key={total}
+                          initial={{ scale: 1.08, color: '#2563eb' }}
+                          animate={{ scale: 1, color: '#004ac6' }}
+                          transition={{ duration: 0.25 }}
                           className="font-black text-2xl tracking-tight"
-                          style={{ color: '#004ac6' }}
                         >
-                          {formatPrice(animatedTotal)}
+                          {formatPrice(total)}
                         </motion.span>
                       </div>
 
@@ -571,14 +497,9 @@ export default function Cart() {
                           cursor: checkoutSuccess ? 'not-allowed' : 'pointer',
                         }}
                       >
-                        {/* Shimmer */}
+                        {/* Shimmer — CSS only, no JS animation loop */}
                         {!checkoutSuccess && (
-                          <motion.div
-                            className="absolute inset-0 -skew-x-12"
-                            animate={{ x: ['-200%', '200%'] }}
-                            transition={{ repeat: Infinity, duration: 3, ease: 'linear', repeatDelay: 2 }}
-                            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', width: '60%' }}
-                          />
+                          <div className="checkout-shimmer absolute inset-0 -skew-x-12" />
                         )}
                         <span className="material-symbols-outlined">
                           {checkoutSuccess ? 'check_circle' : 'payment'}
@@ -620,14 +541,12 @@ export default function Cart() {
                   }}
                 >
                   <div className="flex gap-3 items-start">
-                    <motion.span
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+                    <span
                       className="material-symbols-outlined text-[24px]"
                       style={{ color: '#004ac6', fontVariationSettings: "'FILL' 1" }}
                     >
                       card_giftcard
-                    </motion.span>
+                    </span>
                     <p className="text-sm text-on-surface-variant leading-relaxed">
                       Đơn hàng đủ điều kiện nhận miễn phí <strong className="text-on-surface">Volitify Cleaning Kit</strong> trị giá <strong className="text-primary">299.000₫</strong>!
                     </p>

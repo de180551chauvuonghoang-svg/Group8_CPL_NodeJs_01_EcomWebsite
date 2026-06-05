@@ -95,6 +95,7 @@ export default function Home() {
             alt="Cinematic Hero"
             className="w-full h-full object-cover scale-105 transition-transform duration-[20s] hover:scale-100"
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuDutVWXgXeNNxAFSw1LnTaGbiHDAiBPBjHHQg-AV_KcN_Mj2W6Lb6OLynbCfV-BQDJETcN3mBJtG3mccPgffl3chP2WTvlBJsiU3sZuQWLhZVeiaEhXysOCLIQygBQPupqpRZVr4cTDcUSE7YbcYACtESilfopmaqsE63q79l6iZgrolR50bM1h5_lEDkV314cOpO3NNTiToUCJh_9QK2hH4ZfCdZNkrR7fNgLYhitHs-ba52A9gbxH7tvHxthqln94pZA1NvbK_vMp"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent"></div>
         </div>
@@ -158,6 +159,9 @@ export default function Home() {
               alt="Smart Kitchen"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuC12OlJza_aD8AP2I4nnng3dAjNvaQJHLfZXV_WU0zA-9O44JTitmrqVOloEu0Igr8lG3Wsh_2mS3rxDMEzyyeU9Ly76jXFf_MnTG9xoXIji_Li51R0iMCg-f2aRfGDt4SOuVWSWpZjlL2halI0Qc_jA0XsMlPrV4DqrnBJkc4wS_Ii1TzxIfWQQL4XK8e3bL-i_smxMJEdrvzcmZM0KXmZ6fAxaX_PSfrfdZnm1KC6aAMUlI0OhLIwE2v8ihF0CHwpX39UIXcDH-ci"
+              loading="lazy"
+              decoding="async"
+              style={{ willChange: 'transform' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
               <h3 className="text-white font-headline-md text-headline-md">Smart Kitchen</h3>
@@ -181,6 +185,9 @@ export default function Home() {
               alt="Premium Audio"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtTsPD5PQ5XucxbkZDcdTHqotWhjcwvxKG6CcyacrvneZbqdhOkrFAXl3WDehncpvRHybj1g6LO4h3iezqDrRts12cDbBP6TaZQ2pRPevruGnG4k20JQMjYN3MSug9iXbD54pdhMfsvo478E3akj2YNWY36uAwCjaId0PUfEzvdR8_OmiYkFj8egHkg9krdGXuGHD5mGOqgVTQr7QPLgk6YaVrwJsert9ccCGYm4pTy3hY4rIYEOXIGLQ5oDVSH0muDXJEdavOq03p"
+              loading="lazy"
+              decoding="async"
+              style={{ willChange: 'transform' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end">
               <h3 className="text-white font-bold font-title-lg">Premium Audio</h3>
@@ -200,6 +207,9 @@ export default function Home() {
               alt="Home Cinema"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFshPtdsmM01VDSzYJCRjrjrXxU5gCJgfZvD0Wwq4-N33lAoZKWuJbRH_hEFP1fk9K6VjvgpG92e16iXooBfIP3YKzzZelouhFIs93jtQAWoOy-AiUzlzm-4a6aHZixvt_l57ZIntn1xfuLOY95UJyh5jDBlQoFiLyDqZpXU9lgehNUZdDEXfYif-K0sPKJ-5Dvz4GuirwqR4h--kf9jSuy4nx3s_PsX2oPwQ62OO3ACZDHdJwnT_-IU7ZBfqdbpX4CAM8oEWmqS7h"
+              loading="lazy"
+              decoding="async"
+              style={{ willChange: 'transform' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end">
               <h3 className="text-white font-bold font-title-lg">Home Cinema</h3>
@@ -219,6 +229,9 @@ export default function Home() {
               alt="Air Treatment"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-w28NnAFIInT0qFs4n_V8zgeaUNCHCvBPOSmhOHuWEj3maUBIS86W3u2DDIFlWY-OHefYL187WXQYT-EULQuHQZ3lU8CED5aPQ_8pY5mdg9MFULmp66LCnLizB-V-n_TT21wphm0QEpmgQXoVsTHMoJkIlvmaoUcQEbfBFSKPAyY76631aG5rfvVDZZHox--CUDRnDrxreXl_tn37ntExPfm68FN-pZgxsKLfrarGaiImFelJ4MqKq5zheNgNsStKPvLFyqrtfIiM"
+              loading="lazy"
+              decoding="async"
+              style={{ willChange: 'transform' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
               <h3 className="text-white font-title-lg text-headline-md">Air Treatment</h3>
@@ -291,6 +304,9 @@ export default function Home() {
                       src={product.image}
                       alt={product.name}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                      decoding="async"
+                      style={{ willChange: 'transform' }}
                     />
                     {isLowStock && (
                       <span className="absolute top-4 right-4 bg-error text-white font-bold text-[10px] px-3 py-1 rounded-full shadow-md">
