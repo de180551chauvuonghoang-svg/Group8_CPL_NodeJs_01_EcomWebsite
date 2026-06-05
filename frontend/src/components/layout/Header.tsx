@@ -1,7 +1,8 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useTheme } from '../../context/ThemeContext';
 
 // Logo URL - use local favicon.png
 const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined')
@@ -11,6 +12,7 @@ const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !=
 
 export default function Header() {
   const { cartItems } = useCart();
+  const { theme, toggleTheme } = useTheme();
   const auth = useContext(AuthContext);
   if (!auth) {
     throw new Error('Header must be used within an AuthProvider');
@@ -21,6 +23,7 @@ export default function Header() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState(searchParams.get('search') || '');
+  const searchDebounceRef = useRef<number | null>(null);
 
   // Keep searchValue in sync with URL search params
   useEffect(() => {
@@ -36,20 +39,30 @@ export default function Header() {
     const val = e.target.value;
     setSearchValue(val);
 
-    // Merge search query with existing parameters
-    const newParams = new URLSearchParams(searchParams);
-    if (val) {
-      newParams.set('search', val);
-    } else {
-      newParams.delete('search');
-    }
-    setSearchParams(newParams);
+    // Debounce URL params update 300ms
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = window.setTimeout(() => {
+      const newParams = new URLSearchParams(searchParams);
+      if (val) {
+        newParams.set('search', val);
+      } else {
+        newParams.delete('search');
+      }
+      setSearchParams(newParams);
 
-    // If not on Home page, redirect to Home with the merged parameters
-    if (location.pathname !== '/') {
-      navigate(`/?${newParams.toString()}`);
-    }
+      // If not on Home page, redirect to Home with the merged parameters
+      if (location.pathname !== '/') {
+        navigate(`/?${newParams.toString()}`);
+      }
+    }, 300);
   };
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
   const handleCategoryClick = (categoryName: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -63,7 +76,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-surface/80 dark:bg-inverse-surface/80 backdrop-blur-xl shadow-sm">
+    <header className="sticky top-0 z-50 bg-surface/80 dark:bg-surface-container-low/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/30 transition-colors duration-300">
       <div className="max-w-container-max mx-auto px-margin-desktop py-4 flex justify-between items-center w-full">
         <div className="flex items-center gap-8">
           {/* Logo Link */}
@@ -126,6 +139,8 @@ export default function Header() {
                       alt="Featured TV"
                       className="w-full h-full object-cover"
                       src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_9Dls69zaIcfO3vhKm0-Fqk_xuPOT5MtRxQiKiScdciorPGe5jvcNba9dTBiyVHJrL5b7CDtR6yBDDlP2le0t43FyZjrFcwgEhpG-4jxoeDCyvek3mJUSOjr0JilqlKzEh7q6TMoUEGNgtVN27aDVHB40kXAPWLSnjDp64ecR-Yi7GQgzXIXMDqSot22mqZmva9QZJRpvzwsAYG1JW06250KLFvxcJLzIlzjOdM1kyeyl4wwf7-Gjg4DhF1oYmAWuTZiuPpDq7-J1"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
                       <span className="text-white font-bold">Dòng OLED 2024 Mới Nhất</span>
@@ -166,66 +181,106 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Cart Icon Button */}
-        <Link
-          to="/cart"
-          className="relative p-2 text-primary hover:bg-primary/5 active:scale-95 transition-all font-bold rounded-full flex items-center justify-center mr-2"
-          title="Giỏ hàng"
-        >
-          <span className="material-symbols-outlined text-[26px]">shopping_cart</span>
-          {cartItems.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow-md">
-              {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
-            </span>
-          )}
-        </Link>
+        {/* Cart + Auth + Theme Toggle — single flex row, khoảng cách đồng đều */}
+        <div className="flex items-center gap-3">
 
-        {/* Authentication Buttons */}
-        <div className="flex items-center gap-4">
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Chuyển sang Light Mode' : 'Chuyển sang Dark Mode'}
+            className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-on-surface-variant hover:text-primary hover:bg-primary/8 transition-all duration-200 active:scale-90"
+          >
+            <span
+              className="material-symbols-outlined text-[22px] transition-all duration-300"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+            </span>
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-outline-variant shrink-0" />
+
+          {/* Cart Icon — 40×40, cùng kích thước với buttons */}
+          <Link
+            to="/cart"
+            className="relative w-10 h-10 text-primary hover:bg-primary/8 active:scale-95 transition-all rounded-full flex items-center justify-center shrink-0"
+            title="Giỏ hàng"
+          >
+            <span className="material-symbols-outlined text-[22px]">shopping_cart</span>
+            {cartItems.length > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-error text-on-error text-[9px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold shadow-md leading-none">
+                {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+              </span>
+            )}
+          </Link>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-outline-variant shrink-0" />
+
+          {/* Authentication Buttons */}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-4">
-              <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity" title="Chỉnh sửa hồ sơ">
+            <div className="flex items-center gap-2">
+
+              {/* User profile pill */}
+              <Link
+                to="/profile"
+                title="Chỉnh sửa hồ sơ"
+                className="flex items-center gap-2.5 h-10 pl-1 pr-4 rounded-full border border-outline-variant/60 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 group"
+              >
+                {/* Avatar */}
                 {user.avatar_url ? (
-                  <img 
-                    src={user.avatar_url} 
-                    alt={user.name} 
-                    className="w-9 h-9 rounded-full object-cover shadow-md border border-primary/20"
+                  <img
+                    src={user.avatar_url}
+                    alt={user.name}
+                    className="w-8 h-8 rounded-full object-cover shadow-sm border-2 border-surface shrink-0"
                   />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-md">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <div className="text-left hidden lg:block">
-                  <p className="text-body-md font-bold leading-tight">{user.name}</p>
-                  <p className="text-xs text-on-surface-variant leading-none">{user.role || 'customer'}</p>
+                {/* Name + role — truncated */}
+                <div className="hidden lg:flex flex-col min-w-0 max-w-[140px]">
+                  <span className="text-xs font-bold text-on-surface leading-tight truncate group-hover:text-primary transition-colors">
+                    {user.name}
+                  </span>
+                  <span className="text-[10px] text-on-surface-variant leading-none capitalize font-medium">
+                    {user.role || 'customer'}
+                  </span>
                 </div>
               </Link>
+
+              {/* Logout — icon only, tooltip on hover */}
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 text-error font-bold border border-error/30 rounded-lg hover:bg-error/5 transition-all text-sm"
                 title="Đăng xuất"
+                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-error/8 transition-all duration-200 active:scale-90"
               >
-                Đăng xuất
+                <span className="material-symbols-outlined text-[20px]">logout</span>
               </button>
             </div>
+
           ) : (
             <>
+              {/* Đăng nhập — outline pill */}
               <Link
-                className="px-5 py-2 text-primary font-bold border border-primary rounded-lg hover:bg-primary/5 transition-all"
                 to="/login"
+                className="h-10 px-5 flex items-center justify-center text-primary font-bold border border-primary/40 rounded-full hover:bg-primary/5 hover:border-primary transition-all text-sm whitespace-nowrap"
               >
                 Đăng nhập
               </Link>
+              {/* Gia nhập ngay — filled pill */}
               <Link
-                className="px-5 py-2 bg-primary text-on-primary font-bold rounded-lg shadow-md hover:shadow-lg transition-all"
                 to="/register"
+                className="h-10 px-5 flex items-center justify-center bg-primary text-white font-bold rounded-full shadow-sm hover:shadow-md hover:brightness-110 transition-all text-sm whitespace-nowrap"
               >
                 Gia nhập ngay
               </Link>
             </>
           )}
         </div>
+
       </div>
     </header>
   );

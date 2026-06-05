@@ -8,4 +8,21 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Vite 8 (Rolldown) yêu cầu manualChunks là function
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('framer-motion')) return 'vendor-framer';
+            if (
+              id.includes('react-dom') ||
+              id.includes('react-router-dom') ||
+              id.includes('/react/')
+            ) return 'vendor-react';
+          }
+        }
+      }
+    }
+  }
 })
