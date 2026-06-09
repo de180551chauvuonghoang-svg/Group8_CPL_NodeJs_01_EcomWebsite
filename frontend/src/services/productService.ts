@@ -108,5 +108,19 @@ export const productService = {
       if (found) return found;
       throw error;
     }
+  },
+
+  getRelated: async (currentId: string, category: string): Promise<Product[]> => {
+    try {
+      const response: any = await API.get('/products', { params: { category } });
+      const data = response.data || response;
+      const all: Product[] = data.products || [];
+      return all.filter(p => p.id !== currentId).slice(0, 4);
+    } catch {
+      return fallbackProducts
+        .filter(p => p.category === category && p.id !== currentId)
+        .slice(0, 4);
+    }
   }
 };
+

@@ -93,6 +93,12 @@ export default function Header() {
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-6">
+            <Link
+              to="/products"
+              className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200"
+            >
+              Sản phẩm
+            </Link>
             <div className="mega-menu-trigger relative py-2">
               <button className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200 flex items-center gap-1">
                 TV &amp; Video <span className="material-symbols-outlined text-sm">expand_more</span>
