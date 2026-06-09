@@ -589,6 +589,7 @@ const createProductCombosTable = async (pool) => {
         category NVARCHAR(100),
         use_case NVARCHAR(100),
         specs_summary NVARCHAR(MAX),
+        image_url NVARCHAR(MAX),
         is_active BIT DEFAULT 1,
         created_at DATETIME2 DEFAULT GETDATE(),
         updated_at DATETIME2 DEFAULT GETDATE()

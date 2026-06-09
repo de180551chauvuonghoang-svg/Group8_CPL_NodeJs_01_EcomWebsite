@@ -20,6 +20,7 @@ const Cart         = lazy(() => import('./pages/Cart'));
 const Profile      = lazy(() => import('./pages/Profile'));
 const Products     = lazy(() => import('./pages/Products'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Combos       = lazy(() => import('./pages/Combos'));
 
 // Loading spinner component
 const PageLoader = () => (
@@ -58,10 +59,10 @@ function AppContent() {
         <Suspense fallback={<PageLoader />}>
           <AnimatePresence mode="popLayout">
             <Routes location={location} key={location.pathname}>
-              {/* Public routes */}
               <Route path="/" element={<Home />} />
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/combos" element={<Combos />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -2,7 +2,7 @@ import { pool, sql } from '../config/db.js';
 
 // Bản đồ từ khóa → category để lọc chính xác hơn
 const CATEGORY_MAP = {
-  'pc': 'PC', 'máy tính': 'PC', 'may tinh': 'PC', 'computer': 'PC',
+  'pc': 'PC', 'máy tính': 'PC', 'may tinh': 'PC', 'computer': 'PC', 'laptop': 'PC',
   'build': 'PC', 'gaming': 'PC', 'game': 'PC', 'render': 'PC',
   'stream': 'PC', 'đồ họa': 'PC', 'do hoa': 'PC', 'lap rap': 'PC',
   'lắp ráp': 'PC', 'cấu hình': 'PC', 'cau hinh': 'PC',
@@ -41,7 +41,7 @@ export const searchCombos = async (req, res) => {
     const targetBudget = budget ? parseFloat(budget) : null;
     const hasBudget = targetBudget && !isNaN(targetBudget) && targetBudget > 0;
 
-    // ============ LẦN 1: Tìm chính xác (category + giá) ============
+    //  LẦN 1: Tìm chính xác (category + giá) 
     let result = await searchDB({
       category: detectedCategory,
       budget: hasBudget ? targetBudget : null,
@@ -49,7 +49,7 @@ export const searchCombos = async (req, res) => {
       query: query
     });
 
-    // ============ LẦN 2 (FALLBACK): Nếu 0 kết quả → bỏ lọc giá, giữ category ============
+    // LẦN 2 (FALLBACK): Nếu 0 kết quả → bỏ lọc giá, giữ category 
     if (result.length === 0 && detectedCategory && hasBudget) {
       result = await searchDB({
         category: detectedCategory,
@@ -67,9 +67,14 @@ export const searchCombos = async (req, res) => {
       });
     }
 
-    // ============ LẦN 3 (FALLBACK cuối): Nếu vẫn 0 → trả tất cả sản phẩm ============
+    //  LẦN 3 (FALLBACK cuối): Nếu vẫn 0 → trả tất cả sản phẩm liên quan 
     if (result.length === 0) {
       result = await searchDB({ query: query });
+    }
+
+    //  LẦN 4: Nếu vẫn 0 luôn → Trả về TẤT CẢ sản phẩm (tránh màn hình trắng) 
+    if (result.length === 0) {
+      result = await searchDB({});
     }
 
     res.status(200).json({
@@ -87,7 +92,7 @@ export const searchCombos = async (req, res) => {
   }
 };
 
-// ============ HÀM TÌM KIẾM CHUNG ============
+//  HÀM TÌM KIẾM CHUNG 
 async function searchDB({ category = null, budget = null, budgetRange = 0.3, query = null, fallback = false }) {
   const request = pool.request();
   let dbQuery = `SELECT TOP 5 * FROM ProductCombos WHERE is_active = 1`;
