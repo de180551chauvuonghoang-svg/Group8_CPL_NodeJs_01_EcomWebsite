@@ -14,6 +14,7 @@ import { productService } from '../services/productService';
 import { AuthContext } from '../context/AuthContext';
 import { Product } from '../types';
 import Spinner from '../components/common/Spinner';
+import AIBanner from '../components/home/AIBanner';
 
 export default function Home() {
   const auth = useContext(AuthContext);
@@ -130,6 +131,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* AI Banner Section */}
+      <AIBanner />
 
       {/* Featured Categories (Bento Grid with Glow Effect) */}
       <section className="py-24 max-w-container-max mx-auto px-margin-desktop transition-all duration-1000 opacity-100 translate-y-0">

@@ -8,6 +8,7 @@ import { useContext, lazy, Suspense } from 'react';
 // Layout components (eager loaded — always visible)
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import AIChatWidget from './components/common/AIChatWidget';
 
 // Pages — lazy loaded for code splitting (reduces initial bundle by ~60%)
 const Home         = lazy(() => import('./pages/Home'));
@@ -75,6 +76,7 @@ function AppContent() {
         </Suspense>
       </main>
       {!isAuthPage && <Footer />}
+      {!isAuthPage && <AIChatWidget />}
     </div>
   );
 }
