@@ -19,7 +19,16 @@ export interface Product {
   category: string;
   rating: number;
   stock: number;
+  reviewsCount?: number;
+  badge?: 'new' | 'sale' | 'hot';
+  originalPrice?: number;
 }
+
+export interface ProductDetail extends Product {
+  images?: string[];      // gallery thumbnails
+  specifications?: Record<string, string>;
+}
+
 
 export interface AuthContextType {
   user: User | null;
