@@ -104,7 +104,7 @@ export const userService = {
       .request()
       .input("id", sql.VarChar, userId)
       .query(
-        "SELECT id, name, email, role, phone_number, avatar_url, bio, country, timezone, is_active, created_at FROM Users WHERE id = @id",
+        "SELECT id, name, email, role, phone_number, avatar_url, bio, is_active, created_at FROM Users WHERE id = @id",
       );
 
     return result.recordset[0];
@@ -153,6 +153,23 @@ export const userService = {
         VALUES (@id, @name, @email, @password, @phone_number, @role)
       `);
 
+    // Tự động thêm vào sổ địa chỉ nếu có số điện thoại
+    if (phonenumber) {
+      const addressId = `addr_${Math.random().toString(36).substr(2, 9)}`;
+      await pool.request()
+        .input("id", sql.VarChar, addressId)
+        .input("user_id", sql.VarChar, userId)
+        .input("recipient_name", sql.NVarChar, name)
+        .input("phone_number", sql.VarChar, phonenumber)
+        .input("street_address", sql.NVarChar, "Chưa cập nhật")
+        .input("city", sql.NVarChar, "Chưa cập nhật")
+        .input("is_default", sql.Bit, 1)
+        .query(`
+          INSERT INTO UserAddresses (id, user_id, recipient_name, phone_number, street_address, city, is_default)
+          VALUES (@id, @user_id, @recipient_name, @phone_number, @street_address, @city, @is_default)
+        `);
+    }
+
     return {
       id: userId,
       name,
@@ -174,29 +191,25 @@ export const userService = {
   },
 
   // Update full profile information
-  updateProfile: async (userId, { name, phone_number, avatar_url, bio, country, timezone }) => {
+  updateProfile: async (userId, { name, phone_number, avatar_url, bio }) => {
     if (!userId) {
       throw new Error("User ID is required for updateProfile");
     }
 
-    const payload = { name, phone_number, avatar_url, bio, country, timezone };
+    const payload = { name, phone_number, avatar_url, bio };
     const hasAvatar = Object.prototype.hasOwnProperty.call(payload, 'avatar_url');
 
     const req = pool.request()
       .input("id", sql.VarChar, userId)
       .input("name", sql.NVarChar, name)
       .input("phone_number", sql.VarChar, phone_number || null)
-      .input("bio", sql.NVarChar, bio || null)
-      .input("country", sql.NVarChar, country || null)
-      .input("timezone", sql.NVarChar, timezone || null);
+      .input("bio", sql.NVarChar, bio || null);
 
     let queryStr = `
       UPDATE Users 
       SET name = @name, 
           phone_number = @phone_number, 
           bio = @bio,
-          country = @country,
-          timezone = @timezone,
           updated_at = GETDATE()
     `;
 
@@ -212,7 +225,7 @@ export const userService = {
     // Get the freshly updated user record including new fields
     const result = await pool.request()
       .input("id", sql.VarChar, userId)
-      .query("SELECT id, name, email, role, phone_number, avatar_url, bio, country, timezone, is_active FROM Users WHERE id = @id");
+      .query("SELECT id, name, email, role, phone_number, avatar_url, bio, is_active FROM Users WHERE id = @id");
     
     return result.recordset[0];
   },

@@ -324,10 +324,6 @@ router.post("/reset-password", resetPassword);
  *                           type: string
  *                         bio:
  *                           type: string
- *                         country:
- *                           type: string
- *                         timezone:
- *                           type: string
  *       401:
  *         description: Chưa xác thực hoặc Token không hợp lệ
  */
@@ -361,12 +357,6 @@ router.get("/me", protect, getMe);
  *               bio:
  *                 type: string
  *                 example: Học viên tại FPT Academy
- *               country:
- *                 type: string
- *                 example: Việt Nam
- *               timezone:
- *                 type: string
- *                 example: "(GMT+07:00) Bangkok, Hanoi, Jakarta"
  *     responses:
  *       200:
  *         description: Cập nhật hồ sơ cá nhân thành công

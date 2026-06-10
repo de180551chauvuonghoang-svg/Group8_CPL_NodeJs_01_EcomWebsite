@@ -12,6 +12,7 @@
 export const initDb = async (pool, sql) => {
   try {
     await createUsersTable(pool);
+    await createUserAddressesTable(pool);
     await createSessionsTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
@@ -69,12 +70,33 @@ const createUsersTable = async (pool) => {
         password      VARCHAR(255)   NOT NULL,
         phone_number  VARCHAR(20)    NULL,
         avatar_url    VARCHAR(2083)  NULL,
+        bio           NVARCHAR(MAX)  NULL,
         role          VARCHAR(20)    NOT NULL DEFAULT 'customer',
         is_active     BIT            NOT NULL DEFAULT 1,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       PRINT '[✓] Table Users created';
+    END
+  `);
+};
+
+const createUserAddressesTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'UserAddresses')
+    BEGIN
+      CREATE TABLE UserAddresses (
+        id              VARCHAR(50)    NOT NULL PRIMARY KEY,
+        user_id         VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+        recipient_name  NVARCHAR(100)  NOT NULL,
+        phone_number    VARCHAR(20)    NOT NULL,
+        street_address  NVARCHAR(500)  NOT NULL,
+        city            NVARCHAR(100)  NOT NULL,
+        is_default      BIT            NOT NULL DEFAULT 0,
+        created_at      DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_UserAddresses_user_id ON UserAddresses(user_id);
+      PRINT '[✓] Table UserAddresses created';
     END
   `);
 };

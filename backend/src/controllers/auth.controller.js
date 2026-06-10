@@ -334,7 +334,7 @@ export const updateProfile = async (req, res, next) => {
       });
     }
 
-    const { name, phone_number, avatar_url, bio, country, timezone } = req.body;
+    const { name, phone_number, avatar_url, bio } = req.body;
     if (!name || name.trim() === "") {
       return res.status(400).json({
         status: "fail",
@@ -342,7 +342,7 @@ export const updateProfile = async (req, res, next) => {
       });
     }
 
-    const updatedUser = await userService.updateProfile(userId, { name, phone_number, avatar_url, bio, country, timezone });
+    const updatedUser = await userService.updateProfile(userId, { name, phone_number, avatar_url, bio });
 
     res.status(200).json({
       status: "success",
@@ -355,8 +355,6 @@ export const updateProfile = async (req, res, next) => {
           phone_number: updatedUser.phone_number,
           avatar_url: updatedUser.avatar_url,
           bio: updatedUser.bio,
-          country: updatedUser.country,
-          timezone: updatedUser.timezone,
           role: updatedUser.role,
         },
       },
