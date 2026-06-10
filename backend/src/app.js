@@ -11,6 +11,8 @@ import swaggerSpec from "./config/swagger.js";
 // Routes imports
 import authRoutes from "./routes/auth.routes.js";
 import productRoutes from "./routes/product.routes.js";
+import userRoute from "./routes/userRoute.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 // Middlewares imports
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -69,6 +71,8 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/user", userRoute);
+app.use("/api/ai", aiRoutes);
 
 // 4. Handle 404 Routes
 app.all("*", (req, res, next) => {
