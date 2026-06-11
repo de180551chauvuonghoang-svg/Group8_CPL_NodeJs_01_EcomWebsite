@@ -26,15 +26,24 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 
-// Configure CORS to allow our React frontend (typically runs on 5173 for Vite)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+];
+if (process.env.FRONTEND_URL) {
+  // Support both comma-separated lists or single URL
+  if (process.env.FRONTEND_URL.includes(',')) {
+    allowedOrigins.push(...process.env.FRONTEND_URL.split(',').map(url => url.trim()));
+  } else {
+    allowedOrigins.push(process.env.FRONTEND_URL.trim());
+  }
+}
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-      "http://localhost:5174",
-      "http://127.0.0.1:5174",
-    ],
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
