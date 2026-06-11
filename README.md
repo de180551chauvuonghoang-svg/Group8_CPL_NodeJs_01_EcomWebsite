@@ -94,3 +94,5 @@ Khi deploy thư mục `/frontend` lên Vercel:
 3. Bổ sung một **Environment Variable** bắt buộc sau trong thiết lập Vercel:
    * **Key**: `VITE_API_BASE_URL`
    * **Value**: Địa chỉ API Backend đã được deploy của bạn (Ví dụ: `https://ten-backend.onrender.com/api`).
+
+docker start n8n

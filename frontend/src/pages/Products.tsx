@@ -69,8 +69,7 @@ const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: 
     >
       <Link
         to={`/products/${product.id}`}
-        className="group block rounded-2xl overflow-hidden bg-surface-container border border-outline-variant/40
-                   hover:border-primary/30 hover:shadow-xl transition-all duration-300"
+        className="group block premium-card overflow-hidden"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -284,9 +283,9 @@ export default function Products() {
                   <button
                     key={cat.key}
                     onClick={() => setSelectedCat(cat.key)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
                       ${selectedCat === cat.key
-                        ? 'bg-primary text-white shadow-sm'
+                        ? 'bg-primary/10 text-primary shadow-sm'
                         : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
                       }`}
                   >
@@ -304,9 +303,9 @@ export default function Products() {
                   <button
                     key={opt.key}
                     onClick={() => setSortKey(opt.key)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
                       ${sortKey === opt.key
-                        ? 'bg-secondary-container text-on-secondary-container'
+                        ? 'bg-primary/10 text-primary'
                         : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
                       }`}
                   >
@@ -387,18 +386,14 @@ export default function Products() {
                 </AnimatePresence>
               </div>
 
-              {/* Load More */}
-              {hasMore && (
                 <div className="flex justify-center mt-10">
                   <button
                     onClick={() => setVisibleCount(c => c + 12)}
-                    className="px-8 py-3 rounded-full border-2 border-primary text-primary font-bold text-sm
-                               hover:bg-primary hover:text-white transition-all duration-200 active:scale-95"
+                    className="pill-button pill-button--accent font-bold"
                   >
                     Xem thêm ({sorted.length - visibleCount} sản phẩm)
                   </button>
                 </div>
-              )}
             </>
           )}
         </main>

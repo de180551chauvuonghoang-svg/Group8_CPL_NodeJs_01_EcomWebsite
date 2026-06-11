@@ -114,9 +114,9 @@ export default function Combos() {
                 <button
                   key={cat.key}
                   onClick={() => setSelectedCat(cat.key)}
-                  className={`shrink-0 text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300
+                  className={`shrink-0 text-left px-4.5 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 cursor-pointer
                     ${selectedCat === cat.key
-                      ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+                      ? 'bg-primary/10 text-primary shadow-sm scale-[1.02]'
                       : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container border border-outline-variant/30 hover:border-primary/30'
                     }`}
                 >
@@ -157,7 +157,7 @@ export default function Combos() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1, duration: 0.4, ease: "easeOut" }}
-                    className="group flex flex-col bg-surface-container-lowest border border-outline-variant/40 rounded-3xl overflow-hidden hover:shadow-xl hover:border-primary/40 transition-all duration-500"
+                    className="group flex flex-col premium-card overflow-hidden"
                   >
                     {/* Hình ảnh siêu đẹp */}
                     <div className="relative aspect-[4/3] overflow-hidden">
@@ -168,7 +168,7 @@ export default function Combos() {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute bottom-4 left-4 right-4 z-20 flex gap-2 flex-wrap">
-                        {combo.tags.map(tag => (
+                        {combo.tags?.map(tag => (
                           <span key={tag} className="px-2 py-1 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg">
                             {tag}
                           </span>
@@ -188,9 +188,16 @@ export default function Combos() {
                         </div>
                       </div>
                       
-                      <p className="text-sm text-on-surface-variant mb-6 line-clamp-2">
+                      <p className="text-sm text-on-surface-variant mb-4 line-clamp-2">
                         {combo.description}
                       </p>
+
+                      {combo.specs_summary && (
+                        <div className="mb-6 p-3 bg-surface-container rounded-2xl text-xs text-on-surface-variant font-semibold flex items-center gap-2 border border-outline-variant/30">
+                          <span className="material-symbols-outlined text-[16px] text-primary">memory</span>
+                          <span className="line-clamp-1">{combo.specs_summary}</span>
+                        </div>
+                      )}
 
                       <div className="mt-auto flex items-end justify-between">
                         <div>
@@ -202,7 +209,7 @@ export default function Combos() {
                             )}
                           </div>
                         </div>
-                        <button className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-lg shadow-primary/30 group-hover:-translate-y-1 group-hover:scale-105 duration-300">
+                        <button className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-lg shadow-primary/30 group-hover:-translate-y-1 group-hover:scale-105 duration-300 cursor-pointer">
                           <span className="material-symbols-outlined">arrow_forward</span>
                         </button>
                       </div>

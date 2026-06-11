@@ -726,6 +726,11 @@ const seedData = async (pool, sql) => {
   await seedCategories(pool, sql);
   await seedAttributes(pool, sql);
   await seedProducts(pool, sql);
+  await seedUserAddresses(pool, sql);
+  await seedReviews(pool, sql);
+  await seedCoupons(pool, sql);
+  await seedProductCombos(pool, sql);
+  await seedOrders(pool, sql);
 };
 
 const seedUsers = async (pool, sql) => {
@@ -1066,8 +1071,142 @@ const seedProducts = async (pool, sql) => {
           avIds: ["av_black"],
         },
       ],
-      primaryImage:
-        "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80",
+      primaryImage: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      id: "prod_007",
+      name: "Smart TV OLED 55 Inch 4K",
+      slug: "smart-tv-oled-55-inch-4k",
+      short_desc: "Màn hình OLED 4K, HDR10+, Dolby Vision, tần số quét 120Hz",
+      desc: "Trải nghiệm rạp chiếu phim tại gia với màn hình OLED thế hệ mới, độ tương phản vô hạn, màu đen tuyệt đối và hệ thống âm thanh vòm Dolby Atmos tích hợp.",
+      base_price: 24990000,
+      category: "cat_electronics",
+      variants: [
+        {
+          id: "var_007_std",
+          sku: "TV-OLED55-BLK",
+          price: 24990000,
+          compare: 29990000,
+          stock: 12,
+          image: "https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+      ],
+      primaryImage: "https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      id: "prod_008",
+      name: "Loa Bluetooth Soundbar Cinema",
+      slug: "loa-bluetooth-soundbar-cinema",
+      short_desc: "Công suất 300W, Dolby Audio, kết nối HDMI ARC & Bluetooth",
+      desc: "Nâng cấp âm thanh tivi với loa Soundbar Cinema. Âm trầm sâu lắng từ loa sub không dây kèm hiệu ứng giả lập âm thanh vòm sống động.",
+      base_price: 3890000,
+      category: "cat_audio",
+      variants: [
+        {
+          id: "var_008_std",
+          sku: "SB-CINEMA-BLK",
+          price: 3890000,
+          compare: 4500000,
+          stock: 15,
+          image: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+      ],
+      primaryImage: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      id: "prod_009",
+      name: "Điện Thoại Volitify Phone One",
+      slug: "dien-thoai-volitify-phone-one",
+      short_desc: "Màn hình 120Hz Super AMOLED, RAM 8GB, Camera 108MP",
+      desc: "Trải nghiệm mượt mà với vi xử lý 4nm, màn hình đục lỗ siêu tràn viền, sạc nhanh 67W và cụm camera chụp đêm siêu sắc nét.",
+      base_price: 10990000,
+      category: "cat_electronics",
+      variants: [
+        {
+          id: "var_009_black",
+          sku: "PH-ONE-BLK",
+          price: 10990000,
+          compare: 12490000,
+          stock: 20,
+          image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+        {
+          id: "var_009_blue",
+          sku: "PH-ONE-BLU",
+          price: 10990000,
+          compare: 12490000,
+          stock: 15,
+          image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_blue"],
+        },
+      ],
+      primaryImage: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      id: "prod_010",
+      name: "Laptop Volitify Book Pro 14",
+      slug: "laptop-volitify-book-pro-14",
+      short_desc: "Intel Core i5, RAM 16GB, SSD 512GB, Màn hình 2K IPS",
+      desc: "Thiết kế kim loại nguyên khối mỏng nhẹ chỉ 1.3kg. Hiệu năng vượt trội đáp ứng tốt mọi công việc văn phòng, thiết kế đồ họa 2D và giải trí.",
+      base_price: 18500000,
+      category: "cat_computers",
+      variants: [
+        {
+          id: "var_010_silver",
+          sku: "LT-BPRO14-SLV",
+          price: 18500000,
+          compare: 21000000,
+          stock: 10,
+          image: "https://images.unsplash.com/photo-1496181130204-755241524eab?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_silver"],
+        },
+      ],
+      primaryImage: "https://images.unsplash.com/photo-1496181130204-755241524eab?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      id: "prod_011",
+      name: "Nồi Chiên Không Dầu Smart Wave",
+      slug: "noi-chien-khong-dau-smart-wave",
+      short_desc: "Thể tích 5.5L, công suất 1700W, điều khiển qua App",
+      desc: "Nấu ăn lành mạnh giảm 85% lượng dầu mỡ. Công nghệ luồng nhiệt tuần hoàn 360 độ giúp thức ăn chín đều, giòn rụm bên ngoài và mềm mọng bên trong.",
+      base_price: 2490000,
+      category: "cat_kitchen",
+      variants: [
+        {
+          id: "var_011_white",
+          sku: "KC-FRYER-WHT",
+          price: 2490000,
+          compare: 3200000,
+          stock: 8,
+          image: "https://images.unsplash.com/photo-1621972750749-0fbb1abb7736?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_white"],
+        },
+      ],
+      primaryImage: "https://images.unsplash.com/photo-1621972750749-0fbb1abb7736?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      id: "prod_012",
+      name: "Robot Hút Bụi Lau Nhà Robovac X1",
+      slug: "robot-hut-bui-lau-nha-robovac-x1",
+      short_desc: "Lực hút 4000Pa, lập bản đồ laser LiDAR, tự động sạc",
+      desc: "Giải phóng đôi tay của bạn với robot hút bụi lau nhà thông minh. Tự động vẽ bản đồ phòng tránh chướng ngại vật cực nhạy, hẹn giờ quét dọn qua ứng dụng di động.",
+      base_price: 7990000,
+      category: "cat_home",
+      variants: [
+        {
+          id: "var_012_black",
+          sku: "HM-ROBO-BLK",
+          price: 7990000,
+          compare: 9900000,
+          stock: 7,
+          image: "https://images.unsplash.com/photo-1589656966895-2f33e7653819?auto=format&fit=crop&w=600&q=80",
+          avIds: ["av_black"],
+        },
+      ],
+      primaryImage: "https://images.unsplash.com/photo-1589656966895-2f33e7653819?auto=format&fit=crop&w=600&q=80",
     },
   ];
 
@@ -1135,4 +1274,197 @@ const seedProducts = async (pool, sql) => {
     await transaction.rollback();
     throw err;
   }
+};
+
+const seedUserAddresses = async (pool, sql) => {
+  const { recordset } = await pool
+    .request()
+    .query(`SELECT COUNT(*) AS cnt FROM UserAddresses`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log("[Seed] Seeding user addresses...");
+  await pool
+    .request()
+    .input("id", sql.VarChar, "addr_001")
+    .input("userId", sql.VarChar, "usr_cust001")
+    .input("name", sql.NVarChar, "Nguyen Van A")
+    .input("phone", sql.VarChar, "0909876543")
+    .input("address", sql.NVarChar, "Số 1 Khu Khuất Duy Tiến, Thanh Xuân")
+    .input("city", sql.NVarChar, "Hà Nội")
+    .query(`INSERT INTO UserAddresses (id,user_id,recipient_name,phone_number,street_address,city,is_default)
+            VALUES (@id,@userId,@name,@phone,@address,@city,1)`);
+
+  await pool
+    .request()
+    .input("id", sql.VarChar, "addr_002")
+    .input("userId", sql.VarChar, "usr_cust001")
+    .input("name", sql.NVarChar, "Nguyen Van A (Văn phòng)")
+    .input("phone", sql.VarChar, "0909876543")
+    .input("address", sql.NVarChar, "Tòa nhà FPT, Khu công nghệ cao Hòa Lạc")
+    .input("city", sql.NVarChar, "Hà Nội")
+    .query(`INSERT INTO UserAddresses (id,user_id,recipient_name,phone_number,street_address,city,is_default)
+            VALUES (@id,@userId,@name,@phone,@address,@city,0)`);
+  console.log("[Seed] ✓ User addresses seeded.");
+};
+
+const seedReviews = async (pool, sql) => {
+  const { recordset } = await pool
+    .request()
+    .query(`SELECT COUNT(*) AS cnt FROM Reviews`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log("[Seed] Seeding product reviews...");
+  const reviews = [
+    { id: "rev_001", pId: "prod_001", uId: "usr_cust001", rating: 5, body: "Tai nghe nghe nhạc rất hay, chống ồn tốt!" },
+    { id: "rev_002", pId: "prod_001", uId: "usr_admin001", rating: 4, body: "Sản phẩm chất lượng ổn, thời lượng pin rất trâu." },
+    { id: "rev_003", pId: "prod_002", uId: "usr_cust001", rating: 5, body: "Phím gõ nảy, LED RGB đẹp lung linh." },
+    { id: "rev_004", pId: "prod_004", uId: "usr_cust001", rating: 4, body: "Đồng hồ đo nhịp tim chuẩn xác, màn hình sáng nét." },
+    { id: "rev_005", pId: "prod_007", uId: "usr_cust001", rating: 5, body: "Màn hình OLED 4K hiển thị xuất sắc, xem phim cực kỳ đã mắt." },
+    { id: "rev_006", pId: "prod_010", uId: "usr_cust001", rating: 5, body: "Laptop mỏng nhẹ, hiệu năng tốt, pin trâu dùng cả ngày." }
+  ];
+
+  for (const r of reviews) {
+    await pool
+      .request()
+      .input("id", sql.VarChar, r.id)
+      .input("pId", sql.VarChar, r.pId)
+      .input("uId", sql.VarChar, r.uId)
+      .input("rating", sql.Int, r.rating)
+      .input("body", sql.NVarChar, r.body)
+      .query(`INSERT INTO Reviews (id,product_id,user_id,rating,body)
+              VALUES (@id,@pId,@uId,@rating,@body)`);
+  }
+  console.log("[Seed] ✓ Reviews seeded.");
+};
+
+const seedCoupons = async (pool, sql) => {
+  const { recordset } = await pool
+    .request()
+    .query(`SELECT COUNT(*) AS cnt FROM Coupons`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log("[Seed] Seeding discount coupons...");
+  await pool
+    .request()
+    .input("id", sql.VarChar, "coup_001")
+    .input("code", sql.VarChar, "VOLITIFY10")
+    .input("type", sql.VarChar, "percentage")
+    .input("val", sql.Decimal(18, 2), 10.00)
+    .input("minSpend", sql.Decimal(18, 2), 1000000.00)
+    .input("maxDisc", sql.Decimal(18, 2), 500000.00)
+    .query(`INSERT INTO Coupons (id,code,discount_type,discount_value,min_order_amount,max_discount_amt,is_active)
+            VALUES (@id,@code,@type,@val,@minSpend,@maxDisc,1)`);
+
+  await pool
+    .request()
+    .input("id", sql.VarChar, "coup_002")
+    .input("code", sql.VarChar, "GIAM50K")
+    .input("type", sql.VarChar, "fixed")
+    .input("val", sql.Decimal(18, 2), 50000.00)
+    .input("minSpend", sql.Decimal(18, 2), 500000.00)
+    .query(`INSERT INTO Coupons (id,code,discount_type,discount_value,min_order_amount,is_active)
+            VALUES (@id,@code,@type,@val,@minSpend,1)`);
+  console.log("[Seed] ✓ Coupons seeded.");
+};
+
+const seedProductCombos = async (pool, sql) => {
+  const { recordset } = await pool
+    .request()
+    .query(`SELECT COUNT(*) AS cnt FROM ProductCombos`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log("[Seed] Seeding AI product combos...");
+  const combos = [
+    { name: "Bộ PC Sinh Viên - Văn Phòng", desc: "Bộ PC cơ bản, cực kỳ tiết kiệm. Đáp ứng mượt mà các tác vụ Word, Excel, lướt web.", price: 8500000.00, cat: "PC", uc: "văn phòng, sinh viên", specs: "Core i3, 8GB RAM, 256GB SSD", img: "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=2042&auto=format&fit=crop" },
+    { name: "Bộ PC Esport - Quốc dân", desc: "Sự lựa chọn quốc dân cho sinh viên và game thủ nhẹ nhàng. Cân mượt các game Esport.", price: 15000000.00, cat: "PC", uc: "chơi game, esport", specs: "Core i5, 16GB RAM, GTX 1650, 512GB SSD", img: "https://images.unsplash.com/photo-1542393545-10f5cde2c810?q=80&w=1965&auto=format&fit=crop" },
+    { name: "Bộ PC Đa Năng - Cân Đồ Họa", desc: "Best choice trong tầm giá 25 triệu. Vừa chơi game AAA mượt, vừa thiết kế êm ru.", price: 25000000.00, cat: "PC", uc: "đồ họa, chơi game mượt", specs: "Core i5 Gen 13, 16GB RAM, RTX 4060, 1TB SSD", img: "https://images.unsplash.com/photo-1587202372634-32705e3bf49c?q=80&w=2000&auto=format&fit=crop" },
+    { name: "Bếp Nhỏ Nấu Nhanh (Phòng Trọ)", desc: "Giải pháp cho không gian hẹp. Gọn gàng, dễ dọn dẹp, đủ nấu ăn cơ bản.", price: 3500000.00, cat: "Kitchen", uc: "phòng trọ, độc thân", specs: "Bếp từ đơn, Nồi cơm mini, Ấm siêu tốc", img: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=2070&auto=format&fit=crop" },
+    { name: "Phòng Khách Điện Ảnh", desc: "Biến phòng khách thành rạp phim mini, trải nghiệm âm thanh hình ảnh tuyệt đỉnh.", price: 35000000.00, cat: "SmartHome", uc: "phòng khách, xem phim", specs: "Smart TV OLED 55 inch, Loa Soundbar 5.1", img: "https://images.unsplash.com/photo-1558002038-1055907df827?q=80&w=2070&auto=format&fit=crop" }
+  ];
+
+  for (const c of combos) {
+    await pool
+      .request()
+      .input("name", sql.NVarChar, c.name)
+      .input("desc", sql.NVarChar, c.desc)
+      .input("price", sql.Decimal(15, 2), c.price)
+      .input("cat", sql.NVarChar, c.cat)
+      .input("uc", sql.NVarChar, c.uc)
+      .input("specs", sql.NVarChar, c.specs)
+      .input("img", sql.NVarChar, c.img)
+      .query(`INSERT INTO ProductCombos (name,description,price,category,use_case,specs_summary,image_url)
+              VALUES (@name,@desc,@price,@cat,@uc,@specs,@img)`);
+  }
+  console.log("[Seed] ✓ AI product combos seeded.");
+};
+
+const seedOrders = async (pool, sql) => {
+  const { recordset } = await pool
+    .request()
+    .query(`SELECT COUNT(*) AS cnt FROM Orders`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log("[Seed] Seeding order histories...");
+  
+  // Seeding 1 completed order
+  await pool
+    .request()
+    .input("id", sql.VarChar, "ord_001")
+    .input("userId", sql.VarChar, "usr_cust001")
+    .input("status", sql.VarChar, "delivered")
+    .input("subtotal", sql.Decimal(18, 2), 4599000.00)
+    .input("discount", sql.Decimal(18, 2), 0.00)
+    .input("shipping", sql.Decimal(18, 2), 30000.00)
+    .input("total", sql.Decimal(18, 2), 4629000.00)
+    .input("name", sql.NVarChar, "Nguyen Van A")
+    .input("phone", sql.VarChar, "0909876543")
+    .input("address", sql.NVarChar, "Số 1 Khu Khuất Duy Tiến, Thanh Xuân")
+    .input("city", sql.NVarChar, "Hà Nội")
+    .query(`INSERT INTO Orders (id,user_id,status,subtotal,discount_amount,shipping_fee,total,shipping_name,shipping_phone,shipping_address,shipping_city)
+            VALUES (@id,@userId,@status,@subtotal,@discount,@shipping,@total,@name,@phone,@address,@city)`);
+
+  await pool
+    .request()
+    .input("id", sql.VarChar, "item_001")
+    .input("orderId", sql.VarChar, "ord_001")
+    .input("variantId", sql.VarChar, "var_001_black")
+    .input("qty", sql.Int, 1)
+    .input("price", sql.Decimal(18, 2), 4599000.00)
+    .input("total", sql.Decimal(18, 2), 4599000.00)
+    .input("prodName", sql.NVarChar, "Tai Nghe Chống Ồn Premium")
+    .input("varInfo", sql.NVarChar, "Màu sắc: Đen")
+    .query(`INSERT INTO OrderItems (id,order_id,variant_id,quantity,unit_price,total_price,product_name,variant_info)
+            VALUES (@id,@orderId,@variantId,@qty,@price,@total,@prodName,@varInfo)`);
+
+  // Seeding 1 pending order
+  await pool
+    .request()
+    .input("id", sql.VarChar, "ord_002")
+    .input("userId", sql.VarChar, "usr_cust001")
+    .input("status", sql.VarChar, "pending")
+    .input("subtotal", sql.Decimal(18, 2), 1199000.00)
+    .input("discount", sql.Decimal(18, 2), 50000.00)
+    .input("shipping", sql.Decimal(18, 2), 0.00)
+    .input("total", sql.Decimal(18, 2), 1149000.00)
+    .input("name", sql.NVarChar, "Nguyen Van A")
+    .input("phone", sql.VarChar, "0909876543")
+    .input("address", sql.NVarChar, "Số 1 Khu Khuất Duy Tiến, Thanh Xuân")
+    .input("city", sql.NVarChar, "Hà Nội")
+    .query(`INSERT INTO Orders (id,user_id,status,subtotal,discount_amount,shipping_fee,total,shipping_name,shipping_phone,shipping_address,shipping_city)
+            VALUES (@id,@userId,@status,@subtotal,@discount,@shipping,@total,@name,@phone,@address,@city)`);
+
+  await pool
+    .request()
+    .input("id", sql.VarChar, "item_002")
+    .input("orderId", sql.VarChar, "ord_002")
+    .input("variantId", sql.VarChar, "var_003_black")
+    .input("qty", sql.Int, 1)
+    .input("price", sql.Decimal(18, 2), 1199000.00)
+    .input("total", sql.Decimal(18, 2), 1199000.00)
+    .input("prodName", sql.NVarChar, "Chuột Không Dây Ergonomic")
+    .input("varInfo", sql.NVarChar, "Màu sắc: Đen")
+    .query(`INSERT INTO OrderItems (id,order_id,variant_id,quantity,unit_price,total_price,product_name,variant_info)
+            VALUES (@id,@orderId,@variantId,@qty,@price,@total,@prodName,@varInfo)`);
+
+  console.log("[Seed] ✓ Order histories seeded.");
 };

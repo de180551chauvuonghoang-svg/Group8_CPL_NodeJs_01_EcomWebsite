@@ -101,10 +101,10 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent"></div>
         </div>
         <div className="relative z-10 max-w-container-max mx-auto px-margin-desktop h-full flex flex-col justify-center">
-          <span className="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary font-bold text-label-md mb-6 uppercase tracking-widest w-fit">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary font-bold text-label-md mb-6 uppercase tracking-widest w-fit">
             RA MẮT THẾ HỆ MỚI
           </span>
-          <h1 className="font-display-lg text-display-lg max-w-3xl mb-8 leading-tight text-navy-dark">
+          <h1 className="font-display-lg text-display-lg max-w-3xl mb-8 leading-tight text-navy-dark tracking-tighter text-balance">
             Nâng tầm trải nghiệm sống thông minh
           </h1>
           <p className="text-body-lg text-on-surface-variant max-w-xl mb-10">
@@ -116,7 +116,7 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <button
               onClick={handleScrollToProducts}
-              className="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2"
+              className="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
             >
               Khám phá ngay <ArrowRight size={18} />
             </button>
@@ -124,7 +124,7 @@ export default function Home() {
               href="https://www.youtube.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="border border-outline text-on-surface px-8 py-4 rounded-full font-bold hover:bg-surface-container transition-all flex items-center justify-center"
+              className="border border-outline/60 text-on-surface px-8 py-4 rounded-full font-bold hover:bg-surface-container active:scale-95 transition-all flex items-center justify-center cursor-pointer"
             >
               Xem phim giới thiệu
             </a>
@@ -156,19 +156,19 @@ export default function Home() {
               handleCategorySelect('Home & Kitchen');
               handleScrollToProducts();
             }}
-            className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+            className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-3xl bg-surface-container-low cursor-pointer active:scale-[0.99] transition-all duration-300"
           >
-            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/40 rounded-3xl transition-all duration-300 z-20 pointer-events-none"></div>
             <img
               alt="Smart Kitchen"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuC12OlJza_aD8AP2I4nnng3dAjNvaQJHLfZXV_WU0zA-9O44JTitmrqVOloEu0Igr8lG3Wsh_2mS3rxDMEzyyeU9Ly76jXFf_MnTG9xoXIji_Li51R0iMCg-f2aRfGDt4SOuVWSWpZjlL2halI0Qc_jA0XsMlPrV4DqrnBJkc4wS_Ii1TzxIfWQQL4XK8e3bL-i_smxMJEdrvzcmZM0KXmZ6fAxaX_PSfrfdZnm1KC6aAMUlI0OhLIwE2v8ihF0CHwpX39UIXcDH-ci"
               loading="lazy"
               decoding="async"
               style={{ willChange: 'transform' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
-              <h3 className="text-white font-headline-md text-headline-md">Smart Kitchen</h3>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-8 flex flex-col justify-end z-10">
+              <h3 className="text-white font-headline-md text-headline-md tracking-tight">Smart Kitchen</h3>
               <p className="text-white/70 mb-4 font-body-md">Công nghệ nấu nướng hiện đại nhất</p>
               <button className="bg-white text-black px-6 py-2 rounded-full w-fit font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
                 Khám Phá
@@ -182,19 +182,19 @@ export default function Home() {
               handleCategorySelect('Audio');
               handleScrollToProducts();
             }}
-            className="relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+            className="relative group overflow-hidden rounded-3xl bg-surface-container-low cursor-pointer active:scale-[0.99] transition-all duration-300"
           >
-            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/40 rounded-3xl transition-all duration-300 z-20 pointer-events-none"></div>
             <img
               alt="Premium Audio"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtTsPD5PQ5XucxbkZDcdTHqotWhjcwvxKG6CcyacrvneZbqdhOkrFAXl3WDehncpvRHybj1g6LO4h3iezqDrRts12cDbBP6TaZQ2pRPevruGnG4k20JQMjYN3MSug9iXbD54pdhMfsvo478E3akj2YNWY36uAwCjaId0PUfEzvdR8_OmiYkFj8egHkg9krdGXuGHD5mGOqgVTQr7QPLgk6YaVrwJsert9ccCGYm4pTy3hY4rIYEOXIGLQ5oDVSH0muDXJEdavOq03p"
               loading="lazy"
               decoding="async"
               style={{ willChange: 'transform' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end">
-              <h3 className="text-white font-bold font-title-lg">Premium Audio</h3>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-6 flex flex-col justify-end z-10">
+              <h3 className="text-white font-bold font-title-lg tracking-tight">Premium Audio</h3>
             </div>
           </div>
 
@@ -204,19 +204,19 @@ export default function Home() {
               handleCategorySelect('Electronics');
               handleScrollToProducts();
             }}
-            className="relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+            className="relative group overflow-hidden rounded-3xl bg-surface-container-low cursor-pointer active:scale-[0.99] transition-all duration-300"
           >
-            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/40 rounded-3xl transition-all duration-300 z-20 pointer-events-none"></div>
             <img
               alt="Home Cinema"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFshPtdsmM01VDSzYJCRjrjrXxU5gCJgfZvD0Wwq4-N33lAoZKWuJbRH_hEFP1fk9K6VjvgpG92e16iXooBfIP3YKzzZelouhFIs93jtQAWoOy-AiUzlzm-4a6aHZixvt_l57ZIntn1xfuLOY95UJyh5jDBlQoFiLyDqZpXU9lgehNUZdDEXfYif-K0sPKJ-5Dvz4GuirwqR4h--kf9jSuy4nx3s_PsX2oPwQ62OO3ACZDHdJwnT_-IU7ZBfqdbpX4CAM8oEWmqS7h"
               loading="lazy"
               decoding="async"
               style={{ willChange: 'transform' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-6 flex flex-col justify-end">
-              <h3 className="text-white font-bold font-title-lg">Home Cinema</h3>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-6 flex flex-col justify-end z-10">
+              <h3 className="text-white font-bold font-title-lg tracking-tight">Home Cinema</h3>
             </div>
           </div>
 
@@ -226,19 +226,19 @@ export default function Home() {
               handleCategorySelect('Accessories');
               handleScrollToProducts();
             }}
-            className="md:col-span-2 relative group overflow-hidden rounded-3xl bg-surface-container-low product-card cursor-pointer"
+            className="md:col-span-2 relative group overflow-hidden rounded-3xl bg-surface-container-low cursor-pointer active:scale-[0.99] transition-all duration-300"
           >
-            <div className="glow-border absolute inset-0 border-2 border-primary rounded-3xl"></div>
+            <div className="absolute inset-0 border border-primary/0 group-hover:border-primary/40 rounded-3xl transition-all duration-300 z-20 pointer-events-none"></div>
             <img
               alt="Air Treatment"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-w28NnAFIInT0qFs4n_V8zgeaUNCHCvBPOSmhOHuWEj3maUBIS86W3u2DDIFlWY-OHefYL187WXQYT-EULQuHQZ3lU8CED5aPQ_8pY5mdg9MFULmp66LCnLizB-V-n_TT21wphm0QEpmgQXoVsTHMoJkIlvmaoUcQEbfBFSKPAyY76631aG5rfvVDZZHox--CUDRnDrxreXl_tn37ntExPfm68FN-pZgxsKLfrarGaiImFelJ4MqKq5zheNgNsStKPvLFyqrtfIiM"
               loading="lazy"
               decoding="async"
               style={{ willChange: 'transform' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent p-8 flex flex-col justify-end">
-              <h3 className="text-white font-title-lg text-headline-md">Air Treatment</h3>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-8 flex flex-col justify-end z-10">
+              <h3 className="text-white font-title-lg text-headline-md tracking-tight">Air Treatment</h3>
               <p className="text-white/70 font-body-md">Không khí trong lành, cuộc sống khỏe mạnh</p>
             </div>
           </div>
@@ -300,7 +300,7 @@ export default function Home() {
               return (
                 <div
                   key={product.id}
-                  className="bg-surface-container-lowest border border-outline-variant rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col group relative"
+                  className="premium-card overflow-hidden flex flex-col group relative"
                 >
                   {/* Image Frame */}
                   <div className="relative pt-[75%] overflow-hidden bg-surface-container">
@@ -355,10 +355,10 @@ export default function Home() {
 
                     {/* Footer Row */}
                     <div className="mt-auto flex justify-between items-center">
-                      <span className="font-display-lg text-primary text-title-lg font-black">
+                      <span className="font-display-lg text-primary text-title-lg font-black tracking-tight">
                         ${(product.price || 0).toLocaleString('vi-VN')}
                       </span>
-                      <button className="flex items-center gap-2 px-5 py-2.5 bg-primary/5 hover:bg-primary hover:text-white text-primary font-bold text-xs rounded-xl transition-all">
+                      <button className="flex items-center gap-2 px-5 py-2.5 bg-primary/5 hover:bg-primary hover:text-white text-primary font-bold text-xs rounded-xl active:scale-95 transition-all cursor-pointer">
                         <ShoppingBag size={14} />
                         <span>Chọn mua</span>
                       </button>
