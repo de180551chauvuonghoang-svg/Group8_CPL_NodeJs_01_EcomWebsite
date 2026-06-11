@@ -1,10 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import { motion } from 'framer-motion';
 import { authService } from '../services/authService';
 import AddressBook from '../components/profile/AddressBook';
+import { paymentService, UserOrder } from '../services/paymentService';
 
 export default function Profile() {
   const auth = useContext(AuthContext);
@@ -28,6 +29,8 @@ export default function Profile() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [orders, setOrders] = useState<UserOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   // Sync state with logged in user
   useEffect(() => {
@@ -42,6 +45,16 @@ export default function Profile() {
       setBio(user.bio || '');
     }
   }, [user, isAuthenticated, loading, navigate]);
+
+  // Load orders when tab is active
+  useEffect(() => {
+    if (activeTab !== 'orders') return;
+    setOrdersLoading(true);
+    paymentService.getUserOrders()
+      .then(setOrders)
+      .catch(() => setOrders([]))
+      .finally(() => setOrdersLoading(false));
+  }, [activeTab]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -151,6 +164,13 @@ export default function Profile() {
               >
                 <span className="material-symbols-outlined text-[20px]">location_on</span>
                 <span className="font-label-md text-sm">Sổ địa chỉ</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('orders')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-transform hover:translate-x-1 ${activeTab === 'orders' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+              >
+                <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+                <span className="font-label-md text-sm">Đơn hàng</span>
               </button>
               <a className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1" href="#security">
                 <span className="material-symbols-outlined text-[20px]">security</span>
@@ -339,8 +359,78 @@ export default function Profile() {
                 </div>
               </form>
             </div>
-          ) : (
+          ) : activeTab === 'address' ? (
             <AddressBook />
+          ) : (
+            /* ── ORDERS TAB ── */
+            <div className="space-y-4">
+              <h2 className="text-xl font-black" style={{ fontFamily: 'Outfit, sans-serif' }}>Lịch sử đơn hàng</h2>
+              {ordersLoading ? (
+                <div className="flex items-center gap-3 text-on-surface-variant py-8">
+                  <span className="material-symbols-outlined animate-spin text-primary">sync</span>
+                  Đang tải đơn hàng...
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="text-center py-16">
+                  <span className="material-symbols-outlined text-[56px] text-on-surface-variant/30" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_bag</span>
+                  <p className="mt-4 text-on-surface-variant">Bạn chưa có đơn hàng nào</p>
+                  <Link to="/products" className="mt-4 inline-flex items-center gap-1 text-sm text-primary font-semibold hover:underline">
+                    Mua sắm ngay <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </Link>
+                </div>
+              ) : (
+                orders.map((order, i) => {
+                  const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
+                  const STATUS: Record<string, { label: string; color: string }> = {
+                    pending:   { label: 'Chờ xử lý',   color: '#fbbf24' },
+                    confirmed: { label: 'Đã xác nhận', color: '#34d399' },
+                    processing:{ label: 'Đang xử lý',  color: '#60a5fa' },
+                    shipped:   { label: 'Đang giao',   color: '#a78bfa' },
+                    delivered: { label: 'Đã giao',     color: '#34d399' },
+                    cancelled: { label: 'Đã hủy',      color: '#f87171' },
+                  };
+                  const s = STATUS[order.status] || { label: order.status, color: '#94a3b8' };
+                  const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method;
+                  return (
+                    <motion.div
+                      key={order.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                      className="rounded-2xl border border-white/8 p-5"
+                      style={{ background: 'rgba(255,255,255,0.03)' }}
+                    >
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                          <p className="text-xs text-on-surface-variant font-semibold uppercase tracking-wider mb-1">Mã đơn</p>
+                          <p className="font-mono font-bold text-sm text-primary">#{order.id.substring(0, 12).toUpperCase()}</p>
+                        </div>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                          style={{ background: `${s.color}20`, color: s.color }}>{s.label}</span>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-white/6 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-on-surface-variant mb-0.5">Tổng tiền</p>
+                          <p className="font-black">{fmt(order.total)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-on-surface-variant mb-0.5">Thanh toán</p>
+                          <p className="font-semibold">{pm}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-on-surface-variant mb-0.5">Ngày đặt</p>
+                          <p className="font-semibold">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                        <div className="col-span-2 sm:col-span-3">
+                          <p className="text-xs text-on-surface-variant mb-0.5">Địa chỉ giao hàng</p>
+                          <p className="text-xs">{order.shipping_address}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
           )}
         </section>
       </main>
