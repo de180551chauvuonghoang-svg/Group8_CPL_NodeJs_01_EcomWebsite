@@ -21,6 +21,7 @@ const Profile      = lazy(() => import('./pages/Profile'));
 const Products     = lazy(() => import('./pages/Products'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 const Combos       = lazy(() => import('./pages/Combos'));
+const Checkout     = lazy(() => import('./pages/Checkout'));
 
 // Loading spinner component
 const PageLoader = () => (
@@ -68,6 +69,11 @@ function AppContent() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />

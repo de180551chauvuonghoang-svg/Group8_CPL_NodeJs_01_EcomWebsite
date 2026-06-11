@@ -72,13 +72,10 @@ export default function Cart() {
     else     { setPromoError('Mã không hợp lệ hoặc đã hết hạn'); setPromoSuccess(''); }
   };
 
-  const handleCheckout = async () => {
-    if (scope.current) {
-      await animate(scope.current, { scale: [1, 0.98, 1.02, 1] }, { duration: 0.4 });
-    }
-    setCheckoutSuccess(true);
-    setTimeout(() => { clearCart(); setCheckoutSuccess(false); navigate('/'); }, 3000);
-  };
+  const handleCheckout = () => {
+    navigate('/checkout');
+};
+
 
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 

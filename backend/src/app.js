@@ -14,6 +14,7 @@ import productRoutes from "./routes/product.routes.js";
 import userRoute from "./routes/userRoute.js";
 import aiRoutes from "./routes/ai.routes.js";
 import addressRoutes from "./routes/address.routes.js";
+import orderRoutes from "./routes/order.routes.js";
 
 // Middlewares imports
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -42,6 +43,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // Rate limiter to prevent abusive API calls
 const limiter = rateLimit({
@@ -75,6 +77,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/user", userRoute);
 app.use("/api/ai", aiRoutes);
 app.use("/api/addresses", addressRoutes);
+app.use("/api/orders", orderRoutes);
 
 // 4. Handle 404 Routes
 app.all("*", (req, res, next) => {

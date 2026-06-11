@@ -10,8 +10,10 @@ import {
   Truck, 
   Inbox
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { productService } from '../services/productService';
 import { AuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { Product } from '../types';
 import Spinner from '../components/common/Spinner';
 import AIBanner from '../components/home/AIBanner';
@@ -22,10 +24,18 @@ export default function Home() {
     throw new Error('Home must be used within an AuthProvider');
   }
   const { isAuthenticated, user } = auth;
+  const { addToCart } = useCart();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
+  const [addedId, setAddedId] = useState<string | null>(null);
+
+  const handleAddToCart = (product: Product) => {
+    addToCart(product);
+    setAddedId(product.id);
+    setTimeout(() => setAddedId(null), 2000);
+  };
 
   // Read search & category parameters from the URL
   const [searchParams, setSearchParams] = useSearchParams();
@@ -358,9 +368,25 @@ export default function Home() {
                       <span className="font-display-lg text-primary text-title-lg font-black">
                         ${(product.price || 0).toLocaleString('vi-VN')}
                       </span>
-                      <button className="flex items-center gap-2 px-5 py-2.5 bg-primary/5 hover:bg-primary hover:text-white text-primary font-bold text-xs rounded-xl transition-all">
-                        <ShoppingBag size={14} />
-                        <span>Chọn mua</span>
+                      <button 
+                        onClick={() => handleAddToCart(product)}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all duration-300 ${
+                          addedId === product.id
+                            ? 'bg-green-500 text-white shadow-lg shadow-green-500/30 scale-105'
+                            : 'bg-primary/5 hover:bg-primary hover:text-white text-primary'
+                        }`}
+                      >
+                        {addedId === product.id ? (
+                          <>
+                            <CheckCircle size={14} className="animate-in zoom-in" />
+                            <span>Đã thêm</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingBag size={14} />
+                            <span>Chọn mua</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -461,6 +487,24 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Toast notification */}
+      <AnimatePresence>
+        {addedId && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white
+                       px-6 py-4 rounded-full shadow-2xl text-sm font-bold flex items-center gap-3 border border-slate-700"
+          >
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <CheckCircle size={16} className="text-white" />
+            </div>
+            Sản phẩm đã được thêm vào giỏ hàng!
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
