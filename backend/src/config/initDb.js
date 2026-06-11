@@ -71,12 +71,33 @@ const createUsersTable = async (pool) => {
         phone_number  VARCHAR(20)    NULL,
         avatar_url    VARCHAR(2083)  NULL,
         bio           NVARCHAR(MAX)  NULL,
+        country       NVARCHAR(100)  NULL,
+        timezone      NVARCHAR(100)  NULL,
         role          VARCHAR(20)    NOT NULL DEFAULT 'customer',
         is_active     BIT            NOT NULL DEFAULT 1,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       PRINT '[✓] Table Users created';
+    END
+    ELSE
+    BEGIN
+      -- Add missing columns to existing Users table
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'bio')
+      BEGIN
+        ALTER TABLE Users ADD bio NVARCHAR(MAX) NULL;
+        PRINT '[✓] Column bio added to Users';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'country')
+      BEGIN
+        ALTER TABLE Users ADD country NVARCHAR(100) NULL;
+        PRINT '[✓] Column country added to Users';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'timezone')
+      BEGIN
+        ALTER TABLE Users ADD timezone NVARCHAR(100) NULL;
+        PRINT '[✓] Column timezone added to Users';
+      END
     END
   `);
 };

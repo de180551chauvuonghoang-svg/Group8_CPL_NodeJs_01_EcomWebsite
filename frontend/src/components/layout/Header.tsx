@@ -77,49 +77,49 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-surface/80 dark:bg-surface-container-low/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/30 transition-colors duration-300">
-      <div className="max-w-container-max mx-auto px-margin-desktop py-4 flex justify-between items-center w-full">
-        <div className="flex items-center gap-8">
+      <div className="max-w-container-max mx-auto px-margin-desktop py-3.5 flex justify-between items-center w-full">
+        <div className="flex items-center gap-6 xl:gap-8">
           {/* Logo Link */}
           <Link className="flex items-center gap-2" to="/">
             <img
               alt="Volitify Logo"
-              className="h-10 w-auto shrink-0 object-contain"
+              className="h-9 w-auto shrink-0 object-contain"
               src={logoUrl}
             />
-            <span className="text-title-lg font-black tracking-tight text-primary dark:text-inverse-primary hidden md:block">
+            <span className="text-lg font-black tracking-tight bg-gradient-to-r from-primary to-primary-container bg-clip-text text-transparent hidden md:block">
               VOLITIFY
             </span>
           </Link>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-4 xl:gap-6 text-sm font-semibold tracking-wide whitespace-nowrap">
             <Link
               to="/products"
-              className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200"
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200"
             >
               Sản phẩm
             </Link>
             <div className="mega-menu-trigger relative py-2">
-              <button className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200 flex items-center gap-1">
+              <button className="text-on-surface-variant hover:text-primary transition-colors duration-200 flex items-center gap-0.5 cursor-pointer">
                 TV &amp; Video <span className="material-symbols-outlined text-sm">expand_more</span>
               </button>
-              <div className="mega-menu absolute top-full left-0 w-[800px] bg-surface-container-lowest shadow-2xl rounded-3xl p-8 border border-outline-variant mt-2">
+              <div className="mega-menu absolute top-full left-0 w-[800px] bg-surface-container-lowest shadow-2xl rounded-3xl p-8 border border-outline-variant/50 mt-2">
                 <div className="grid grid-cols-3 gap-8">
                   <div>
                     <h4 className="font-bold text-primary mb-4">Loại Tivi</h4>
                     <ul className="space-y-2">
                       <li>
-                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full">
+                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
                           OLED TVs
                         </button>
                       </li>
                       <li>
-                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full">
+                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
                           QLED TVs
                         </button>
                       </li>
                       <li>
-                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full">
+                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
                           8K Ultra HD
                         </button>
                       </li>
@@ -129,12 +129,12 @@ export default function Header() {
                     <h4 className="font-bold text-primary mb-4">Phụ Kiện</h4>
                     <ul className="space-y-2">
                       <li>
-                        <button onClick={() => handleCategoryClick('Audio')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full">
+                        <button onClick={() => handleCategoryClick('Audio')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
                           Loa Soundbar
                         </button>
                       </li>
                       <li>
-                        <button onClick={() => handleCategoryClick('Accessories')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full">
+                        <button onClick={() => handleCategoryClick('Accessories')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
                           Giá Treo Tivi
                         </button>
                       </li>
@@ -156,30 +156,30 @@ export default function Header() {
               </div>
             </div>
 
-            <button onClick={() => handleCategoryClick('Home & Kitchen')} className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200">
+            <button onClick={() => handleCategoryClick('Home & Kitchen')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
               Bếp
             </button>
-            <button onClick={() => handleCategoryClick('Accessories')} className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200">
+            <button onClick={() => handleCategoryClick('Accessories')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
               Nhà Thông Minh
             </button>
-            <button onClick={() => handleCategoryClick('Wearables')} className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200">
+            <button onClick={() => handleCategoryClick('Wearables')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
               Gaming
             </button>
-            <button onClick={() => handleCategoryClick('Home & Kitchen')} className="text-on-surface-variant font-medium hover:text-primary transition-colors duration-200">
+            <button onClick={() => handleCategoryClick('Home & Kitchen')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
               Gia Dụng
             </button>
           </nav>
         </div>
 
         {/* Global Search Bar */}
-        <div className="flex items-center gap-6 flex-1 max-w-xl mx-12">
+        <div className="flex items-center gap-6 flex-1 max-w-md mx-4 lg:mx-8 xl:mx-12">
           <div className="relative w-full group">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
               search
             </span>
             <input
-              className="w-full h-12 pl-12 pr-4 bg-surface-container-low border-none rounded-full focus:ring-2 focus:ring-primary transition-all text-body-md text-on-surface"
-              placeholder="Tìm kiếm..."
+              className="w-full h-10 pl-11 pr-4 bg-surface-container-low dark:bg-surface-container-high border border-outline-variant/30 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all rounded-full text-sm text-on-surface focus:outline-none"
+              placeholder="Tìm sản phẩm..."
               type="text"
               value={searchValue}
               onChange={handleSearchChange}
@@ -187,14 +187,14 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Cart + Auth + Theme Toggle — single flex row, khoảng cách đồng đều */}
-        <div className="flex items-center gap-3">
+        {/* Cart + Auth + Theme Toggle */}
+        <div className="flex items-center gap-2 lg:gap-3">
 
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Chuyển sang Light Mode' : 'Chuyển sang Dark Mode'}
-            className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-on-surface-variant hover:text-primary hover:bg-primary/8 transition-all duration-200 active:scale-90"
+            className="relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-on-surface-variant hover:text-primary hover:bg-primary/8 transition-all duration-200 active:scale-90 cursor-pointer"
           >
             <span
               className="material-symbols-outlined text-[22px] transition-all duration-300"
@@ -205,9 +205,9 @@ export default function Header() {
           </button>
 
           {/* Divider */}
-          <div className="w-px h-5 bg-outline-variant shrink-0" />
+          <div className="w-px h-5 bg-outline-variant/50 shrink-0" />
 
-          {/* Cart Icon — 40×40, cùng kích thước với buttons */}
+          {/* Cart Icon */}
           <Link
             to="/cart"
             className="relative w-10 h-10 text-primary hover:bg-primary/8 active:scale-95 transition-all rounded-full flex items-center justify-center shrink-0"
@@ -215,14 +215,14 @@ export default function Header() {
           >
             <span className="material-symbols-outlined text-[22px]">shopping_cart</span>
             {cartItems.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-error text-on-error text-[9px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold shadow-md leading-none">
+              <span className="absolute top-0 right-0 bg-error text-on-error text-[9px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold shadow-md leading-none">
                 {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
               </span>
             )}
           </Link>
 
           {/* Divider */}
-          <div className="w-px h-5 bg-outline-variant shrink-0" />
+          <div className="w-px h-5 bg-outline-variant/50 shrink-0" />
 
           {/* Authentication Buttons */}
           {isAuthenticated && user ? (
@@ -246,7 +246,7 @@ export default function Header() {
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                {/* Name + role — truncated */}
+                {/* Name + role */}
                 <div className="hidden lg:flex flex-col min-w-0 max-w-[140px]">
                   <span className="text-xs font-bold text-on-surface leading-tight truncate group-hover:text-primary transition-colors">
                     {user.name}
@@ -257,33 +257,33 @@ export default function Header() {
                 </div>
               </Link>
 
-              {/* Logout — icon only, tooltip on hover */}
+              {/* Logout */}
               <button
                 onClick={handleLogout}
                 title="Đăng xuất"
-                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-error/8 transition-all duration-200 active:scale-90"
+                className="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-error/8 transition-all duration-200 active:scale-90 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">logout</span>
               </button>
             </div>
 
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               {/* Đăng nhập — outline pill */}
               <Link
                 to="/login"
-                className="h-10 px-5 flex items-center justify-center text-primary font-bold border border-primary/40 rounded-full hover:bg-primary/5 hover:border-primary transition-all text-sm whitespace-nowrap"
+                className="h-10 px-4 xl:px-5 flex items-center justify-center text-primary font-bold border border-primary/20 rounded-full hover:bg-primary/5 hover:border-primary/60 transition-all text-sm whitespace-nowrap"
               >
                 Đăng nhập
               </Link>
-              {/* Gia nhập ngay — filled pill */}
+              {/* Gia nhập ngay — filled pill with gradient */}
               <Link
                 to="/register"
-                className="h-10 px-5 flex items-center justify-center bg-primary text-white font-bold rounded-full shadow-sm hover:shadow-md hover:brightness-110 transition-all text-sm whitespace-nowrap"
+                className="h-10 px-4 xl:px-5 flex items-center justify-center bg-gradient-to-r from-primary to-primary-container text-white font-bold rounded-full shadow-sm hover:shadow-lg hover:shadow-primary/20 hover:brightness-105 active:scale-98 transition-all text-sm whitespace-nowrap"
               >
                 Gia nhập ngay
               </Link>
-            </>
+            </div>
           )}
         </div>
 

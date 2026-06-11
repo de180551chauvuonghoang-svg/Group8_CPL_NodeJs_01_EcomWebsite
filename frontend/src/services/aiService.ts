@@ -30,7 +30,7 @@ export const aiService = {
         sessionId,
         chatInput: message
       });
-      
+
       // Giả sử n8n trả về cấu trúc { output: "Câu trả lời của AI", data: [...] }
       // Tuỳ thuộc vào cách bạn thiết kế Webhook Response trong n8n mà điều chỉnh ở đây
       return {
