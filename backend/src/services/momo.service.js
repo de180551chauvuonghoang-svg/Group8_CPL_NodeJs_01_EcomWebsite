@@ -61,16 +61,25 @@ export const createMoMoPaymentRequest = async (orderId, amount, orderInfo) => {
     autoCapture,
   };
 
-  const { data } = await axios.post(ENDPOINT, requestBody, {
-    headers: { 'Content-Type': 'application/json' },
-    timeout: 10_000,
-  });
+  try {
+    const { data } = await axios.post(ENDPOINT, requestBody, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10_000,
+    });
 
-  if (data.resultCode !== 0) {
-    throw new Error(`MoMo API error [${data.resultCode}]: ${data.message}`);
+    if (data.resultCode !== 0) {
+      throw new Error(`MoMo API error [${data.resultCode}]: ${data.message}`);
+    }
+
+    return { payUrl: data.payUrl, requestId };
+  } catch (err) {
+    if (err.response && err.response.data) {
+      const momoErr = err.response.data;
+      console.error("[🚨 MoMo API Error Details]", momoErr);
+      throw new Error(`MoMo API error [${momoErr.resultCode}]: ${momoErr.message || JSON.stringify(momoErr)}`);
+    }
+    throw err;
   }
-
-  return { payUrl: data.payUrl, requestId };
 };
 
 /**
