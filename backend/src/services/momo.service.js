@@ -25,7 +25,7 @@ const buildSignature = (rawSignature) =>
  */
 export const createMoMoPaymentRequest = async (orderId, amount, orderInfo) => {
   const requestId    = `${PARTNER_CODE}${Date.now()}`;
-  const requestType  = 'payWithMethod';
+  const requestType  = 'captureWallet';
   const extraData    = ''; // Base64 extra data (empty = none)
   const autoCapture  = true;
   const lang         = 'vi';
