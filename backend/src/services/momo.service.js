@@ -27,6 +27,16 @@ export const createMoMoPaymentRequest = async (orderId, amount, orderInfo) => {
   const requestId    = `${PARTNER_CODE}${Date.now()}`;
   const requestType  = 'captureWallet';
   const extraData    = ''; // Base64 extra data (empty = none)
+  
+  console.log("[DEBUG MOMO] Keys loaded:", {
+    PARTNER_CODE,
+    ACCESS_KEY,
+    SECRET_KEY_LENGTH: SECRET_KEY ? SECRET_KEY.length : 0,
+    SECRET_KEY_VAL: SECRET_KEY, // Show the secret key to see if there are quotes or trailing spaces
+    ENDPOINT,
+    REDIRECT_URL,
+    IPN_URL
+  });
   const autoCapture  = true;
   const lang         = 'vi';
 
