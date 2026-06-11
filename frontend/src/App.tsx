@@ -17,6 +17,8 @@ const Register     = lazy(() => import('./pages/Register'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword  = lazy(() => import('./pages/ResetPassword'));
 const Cart         = lazy(() => import('./pages/Cart'));
+const Checkout     = lazy(() => import('./pages/Checkout'));
+const PaymentReturn = lazy(() => import('./pages/PaymentReturn'));
 const Profile      = lazy(() => import('./pages/Profile'));
 const Products     = lazy(() => import('./pages/Products'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
@@ -51,10 +53,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/reset-password';
+  const isFullPage  = isAuthPage || location.pathname === '/payment/return';
 
   return (
     <div className="app-root">
-      {!isAuthPage && <Header />}
+      {!isFullPage && <Header />}
       <main className={`app-main ${isAuthPage ? 'auth-page' : ''}`}>
         <Suspense fallback={<PageLoader />}>
           <AnimatePresence mode="popLayout">
@@ -68,6 +71,12 @@ function AppContent() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
+              <Route path="/payment/return" element={<PaymentReturn />} />
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
@@ -80,8 +89,8 @@ function AppContent() {
           </AnimatePresence>
         </Suspense>
       </main>
-      {!isAuthPage && <Footer />}
-      {!isAuthPage && <AIChatWidget />}
+      {!isFullPage && <Footer />}
+      {!isFullPage && <AIChatWidget />}
     </div>
   );
 }
