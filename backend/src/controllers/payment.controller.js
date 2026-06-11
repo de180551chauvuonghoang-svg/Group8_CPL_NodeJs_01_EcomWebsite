@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getPool } from '../config/db.js';
+import { pool } from '../config/db.js';
 import { createMoMoPaymentRequest, verifyMoMoIpnSignature } from '../services/momo.service.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -70,7 +70,6 @@ const createPaymentRecord = async (pool, { orderId, method, amount, status = 'pe
  */
 export const createMoMoPayment = async (req, res, next) => {
   try {
-    const pool = await getPool();
     const userId = req.user.id;
     const { cartItems, shippingInfo, couponCode, subtotal, discount, shippingFee, total } = req.body;
 
@@ -108,7 +107,6 @@ export const createMoMoPayment = async (req, res, next) => {
  */
 export const handleMoMoIPN = async (req, res, next) => {
   try {
-    const pool = await getPool();
     const body = req.body;
 
     // 1. Verify signature to prevent spoofed calls
@@ -151,7 +149,6 @@ export const handleMoMoIPN = async (req, res, next) => {
  */
 export const createCODOrder = async (req, res, next) => {
   try {
-    const pool = await getPool();
     const userId = req.user.id;
     const { cartItems, shippingInfo, couponCode, subtotal, discount, shippingFee, total } = req.body;
 
@@ -188,7 +185,6 @@ export const createCODOrder = async (req, res, next) => {
  */
 export const getOrderStatus = async (req, res, next) => {
   try {
-    const pool = await getPool();
     const { orderId } = req.params;
     const userId = req.user.id;
 
@@ -218,7 +214,6 @@ export const getOrderStatus = async (req, res, next) => {
  */
 export const getUserOrders = async (req, res, next) => {
   try {
-    const pool = await getPool();
     const userId = req.user.id;
 
     const { recordset } = await pool.request()
