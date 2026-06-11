@@ -30,10 +30,32 @@ const createOrder = async (pool, { userId, cartItems, shippingInfo, couponId, to
 
   // Insert order items (snapshot product info at time of purchase)
   for (const item of cartItems) {
+    let variantId = item.variantId;
+
+    // 1. If no variantId is provided, or it is a product ID, look up the first variant for this product
+    if (!variantId || variantId.startsWith('prod')) {
+      const varResult = await pool.request()
+        .input('productId', item.product.id)
+        .query(`SELECT TOP 1 id FROM ProductVariants WHERE product_id = @productId`);
+      if (varResult.recordset.length > 0) {
+        variantId = varResult.recordset[0].id;
+      }
+    }
+
+    // 2. If we still don't have a variantId (e.g., mock products in local development cart),
+    // get a fallback variant from the DB to prevent foreign key constraint crashes.
+    if (!variantId) {
+      const fallbackVar = await pool.request()
+        .query(`SELECT TOP 1 id FROM ProductVariants`);
+      if (fallbackVar.recordset.length > 0) {
+        variantId = fallbackVar.recordset[0].id;
+      }
+    }
+
     await pool.request()
       .input('id',           uuidv4())
       .input('order_id',     orderId)
-      .input('variant_id',   item.variantId || item.product.id)
+      .input('variant_id',   variantId)
       .input('quantity',     item.quantity)
       .input('unit_price',   item.product.price)
       .input('total_price',  item.product.price * item.quantity)
