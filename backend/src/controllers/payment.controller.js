@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from '../config/db.js';
-import { createMoMoPaymentRequest, verifyMoMoIpnSignature } from '../services/momo.service.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const createOrder = async (pool, { userId, cartItems, shippingInfo, couponId, total, subtotal, discount, shippingFee }) => {
@@ -87,83 +86,7 @@ const createPaymentRecord = async (pool, { orderId, method, amount, status = 'pe
 // ─── Controllers ─────────────────────────────────────────────────────────────
 
 /**
- * POST /api/payments/momo/create
- * Body: { cartItems, shippingInfo, couponCode?, subtotal, discount, shippingFee, total }
- */
-export const createMoMoPayment = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    const { cartItems, shippingInfo, couponCode, subtotal, discount, shippingFee, total } = req.body;
 
-    // Resolve couponId if code provided
-    let couponId = null;
-    if (couponCode) {
-      const { recordset } = await pool.request()
-        .input('code', couponCode)
-        .query(`SELECT id FROM Coupons WHERE code = @code AND is_active = 1`);
-      if (recordset.length > 0) couponId = recordset[0].id;
-    }
-
-    // 1. Create order in DB (status = pending, no payment yet)
-    const orderId = await createOrder(pool, {
-      userId, cartItems, shippingInfo, couponId,
-      total, subtotal, discount: discount || 0, shippingFee: shippingFee || 0,
-    });
-
-    // 2. Create Payment record (method = momo, status = pending)
-    await createPaymentRecord(pool, { orderId, method: 'momo', amount: total });
-
-    // 3. Request MoMo payment URL
-    const orderInfo = `Thanh toan don hang Volitify #${orderId.substring(0, 8).toUpperCase()}`;
-    const { payUrl } = await createMoMoPaymentRequest(orderId, total, orderInfo);
-
-    res.status(200).json({ status: 'success', payUrl, orderId });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * POST /api/payments/momo/ipn  (called by MoMo server — no auth)
- * MoMo sends this after payment is completed/failed.
- */
-export const handleMoMoIPN = async (req, res, next) => {
-  try {
-    const body = req.body;
-
-    // 1. Verify signature to prevent spoofed calls
-    const isValid = verifyMoMoIpnSignature(body);
-    if (!isValid) {
-      return res.status(400).json({ message: 'Invalid signature' });
-    }
-
-    const { orderId, resultCode, transId } = body;
-    const isPaid = resultCode === 0;
-
-    // 2. Update Payment record
-    await pool.request()
-      .input('status',    isPaid ? 'paid' : 'failed')
-      .input('trans_ref', String(transId))
-      .input('order_id',  orderId)
-      .query(`UPDATE Payments
-              SET status = @status,
-                  transaction_ref = @trans_ref,
-                  paid_at = ${isPaid ? 'GETDATE()' : 'NULL'}
-              WHERE order_id = @order_id`);
-
-    // 3. Update Order status
-    await pool.request()
-      .input('status',   isPaid ? 'confirmed' : 'cancelled')
-      .input('order_id', orderId)
-      .query(`UPDATE Orders SET status = @status, updated_at = GETDATE()
-              WHERE id = @order_id`);
-
-    // MoMo requires HTTP 204 or 200 with empty body to confirm receipt
-    res.status(204).send();
-  } catch (err) {
-    next(err);
-  }
-};
 
 /**
  * POST /api/payments/cod/create

@@ -43,16 +43,10 @@ export interface UserOrder {
 }
 
 export const paymentService = {
-  /** POST /api/payments/momo/create → returns { payUrl, orderId } */
-  createMoMoPayment: async (payload: CheckoutPayload): Promise<{ payUrl: string; orderId: string }> => {
-    const response: any = await API.post('/payments/momo/create', payload);
-    return response.data;
-  },
-
   /** POST /api/payments/cod/create → returns { orderId } */
   createCODOrder: async (payload: CheckoutPayload): Promise<{ orderId: string }> => {
     const response: any = await API.post('/payments/cod/create', payload);
-    return response.data;
+    return response;
   },
 
   /** GET /api/payments/order/:orderId → order + payment status */

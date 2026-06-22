@@ -305,7 +305,7 @@ export default function Home() {
                   {/* Image Frame */}
                   <div className="relative pt-[75%] overflow-hidden bg-surface-container">
                     <img
-                      src={product.image}
+                      src={product.image || '/placeholder.png'}
                       alt={product.name}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       loading="lazy"

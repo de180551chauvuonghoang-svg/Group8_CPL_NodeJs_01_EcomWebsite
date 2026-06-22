@@ -159,7 +159,7 @@ export default function PaymentReturn() {
                   </div>
                   <div>
                     <p className="text-xs text-on-surface-variant mb-1">Thanh toán</p>
-                    <StatusBadge value={order.payment_method || method} />
+                    <StatusBadge value={order.method || method} />
                   </div>
                   <div className="col-span-2">
                     <p className="text-xs text-on-surface-variant mb-1">Địa chỉ giao hàng</p>

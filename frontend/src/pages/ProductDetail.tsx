@@ -88,7 +88,7 @@ const RelatedCard = ({ product }: { product: Product }) => (
   >
     <div className="aspect-square overflow-hidden bg-surface-container-low">
       <img
-        src={product.image}
+        src={product.image || '/placeholder.png'}
         alt={product.name}
         loading="lazy"
         decoding="async"

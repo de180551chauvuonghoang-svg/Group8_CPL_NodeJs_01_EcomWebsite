@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { protect } from '../middlewares/auth.middleware.js';
 import {
-  createMoMoPayment,
-  handleMoMoIPN,
   createCODOrder,
   getOrderStatus,
   getUserOrders,
@@ -10,13 +8,7 @@ import {
 
 const router = Router();
 
-// ─── MoMo ─────────────────────────────────────────────────────────────────────
-// Yêu cầu thanh toán → trả về payUrl để frontend redirect sang MoMo
-router.post('/momo/create', protect, createMoMoPayment);
 
-// Webhook IPN: MoMo gọi server để cập nhật trạng thái — KHÔNG cần auth
-// (MoMo server gọi trực tiếp, không có JWT)
-router.post('/momo/ipn', handleMoMoIPN);
 
 // ─── COD ──────────────────────────────────────────────────────────────────────
 router.post('/cod/create', protect, createCODOrder);

@@ -88,15 +88,15 @@ export default function Checkout() {
   const user      = auth?.user;
 
   const [step,       setStep]       = useState(1);
-  const [method,     setMethod]     = useState<'momo' | 'cod'>('momo');
+  const [method,     setMethod]     = useState<'cod'>('cod');
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState('');
   const [addresses,  setAddresses]  = useState<Address[]>([]);
   const [selectedAddr, setSelectedAddr] = useState<Address | null>(null);
 
   const [form, setForm] = useState<ShippingInfo>({
-    name: user?.full_name || user?.name || '',
-    phone: user?.phone || '',
+    name: user?.name || '',
+    phone: user?.phone_number || '',
     address: '',
     city: '',
     note: '',
@@ -151,15 +151,9 @@ export default function Checkout() {
     };
 
     try {
-      if (method === 'momo') {
-        const { payUrl } = await paymentService.createMoMoPayment(payload);
-        clearCart();
-        window.location.href = payUrl; // redirect to MoMo payment page
-      } else {
-        const { orderId } = await paymentService.createCODOrder(payload);
-        clearCart();
-        navigate(`/payment/return?resultCode=0&orderId=${orderId}&method=cod`);
-      }
+      const { orderId } = await paymentService.createCODOrder(payload);
+      clearCart();
+      navigate(`/payment/return?resultCode=0&orderId=${orderId}&method=cod`);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại');
       setLoading(false);
@@ -309,39 +303,12 @@ export default function Checkout() {
 
                   <div className="flex flex-col gap-3 mb-8">
                     <PaymentCard
-                      method="momo" selected={method} onSelect={m => setMethod(m as 'momo' | 'cod')}
-                      icon="account_balance_wallet"
-                      title="Thanh toán qua MoMo"
-                      subtitle="Quét mã QR hoặc dùng ví MoMo trên điện thoại"
-                      badge="Phổ biến"
-                    />
-                    <PaymentCard
-                      method="cod" selected={method} onSelect={m => setMethod(m as 'momo' | 'cod')}
+                      method="cod" selected={method} onSelect={m => setMethod(m as 'cod')}
                       icon="payments"
                       title="Thanh toán khi nhận hàng (COD)"
                       subtitle="Trả tiền mặt khi shipper giao đến tay bạn"
                     />
                   </div>
-
-                  {/* MoMo info box */}
-                  <AnimatePresence>
-                    {method === 'momo' && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mb-6 overflow-hidden"
-                      >
-                        <div className="p-4 rounded-2xl flex items-start gap-3 text-sm"
-                          style={{ background: 'rgba(0,74,198,0.07)', border: '1px solid rgba(0,74,198,0.15)' }}>
-                          <span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
-                          <p className="text-on-surface-variant leading-relaxed">
-                            Bạn sẽ được chuyển đến trang thanh toán của <strong className="text-on-surface">MoMo</strong> để hoàn tất. Đơn hàng được xác nhận ngay sau khi thanh toán thành công.
-                          </p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
                   {error && (
                     <p className="mb-4 text-sm text-red-400 flex items-center gap-1.5">
@@ -362,9 +329,7 @@ export default function Checkout() {
                   >
                     {loading
                       ? <><span className="material-symbols-outlined animate-spin">sync</span>Đang xử lý...</>
-                      : method === 'momo'
-                        ? <><span className="material-symbols-outlined">account_balance_wallet</span>Thanh toán {fmt(total)} qua MoMo</>
-                        : <><span className="material-symbols-outlined">check_circle</span>Đặt hàng COD — {fmt(total)}</>
+                      : <><span className="material-symbols-outlined">check_circle</span>Đặt hàng COD — {fmt(total)}</>
                     }
                   </motion.button>
                 </motion.div>
