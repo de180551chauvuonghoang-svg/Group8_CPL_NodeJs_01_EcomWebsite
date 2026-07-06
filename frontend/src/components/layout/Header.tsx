@@ -64,6 +64,33 @@ export default function Header() {
             Cửa hàng
           </Link>
 
+          {isAuthenticated && user && (
+            <>
+              {user.role === 'seller' && (
+                <Link to="/seller/dashboard" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  color: 'var(--accent-primary)'
+                }} className="nav-link">
+                  🏗️ Kênh Người Bán
+                </Link>
+              )}
+              <Link to="/my-orders" style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontWeight: 500,
+                fontSize: '0.95rem',
+                color: 'var(--text-secondary)'
+              }} className="nav-link">
+                📋 Đơn hàng của tôi
+              </Link>
+            </>
+          )}
+
           {/* User authenticated block */}
           {isAuthenticated && user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '1px solid var(--border-color)', paddingLeft: '1rem' }}>

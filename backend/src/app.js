@@ -7,6 +7,10 @@ import rateLimit from 'express-rate-limit';
 // Routes imports
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
+import sellerRoutes from './routes/seller.routes.js';
+import orderRoutes from './routes/order.routes.js';
+import couponRoutes from './routes/coupon.routes.js';
+import chatRoutes from './routes/chat.routes.js';
 
 // Middlewares imports
 import { errorHandler } from './middlewares/error.middleware.js';
@@ -36,6 +40,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 3. API Routes Setup
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to E-Com FPT Backend API. Please access frontend at http://localhost:5173 or use /api prefix for API endpoints.',
+    healthCheck: '/api/health'
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -47,6 +59,10 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/seller', sellerRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 4. Handle 404 Routes
 app.all('*', (req, res, next) => {

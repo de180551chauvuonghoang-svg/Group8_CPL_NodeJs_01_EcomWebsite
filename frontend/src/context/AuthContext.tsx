@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
+import { chatService } from '../services/chatService';
 import { User, AuthContextType } from '../types';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +61,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = (): void => {
+    chatService.disconnectSocket();
     authService.logout();
     setUser(null);
   };

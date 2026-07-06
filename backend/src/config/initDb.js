@@ -12,6 +12,7 @@
 export const initDb = async (pool, sql) => {
   try {
     await createUsersTable(pool);
+    await createShopsTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
     await createProductImagesTable(pool);
@@ -36,8 +37,15 @@ export const initDb = async (pool, sql) => {
     await createRefundsTable(pool);
     await createRefundItemsTable(pool);
     await createCouponUsageTable(pool);
+    await createChatRoomsTable(pool);
+    await createMessagesTable(pool);
 
-    console.log('[✓] initDb: All 24 tables verified/created.');
+    // Migrations for existing tables (safe to run repeatedly)
+    await migrateProductsAddShopId(pool);
+    await migrateOrdersAddShopIdAndDistance(pool);
+    await migrateCouponsAddShopId(pool);
+
+    console.log('[✓] initDb: All 25 tables verified/created.');
 
     await seedData(pool, sql);
 
@@ -68,6 +76,37 @@ const createUsersTable = async (pool) => {
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       PRINT '[✓] Table Users created';
+    END
+  `);
+};
+
+// ============================================================
+//  GROUP 1B: SHOPS (Multi-vendor)
+// ============================================================
+
+const createShopsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Shops')
+    BEGIN
+      CREATE TABLE Shops (
+        id                    VARCHAR(50)    NOT NULL PRIMARY KEY,
+        user_id               VARCHAR(50)    NOT NULL UNIQUE REFERENCES Users(id) ON DELETE CASCADE,
+        shop_name             NVARCHAR(150)  NOT NULL,
+        phone_number          VARCHAR(20)    NOT NULL,
+        warehouse_address     NVARCHAR(500)  NOT NULL,
+        latitude              DECIMAL(9,6)   NOT NULL DEFAULT 10.8231,
+        longitude             DECIMAL(9,6)   NOT NULL DEFAULT 106.6297,
+        shipping_fee_per_km   DECIMAL(18,2)  NOT NULL DEFAULT 15000,
+        max_delivery_distance INT            NOT NULL DEFAULT 50,
+        logo_url              VARCHAR(2083)  NULL,
+        cover_url             VARCHAR(2083)  NULL,
+        description           NVARCHAR(MAX)  NULL,
+        is_verified           BIT            NOT NULL DEFAULT 1,
+        created_at            DATETIME2      NOT NULL DEFAULT GETDATE(),
+        updated_at            DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Shops_user_id ON Shops(user_id);
+      PRINT '[✓] Table Shops created';
     END
   `);
 };
@@ -115,9 +154,11 @@ const createProductsTable = async (pool) => {
         is_active     BIT            NOT NULL DEFAULT 1,
         is_featured   BIT            NOT NULL DEFAULT 0,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
-        updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+        updated_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
+        shop_id       VARCHAR(50)    NULL
       );
       CREATE INDEX IX_Products_slug ON Products(slug);
+      CREATE INDEX IX_Products_shop_id ON Products(shop_id);
       PRINT '[✓] Table Products created';
     END
   `);
@@ -378,6 +419,7 @@ const createCouponsTable = async (pool) => {
         starts_at         DATETIME2      NULL,
         expires_at        DATETIME2      NULL,
         is_active         BIT            NOT NULL DEFAULT 1,
+        shop_id           VARCHAR(50)    NULL,
         created_at        DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_Coupons_code ON Coupons(code);
@@ -437,6 +479,8 @@ const createOrdersTable = async (pool) => {
         shipping_city     NVARCHAR(100)  NULL,
         shipping_country  NVARCHAR(100)  NOT NULL DEFAULT 'Vietnam',
         note              NVARCHAR(500)  NULL,
+        shop_id           VARCHAR(50)    NULL,
+        distance_km       DECIMAL(5,2)   NOT NULL DEFAULT 0.00,
         created_at        DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at        DATETIME2      NOT NULL DEFAULT GETDATE()
       );
@@ -542,15 +586,174 @@ const createCouponUsageTable = async (pool) => {
   `);
 };
 
+const createChatRoomsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ChatRooms')
+    BEGIN
+      CREATE TABLE ChatRooms (
+        id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+        customer_id   VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+        shop_id       VARCHAR(50)    NOT NULL REFERENCES Shops(id) ON DELETE NO ACTION,
+        created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_ChatRooms_customer_id ON ChatRooms(customer_id);
+      CREATE INDEX IX_ChatRooms_shop_id ON ChatRooms(shop_id);
+      PRINT '[✓] Table ChatRooms created';
+    END
+  `);
+};
+
+const createMessagesTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Messages')
+    BEGIN
+      CREATE TABLE Messages (
+        id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+        room_id       VARCHAR(50)    NOT NULL REFERENCES ChatRooms(id) ON DELETE CASCADE,
+        sender_id     VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE NO ACTION,
+        message_text  NVARCHAR(MAX)  NOT NULL,
+        is_read       BIT            NOT NULL DEFAULT 0,
+        created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Messages_room_id ON Messages(room_id);
+      PRINT '[✓] Table Messages created';
+    END
+  `);
+};
+
+// ============================================================
+//  MIGRATIONS (safe to run on every start)
+// ============================================================
+
+const migrateCouponsAddShopId = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('Coupons') AND name = 'shop_id'
+    )
+    BEGIN
+      ALTER TABLE Coupons ADD shop_id VARCHAR(50) NULL;
+      PRINT '[Migration] Added shop_id to Coupons';
+    END
+  `);
+};
+
+const migrateProductsAddShopId = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('Products') AND name = 'shop_id'
+    )
+    BEGIN
+      ALTER TABLE Products ADD shop_id VARCHAR(50) NULL;
+      PRINT '[Migration] Added shop_id to Products';
+    END
+  `);
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Products_Shops'
+    )
+    AND EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Shops')
+    AND EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('Products') AND name = 'shop_id'
+    )
+    BEGIN
+      ALTER TABLE Products
+        ADD CONSTRAINT FK_Products_Shops
+        FOREIGN KEY (shop_id) REFERENCES Shops(id);
+      PRINT '[Migration] FK Products -> Shops added';
+    END
+  `);
+};
+
+const migrateOrdersAddShopIdAndDistance = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('Orders') AND name = 'shop_id'
+    )
+    BEGIN
+      ALTER TABLE Orders ADD shop_id VARCHAR(50) NULL;
+      PRINT '[Migration] Added shop_id to Orders';
+    END
+  `);
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Orders_Shops'
+    )
+    AND EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Shops')
+    AND EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('Orders') AND name = 'shop_id'
+    )
+    BEGIN
+      ALTER TABLE Orders
+        ADD CONSTRAINT FK_Orders_Shops
+        FOREIGN KEY (shop_id) REFERENCES Shops(id);
+      PRINT '[Migration] FK Orders -> Shops added';
+    END
+  `);
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('Orders') AND name = 'distance_km'
+    )
+    BEGIN
+      ALTER TABLE Orders ADD distance_km DECIMAL(5,2) NOT NULL DEFAULT 0.00;
+      PRINT '[Migration] Added distance_km to Orders';
+    END
+  `);
+};
+
 // ============================================================
 //  SEED DATA
 // ============================================================
 
 const seedData = async (pool, sql) => {
   await seedUsers(pool, sql);
+  await seedSellers(pool, sql);
+  await seedShops(pool, sql);
   await seedCategories(pool, sql);
   await seedAttributes(pool, sql);
   await seedProducts(pool, sql);
+  await seedCoupons(pool, sql);
+};
+
+const seedCoupons = async (pool, sql) => {
+  const { recordset } = await pool.request().query(`SELECT COUNT(*) AS cnt FROM Coupons`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log('[Seed] Seeding initial coupons...');
+
+  // Coupon 1: VLXDFPT2026 - Giảm 50.000đ cho đơn hàng từ 100.000đ
+  await pool.request()
+    .input('id', sql.VarChar, 'cp_vlxdfpt2026')
+    .input('code', sql.VarChar, 'VLXDFPT2026')
+    .input('desc', sql.NVarChar, 'Giảm 50.000đ cho đơn hàng từ 100.000đ')
+    .input('type', sql.VarChar, 'fixed')
+    .input('val', sql.Decimal(18,2), 50000)
+    .input('minAmt', sql.Decimal(18,2), 100000)
+    .input('maxAmt', sql.Decimal(18,2), 50000)
+    .input('limit', sql.Int, 1000)
+    .query(`INSERT INTO Coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amt, usage_limit)
+            VALUES (@id, @code, @desc, @type, @val, @minAmt, @maxAmt, @limit)`);
+
+  // Coupon 2: GIAM10 - Giảm 10%, đơn từ 200.000đ — chỉ áp dụng shop Hòa Phát
+  await pool.request()
+    .input('id', sql.VarChar, 'cp_giam10')
+    .input('code', sql.VarChar, 'GIAM10')
+    .input('desc', sql.NVarChar, 'Giảm 10% tổng giá trị đơn hàng vật tư (tối đa 100.000đ) — Shop Hòa Phát')
+    .input('type', sql.VarChar, 'percentage')
+    .input('val', sql.Decimal(18,2), 10)
+    .input('minAmt', sql.Decimal(18,2), 200000)
+    .input('maxAmt', sql.Decimal(18,2), 100000)
+    .input('limit', sql.Int, 500)
+    .input('shopId', sql.VarChar, 'shop_hoaphat')
+    .query(`INSERT INTO Coupons (id, code, description, discount_type, discount_value, min_order_amount, max_discount_amt, usage_limit, shop_id)
+            VALUES (@id, @code, @desc, @type, @val, @minAmt, @maxAmt, @limit, @shopId)`);
+
+  console.log('[Seed] ✓ Coupons seeded.');
 };
 
 const seedUsers = async (pool, sql) => {
@@ -599,6 +802,83 @@ const seedUsers = async (pool, sql) => {
   console.log('[Seed] ✓ Users seeded.');
 };
 
+const seedSellers = async (pool, sql) => {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const { recordset } = await pool.request()
+    .query(`SELECT COUNT(*) AS cnt FROM Users WHERE role = 'seller'`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log('[Seed] Seeding seller users...');
+  const bcrypt = await import('bcryptjs');
+  const seedPassword = process.env.SEED_PASSWORD ?? 'password123';
+  const hashed = await bcrypt.default.hash(seedPassword, 10);
+
+  await pool.request()
+    .input('id',       sql.VarChar,   'usr_seller001')
+    .input('name',     sql.NVarChar,  'VLXD Đồng Tâm')
+    .input('email',    sql.VarChar,   'seller1@ecom.com')
+    .input('password', sql.VarChar,   hashed)
+    .input('phone',    sql.VarChar,   '0912345678')
+    .input('role',     sql.VarChar,   'seller')
+    .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
+            VALUES (@id,@name,@email,@password,@phone,@role)`);
+
+  await pool.request()
+    .input('id',       sql.VarChar,   'usr_seller002')
+    .input('name',     sql.NVarChar,  'VLXD Hòa Phát')
+    .input('email',    sql.VarChar,   'seller2@ecom.com')
+    .input('password', sql.VarChar,   hashed)
+    .input('phone',    sql.VarChar,   '0923456789')
+    .input('role',     sql.VarChar,   'seller')
+    .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
+            VALUES (@id,@name,@email,@password,@phone,@role)`);
+
+  console.log('[Seed] ✓ Seller users seeded.');
+};
+
+const seedShops = async (pool, sql) => {
+  if (process.env.NODE_ENV === 'production') return;
+
+  const { recordset } = await pool.request()
+    .query(`SELECT COUNT(*) AS cnt FROM Shops`);
+  if (recordset[0].cnt > 0) return;
+
+  console.log('[Seed] Seeding shops...');
+
+  // Shop 1: VLXD Đồng Tâm - Quận 7, TP.HCM
+  await pool.request()
+    .input('id',          sql.VarChar,        'shop_dongtam')
+    .input('userId',      sql.VarChar,        'usr_seller001')
+    .input('shopName',    sql.NVarChar,       'VLXD Đồng Tâm')
+    .input('phone',       sql.VarChar,        '0912345678')
+    .input('address',     sql.NVarChar,       '123 Nguyễn Thị Thập, Quận 7, TP.HCM')
+    .input('lat',         sql.Decimal(9,6),   10.7380)
+    .input('lng',         sql.Decimal(9,6),   106.7218)
+    .input('feePerKm',    sql.Decimal(18,2),  15000)
+    .input('maxDist',     sql.Int,            50)
+    .input('desc',        sql.NVarChar,       'Chuyên cung cấp gạch men, sơn nước, xi măng và vật liệu hoàn thiện.')
+    .query(`INSERT INTO Shops (id, user_id, shop_name, phone_number, warehouse_address, latitude, longitude, shipping_fee_per_km, max_delivery_distance, description)
+            VALUES (@id, @userId, @shopName, @phone, @address, @lat, @lng, @feePerKm, @maxDist, @desc)`);
+
+  // Shop 2: VLXD Hòa Phát - TP. Thủ Đức, TP.HCM
+  await pool.request()
+    .input('id',          sql.VarChar,        'shop_hoaphat')
+    .input('userId',      sql.VarChar,        'usr_seller002')
+    .input('shopName',    sql.NVarChar,       'VLXD Hòa Phát')
+    .input('phone',       sql.VarChar,        '0923456789')
+    .input('address',     sql.NVarChar,       '456 Lê Văn Việt, TP. Thủ Đức, TP.HCM')
+    .input('lat',         sql.Decimal(9,6),   10.8480)
+    .input('lng',         sql.Decimal(9,6),   106.7830)
+    .input('feePerKm',    sql.Decimal(18,2),  12000)
+    .input('maxDist',     sql.Int,            40)
+    .input('desc',        sql.NVarChar,       'Đại lý sắt thép, tôn lợp, ống nước và vật liệu xây dựng thô.')
+    .query(`INSERT INTO Shops (id, user_id, shop_name, phone_number, warehouse_address, latitude, longitude, shipping_fee_per_km, max_delivery_distance, description)
+            VALUES (@id, @userId, @shopName, @phone, @address, @lat, @lng, @feePerKm, @maxDist, @desc)`);
+
+  console.log('[Seed] ✓ Shops seeded.');
+};
+
 const seedCategories = async (pool, sql) => {
   const { recordset } = await pool.request()
     .query(`SELECT COUNT(*) AS cnt FROM Categories`);
@@ -606,14 +886,17 @@ const seedCategories = async (pool, sql) => {
 
   console.log('[Seed] Seeding categories...');
   const cats = [
-    { id: 'cat_electronics',  name: 'Điện Tử',         slug: 'dien-tu',        parent: null },
-    { id: 'cat_audio',        name: 'Âm Thanh',         slug: 'am-thanh',       parent: 'cat_electronics' },
-    { id: 'cat_computers',    name: 'Máy Tính',         slug: 'may-tinh',       parent: 'cat_electronics' },
-    { id: 'cat_accessories',  name: 'Phụ Kiện',         slug: 'phu-kien',       parent: 'cat_electronics' },
-    { id: 'cat_wearables',    name: 'Đồng Hồ & Wear',  slug: 'dong-ho-wear',   parent: 'cat_electronics' },
-    { id: 'cat_home',         name: 'Gia Dụng',         slug: 'gia-dung',       parent: null },
-    { id: 'cat_kitchen',      name: 'Nhà Bếp',          slug: 'nha-bep',        parent: 'cat_home' },
-    { id: 'cat_fashion',      name: 'Thời Trang',       slug: 'thoi-trang',     parent: null },
+    { id: 'cat_electronics',  name: 'Điện Tử',                     slug: 'dien-tu',                    parent: null },
+    { id: 'cat_audio',        name: 'Âm Thanh',                     slug: 'am-thanh',                   parent: 'cat_electronics' },
+    { id: 'cat_computers',    name: 'Máy Tính',                     slug: 'may-tinh',                   parent: 'cat_electronics' },
+    { id: 'cat_accessories',  name: 'Phụ kiện - Thiết bị xây dựng',  slug: 'phu-kien-xay-dung',          parent: null },
+    { id: 'cat_wearables',    name: 'Đồng Hồ & Wear',              slug: 'dong-ho-wear',               parent: 'cat_electronics' },
+    { id: 'cat_home',         name: 'Gia Dụng',                     slug: 'gia-dung',                   parent: null },
+    { id: 'cat_kitchen',      name: 'Nhà Bếp',                      slug: 'nha-bep',                    parent: 'cat_home' },
+    { id: 'cat_fashion',      name: 'Thời Trang',                   slug: 'thoi-trang',                 parent: null },
+    { id: 'cat_cement',       name: 'Xi măng - Gạch - Cát',         slug: 'xi-mang-gach-cat',           parent: null },
+    { id: 'cat_steel',        name: 'Sắt thép - Vật liệu thô',     slug: 'sat-thep-vat-lieu-tho',      parent: null },
+    { id: 'cat_paint',        name: 'Sơn nước - Chất chống thấm',   slug: 'son-nuoc-chat-chong-tham',   parent: null },
   ];
 
   for (const c of cats) {
@@ -622,7 +905,8 @@ const seedCategories = async (pool, sql) => {
       .input('name',     sql.NVarChar,  c.name)
       .input('slug',     sql.VarChar,   c.slug)
       .input('parentId', sql.VarChar,   c.parent)
-      .query(`INSERT INTO Categories (id,name,slug,parent_id)
+      .query(`IF NOT EXISTS (SELECT 1 FROM Categories WHERE id = @id)
+              INSERT INTO Categories (id,name,slug,parent_id)
               VALUES (@id,@name,@slug,@parentId)`);
   }
   console.log('[Seed] ✓ Categories seeded.');
@@ -816,6 +1100,17 @@ const seedProducts = async (pool, sql) => {
     }
 
     await transaction.commit();
+
+    // Assign products to shops (outside transaction, idempotent)
+    await pool.request().query(`
+      UPDATE Products SET shop_id = 'shop_dongtam'
+      WHERE id IN ('prod_001', 'prod_002', 'prod_003') AND shop_id IS NULL
+    `);
+    await pool.request().query(`
+      UPDATE Products SET shop_id = 'shop_hoaphat'
+      WHERE id IN ('prod_004', 'prod_005', 'prod_006') AND shop_id IS NULL
+    `);
+
     console.log('[Seed] ✓ Products, variants & categories seeded.');
   } catch (err) {
     await transaction.rollback();

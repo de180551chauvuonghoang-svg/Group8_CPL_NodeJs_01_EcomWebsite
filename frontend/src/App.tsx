@@ -9,6 +9,8 @@ import Footer from './components/layout/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import SellerDashboard from './pages/SellerDashboard';
+import MyOrders from './pages/MyOrders';
 
 function AppContent() {
   return (
@@ -26,6 +28,12 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* Seller routes */}
+          <Route path="/seller/dashboard" element={<SellerDashboard />} />
+
+          {/* Customer Order routes */}
+          <Route path="/my-orders" element={<MyOrders />} />
 
           {/* Fallback to home */}
           <Route path="*" element={<Navigate to="/" replace />} />

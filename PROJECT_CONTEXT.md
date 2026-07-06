@@ -43,21 +43,26 @@
   * `backend/src/config/initDb.js` — Module Node.js tự động tạo bảng & seed data khi server start
   * Đã tách `db.js` thành module riêng, code sạch hơn
   * Seed data: 8 Categories (parent/child), 3 Attributes + 12 Values, 6 Products + 10 Variants
+* [x] **Multi-vendor VLXD Platform:** Orders, Coupons (shop-scoped), Shipping Haversine, Chat Socket.IO, AI Advisor
+* [x] **Frontend Pages:** Home (Quick Order + Chat Widget), MyOrders, SellerDashboard
+* [x] **Bugfix Session 06/07/2026:** Voucher theo shop, Chat bubble draggable 68px, fix màn hình đen & socket leak — chi tiết tại `SRS_IMPLEMENTATION_LOG.md`
 
 ---
 
 ## 🚧 4. Trạng Thái Hiện Tại & Công Việc Đang Làm (Active Context)
-* **Database Schema:** Đã implement đầy đủ 24 bảng (SQL Server). Chạy server backend sẽ tự động tạo bảng và seed data.
-* **Cấu trúc DB:** 7 nhóm nghiệp vụ: Users, Categories, Products/Catalog, Reviews, Cart/Wishlist, Orders/Payments, Coupons.
-* **Seed data sẵn sàng:** 2 Users (`admin@ecom.com` + `customer@ecom.com`, mật khẩu từ env `SEED_PASSWORD`, mặc định `password123` ở dev), 8 Categories (có sub-category), 3 Attributes + 12 AttributeValues, 6 Products với 10 Variants. Seed **bị tắt trong `NODE_ENV=production`**.
+* **Database Schema:** 25 bảng SQL Server + migrations (`shop_id` trên Products/Orders/Coupons).
+* **API Backend:** REST đầy đủ cho Products, Orders, Coupons, Chat, Seller.
+* **Frontend:** Kết nối API thật; Chat widget draggable; AI Advisor hoạt động (Gemini hoặc fallback).
+* **Seed coupons:** `VLXDFPT2026` (toàn sàn), `GIAM10` (shop Hòa Phát).
+* **Tài liệu SRS:** `SRS_IMPLEMENTATION_LOG.md` — log triển khai từ nhánh `main`.
 
 ---
 
 ## 🔮 5. Kế Hoạch Tiếp Theo (Next Steps / Roadmap)
-1. **Xây dựng API Backend:** Tạo REST API endpoints cho Products, Categories, Cart, Orders dựa trên schema mới.
-2. **Kết nối Frontend với API thật:** Thay thế mock data bằng API calls thực từ SQL Server.
-3. **Quản lý Giỏ hàng (Cart Page):** Xây dựng trang Giỏ hàng và Thanh toán (Checkout).
-4. **Trang Quản lý Sản phẩm (Admin Dashboard):** Giao diện Admin Thêm/Sửa/Xóa sản phẩm.
+1. **Giỏ hàng đa sản phẩm (Cart Page):** Thay Quick Order đơn lẻ bằng cart + checkout đầy đủ.
+2. **Thanh toán online:** Tích hợp VNPay/MoMo.
+3. **Admin Dashboard:** Quản lý toàn sàn, duyệt seller.
+4. **Tests:** Unit/E2E cho checkout, coupon, chat.
 5. **Thiết lập DNS:** Hoàn tất cấu hình bản ghi A/CNAME cho `ecomfpt.app`.
 
 ---

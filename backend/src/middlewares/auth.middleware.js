@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { userService } from '../services/userService.js';
+import { shopService } from '../services/shopService.js';
 
 // Protect routes - Verify JWT token
 export const protect = async (req, res, next) => {
@@ -58,4 +59,30 @@ export const restrictTo = (...roles) => {
     }
     next();
   };
+};
+
+// Middleware to resolve shop ownership for seller
+export const requireSellerShop = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'seller') {
+      return res.status(403).json({
+        status: 'fail',
+        message: 'Only sellers are allowed to access this resource'
+      });
+    }
+
+    const shop = await shopService.getByUserId(req.user.id);
+    if (!shop) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Seller shop profile not found. Please contact admin.'
+      });
+    }
+
+    req.shop = shop;
+    req.shopId = shop.id;
+    next();
+  } catch (err) {
+    next(err);
+  }
 };
