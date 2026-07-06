@@ -65,7 +65,7 @@ Hệ thống backend đã được thiết lập sẵn một cơ sở dữ liệ
 | :--- | :--- | :--- |
 | **Khách hàng (Customer)** | `customer@ecom.com` | `password123` |
 | **Quản trị viên (Admin)** | `admin@ecom.com` | `password123` |
-
+| **seller** | `seller1@ecom.com` | `password123` |
 *Giao diện Đăng nhập trên frontend cũng được tích hợp sẵn các nút **Đăng nhập nhanh** tiện lợi để bạn chuyển đổi vai trò ngay lập tức.*
 
 ---
