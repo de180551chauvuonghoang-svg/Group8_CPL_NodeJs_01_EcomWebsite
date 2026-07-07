@@ -167,7 +167,7 @@ export default function Checkout() {
     }
   };
 
-  if (cartItems.length === 0) {
+  if (cartItems.length === 0 && !showSuccessModal) {
     navigate('/cart');
     return null;
   }
