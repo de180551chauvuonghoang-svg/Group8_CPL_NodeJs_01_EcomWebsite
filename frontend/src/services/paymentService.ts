@@ -43,6 +43,16 @@ export interface UserOrder {
 }
 
 export const paymentService = {
+  placeOrder: async (payload: {
+    items: any[];
+    shippingAddress: string;
+    paymentMethod: 'cod' | 'qr';
+    totalAmount: number;
+  }): Promise<{ success: boolean; message: string; orderId: string; qrUrl?: string }> => {
+    const response: any = await API.post('/orders/checkout', payload);
+    return response;
+  },
+
   /** POST /api/payments/cod/create → returns { orderId } */
   createCODOrder: async (payload: CheckoutPayload): Promise<{ orderId: string }> => {
     const response: any = await API.post('/payments/cod/create', payload);

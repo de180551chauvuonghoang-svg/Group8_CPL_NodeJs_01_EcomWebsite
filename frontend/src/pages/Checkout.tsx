@@ -88,11 +88,12 @@ export default function Checkout() {
   const user      = auth?.user;
 
   const [step,       setStep]       = useState(1);
-  const [method,     setMethod]     = useState<'cod'>('cod');
+  const [method,     setMethod]     = useState<'cod' | 'qr'>('qr');
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState('');
   const [addresses,  setAddresses]  = useState<Address[]>([]);
   const [selectedAddr, setSelectedAddr] = useState<Address | null>(null);
+  const [qrUrl,      setQrUrl]      = useState('');
 
   const [form, setForm] = useState<ShippingInfo>({
     name: user?.name || '',
@@ -140,22 +141,25 @@ export default function Checkout() {
     setError('');
     setLoading(true);
 
+    const shippingAddress = `${form.name} | ${form.phone}\n${form.address}${form.city ? ', ' + form.city : ''}`;
     const payload = {
-      cartItems,
-      shippingInfo: form,
-      couponCode: promoCode || undefined,
-      subtotal,
-      discount,
-      shippingFee,
-      total,
+      items: cartItems,
+      shippingAddress,
+      paymentMethod: method,
+      totalAmount: total
     };
 
     try {
-      const { orderId } = await paymentService.createCODOrder(payload);
-      clearCart();
-      navigate(`/payment/return?resultCode=0&orderId=${orderId}&method=cod`);
+      const res = await paymentService.placeOrder(payload);
+      if (method === 'qr' && res.qrUrl) {
+        setQrUrl(res.qrUrl);
+        setLoading(false);
+      } else {
+        clearCart();
+        navigate(`/payment/return?resultCode=0&orderId=${res.orderId}&method=cod`);
+      }
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại');
+      setError(err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi, vui lòng thử lại');
       setLoading(false);
     }
   };
@@ -303,7 +307,13 @@ export default function Checkout() {
 
                   <div className="flex flex-col gap-3 mb-8">
                     <PaymentCard
-                      method="cod" selected={method} onSelect={m => setMethod(m as 'cod')}
+                      method="qr" selected={method} onSelect={m => setMethod(m as 'cod' | 'qr')}
+                      icon="qr_code"
+                      title="Chuyển khoản VietQR"
+                      subtitle="Quét mã QR bằng App Ngân hàng bất kỳ"
+                    />
+                    <PaymentCard
+                      method="cod" selected={method} onSelect={m => setMethod(m as 'cod' | 'qr')}
                       icon="payments"
                       title="Thanh toán khi nhận hàng (COD)"
                       subtitle="Trả tiền mặt khi shipper giao đến tay bạn"
@@ -316,22 +326,42 @@ export default function Checkout() {
                     </p>
                   )}
 
-                  <motion.button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    whileHover={loading ? {} : { scale: 1.02, boxShadow: '0 20px 40px -8px rgba(0,74,198,0.45)' }}
-                    whileTap={loading ? {} : { scale: 0.98 }}
-                    className="w-full h-16 rounded-2xl font-black text-white flex items-center justify-center gap-3 relative overflow-hidden"
-                    style={{
-                      background: loading ? '#6b7280' : 'var(--accent-gradient)',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {loading
-                      ? <><span className="material-symbols-outlined animate-spin">sync</span>Đang xử lý...</>
-                      : <><span className="material-symbols-outlined">check_circle</span>Đặt hàng COD — {fmt(total)}</>
-                    }
-                  </motion.button>
+                  {qrUrl ? (
+                    <div className="mt-6 p-6 rounded-3xl border border-primary/20 bg-primary/5 text-center animate-in fade-in zoom-in duration-300">
+                      <p className="text-sm font-bold text-primary mb-3">Vui lòng quét mã QR dưới đây để thanh toán</p>
+                      <div className="bg-white p-4 rounded-2xl inline-block border border-white/10 mb-4 shadow-lg">
+                        <img src={qrUrl} alt="VietQR" className="w-56 h-56 object-contain rounded-xl" />
+                      </div>
+                      <motion.button
+                        onClick={() => { clearCart(); navigate('/'); }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="w-full h-12 rounded-xl bg-primary text-white font-bold hover:shadow-lg hover:shadow-primary/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                        Tôi đã thanh toán xong
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <motion.button
+                      onClick={handleSubmit}
+                      disabled={loading}
+                      whileHover={loading ? {} : { scale: 1.02, boxShadow: '0 20px 40px -8px rgba(0,74,198,0.45)' }}
+                      whileTap={loading ? {} : { scale: 0.98 }}
+                      className="w-full h-16 rounded-2xl font-black text-white flex items-center justify-center gap-3 relative overflow-hidden"
+                      style={{
+                        background: loading ? '#6b7280' : 'var(--accent-gradient)',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {loading
+                        ? <><span className="material-symbols-outlined animate-spin">sync</span>Đang xử lý...</>
+                        : method === 'qr'
+                          ? <><span className="material-symbols-outlined">qr_code</span>Thanh toán {fmt(total)} qua VietQR</>
+                          : <><span className="material-symbols-outlined">check_circle</span>Đặt hàng COD — {fmt(total)}</>
+                      }
+                    </motion.button>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

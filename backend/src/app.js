@@ -15,6 +15,7 @@ import userRoute from "./routes/userRoute.js";
 import aiRoutes from "./routes/ai.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import orderRoutes from "./routes/order.routes.js";
 
 // Middlewares imports
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -86,6 +87,7 @@ app.use("/api/user", userRoute);
 app.use("/api/ai", aiRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/orders", orderRoutes);
 
 // 4. Handle 404 Routes
 app.all("*", (req, res, next) => {
