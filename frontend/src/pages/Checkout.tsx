@@ -437,53 +437,48 @@ export default function Checkout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="w-full max-w-md p-8 rounded-3xl border border-white/10 text-center shadow-2xl relative overflow-hidden"
-              style={{ background: 'rgba(30,30,40,0.95)' }}
+              className="w-full max-w-md p-8 rounded-3xl border border-slate-100 text-center shadow-2xl relative overflow-hidden bg-white"
             >
-              {/* Background Glow */}
-              <div className="absolute -top-12 -left-12 w-24 h-24 rounded-full bg-primary/20 blur-xl pointer-events-none" />
-              <div className="absolute -bottom-12 -right-12 w-24 h-24 rounded-full bg-primary/20 blur-xl pointer-events-none" />
-
               {/* Animated Success Badge */}
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', damping: 10, stiffness: 100, delay: 0.2 }}
-                className="w-20 h-20 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mx-auto mb-6"
+                className="w-20 h-20 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mx-auto mb-6"
               >
-                <span className="material-symbols-outlined text-green-400 text-[40px] font-bold" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span className="material-symbols-outlined text-green-500 text-[40px] font-bold" style={{ fontVariationSettings: "'FILL' 1" }}>
                   check_circle
                 </span>
               </motion.div>
 
-              <h2 className="text-2xl font-black mb-2 text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <h2 className="text-2xl font-black mb-2 text-slate-800" style={{ fontFamily: 'Outfit, sans-serif' }}>
                 🎉 Đặt hàng thành công!
               </h2>
-              <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">
-                Cảm ơn bạn đã mua sắm tại <strong className="text-primary">Volitify</strong>. Đơn hàng của bạn đã được ghi nhận và đang trong quá trình xử lý.
+              <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                Cảm ơn bạn đã mua sắm tại <strong className="text-blue-600">Volitify</strong>. Đơn hàng của bạn đã được ghi nhận và đang trong quá trình xử lý.
               </p>
 
               {/* Order Info */}
               {createdOrderId && (
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-6 text-left text-xs space-y-2">
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-6 text-left text-xs space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-on-surface-variant">Mã đơn hàng:</span>
-                    <span className="font-mono font-bold text-white">#{createdOrderId.toUpperCase()}</span>
+                    <span className="text-slate-500">Mã đơn hàng:</span>
+                    <span className="font-mono font-bold text-slate-700">#{createdOrderId.toUpperCase()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-on-surface-variant">Phương thức:</span>
-                    <span className="font-bold text-white">{method === 'qr' ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}</span>
+                    <span className="text-slate-500">Phương thức:</span>
+                    <span className="font-bold text-slate-700">{method === 'qr' ? 'Chuyển khoản VietQR' : 'Thanh toán COD'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-on-surface-variant">Tổng thanh toán:</span>
-                    <span className="font-black text-primary">{fmt(total)}</span>
+                    <span className="text-slate-500">Tổng thanh toán:</span>
+                    <span className="font-black text-blue-600">{fmt(total)}</span>
                   </div>
                 </div>
               )}
@@ -494,16 +489,16 @@ export default function Checkout() {
                   onClick={() => { setShowSuccessModal(false); navigate('/profile'); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full h-12 rounded-xl border border-white/10 text-sm font-bold text-white hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full h-12 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-[18px]">receipt_long</span>
                   Xem đơn hàng của tôi
                 </motion.button>
                 <motion.button
                   onClick={() => { setShowSuccessModal(false); navigate('/'); }}
-                  whileHover={{ scale: 1.02, boxShadow: '0 10px 20px -5px rgba(0,74,198,0.3)' }}
+                  whileHover={{ scale: 1.02, boxShadow: '0 10px 20px -5px rgba(37,99,235,0.3)' }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full h-12 rounded-xl bg-primary text-white font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
                 >
                   <span className="material-symbols-outlined text-[18px]">home</span>
                   Quay lại Trang chủ
