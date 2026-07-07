@@ -156,9 +156,9 @@ export default function Header() {
               </div>
             </div>
 
-            <button onClick={() => handleCategoryClick('Home & Kitchen')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
-              Bếp
-            </button>
+            <Link to="/combos" className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
+              Combo
+            </Link>
             <button onClick={() => handleCategoryClick('Accessories')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
               Nhà Thông Minh
             </button>

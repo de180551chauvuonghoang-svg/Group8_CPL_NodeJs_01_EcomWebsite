@@ -203,7 +203,7 @@ export default function PaymentReturn() {
             </>
           ) : (
             <>
-              <button onClick={() => navigate('/checkout')}
+              <button onClick={() => navigate('/checkouts')}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-black text-white"
                 style={{ background: 'var(--accent-gradient)' }}>
                 <span className="material-symbols-outlined text-[18px]">refresh</span>

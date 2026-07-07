@@ -76,7 +76,7 @@ export default function Cart() {
     if (scope.current) {
       await animate(scope.current, { scale: [1, 0.98, 1.02, 1] }, { duration: 0.4 });
     }
-    navigate('/checkout');
+    navigate('/checkouts');
   };
 
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
