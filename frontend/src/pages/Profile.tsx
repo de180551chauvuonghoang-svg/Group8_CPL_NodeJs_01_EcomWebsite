@@ -30,7 +30,7 @@ export default function Profile() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -66,9 +66,9 @@ export default function Profile() {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
+
     const file = files[0];
-    
+
     // Check file size (e.g. limit to 4MB)
     if (file.size > 4 * 1024 * 1024) {
       setErrorMsg('Dung lượng ảnh vượt quá giới hạn cho phép (Tối đa 4MB).');
@@ -78,12 +78,12 @@ export default function Profile() {
     setUploading(true);
     setErrorMsg('');
     setSuccessMsg('');
-    
+
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onloadend = async () => {
       const base64Data = reader.result as string;
-      
+
       try {
         const secureUrl = await authService.uploadAvatar(base64Data);
         if (secureUrl) {
@@ -120,11 +120,11 @@ export default function Profile() {
     setSubmitting(true);
     setSuccessMsg('');
     setErrorMsg('');
-    
+
     try {
       const updatedUser = await authService.updateProfile(name, phone, avatarUrl, bio);
       setSuccessMsg('Đã lưu các thay đổi hồ sơ thành công!');
-      
+
       // Update global context state immediately
       auth.updateUser(updatedUser);
 
@@ -149,7 +149,7 @@ export default function Profile() {
   return (
     <div className="bg-background text-on-surface min-h-screen">
       <main className="pt-8 pb-16 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full flex flex-col lg:flex-row gap-gutter">
-        
+
         {/* Side Navigation Shell - Centralized glass style applied */}
         <aside className="w-full lg:w-64 flex-shrink-0">
           <div className="glass-panel p-6 shadow-xl space-y-2 sticky top-28 transition-all duration-300">
@@ -158,21 +158,21 @@ export default function Profile() {
               <p className="font-label-md text-xs text-on-surface-variant">Quản lý tài khoản của bạn</p>
             </div>
             <nav className="space-y-1">
-              <button 
+              <button
                 onClick={() => setActiveTab('profile')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-transform hover:translate-x-1 ${activeTab === 'profile' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
               >
                 <span className="material-symbols-outlined text-[20px]">person</span>
                 <span className="font-label-md text-sm">Hồ sơ</span>
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('address')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-transform hover:translate-x-1 ${activeTab === 'address' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
               >
                 <span className="material-symbols-outlined text-[20px]">location_on</span>
                 <span className="font-label-md text-sm">Sổ địa chỉ</span>
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('orders')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-transform hover:translate-x-1 ${activeTab === 'orders' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
               >
@@ -213,7 +213,7 @@ export default function Profile() {
 
           {/* Success Notification - Glassmorphism alert applied */}
           {successMsg && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="glass-alert glass-alert--success"
@@ -225,7 +225,7 @@ export default function Profile() {
 
           {/* Error Notification - Glassmorphism alert applied */}
           {errorMsg && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="glass-alert glass-alert--error"
@@ -239,7 +239,7 @@ export default function Profile() {
           {activeTab === 'profile' ? (
             <div className="glass-panel p-8 lg:p-12 shadow-xl">
               <form className="space-y-12" onSubmit={handleSubmit}>
-                
+
                 {/* Avatar Section */}
                 <div className="flex flex-col md:flex-row items-center gap-8 pb-12 border-b border-outline-variant/30">
                   <div className="relative group">
@@ -250,46 +250,46 @@ export default function Profile() {
                           <span className="text-[10px] text-primary font-bold">Đang tải...</span>
                         </div>
                       ) : (
-                        <img 
-                          className="w-full h-full object-cover" 
-                          id="avatar-preview" 
+                        <img
+                          className="w-full h-full object-cover"
+                          id="avatar-preview"
                           alt="User Avatar"
                           src={avatarUrl}
                         />
                       )}
                     </div>
-                    <label 
-                      htmlFor="avatar-file-input" 
+                    <label
+                      htmlFor="avatar-file-input"
                       className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl flex items-center justify-center cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-white text-3xl">photo_camera</span>
                     </label>
                   </div>
-                  
-                  <input 
-                    type="file" 
-                    id="avatar-file-input" 
-                    accept="image/*" 
-                    className="hidden" 
+
+                  <input
+                    type="file"
+                    id="avatar-file-input"
+                    accept="image/*"
+                    className="hidden"
                     onChange={handleAvatarChange}
                     disabled={uploading || submitting}
                   />
-                  
+
                   <div className="space-y-4 text-center md:text-left">
                     <h3 className="font-title-lg text-title-lg text-on-surface font-bold">Ảnh đại diện của bạn</h3>
                     <p className="font-body-md text-xs text-on-surface-variant">PNG hoặc JPG. Tối đa 4MB.</p>
                     <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                      <button 
+                      <button
                         onClick={() => document.getElementById('avatar-file-input')?.click()}
-                        className="pill-button pill-button--accent" 
+                        className="pill-button pill-button--accent"
                         type="button"
                         disabled={uploading || submitting}
                       >
                         {uploading ? 'Đang tải lên...' : 'Tải lên ảnh mới'}
                       </button>
-                      <button 
+                      <button
                         onClick={handleRemoveAvatar}
-                        className="pill-button" 
+                        className="pill-button"
                         type="button"
                         disabled={uploading || submitting}
                       >
@@ -303,9 +303,9 @@ export default function Profile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Họ và tên</label>
-                    <input 
-                      className="glass-input" 
-                      type="text" 
+                    <input
+                      className="glass-input"
+                      type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
@@ -315,10 +315,10 @@ export default function Profile() {
                   <div className="space-y-2">
                     <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Email (Đã xác minh)</label>
                     <div className="relative">
-                      <input 
-                        className="glass-input" 
-                        disabled 
-                        type="email" 
+                      <input
+                        className="glass-input"
+                        disabled
+                        type="email"
                         value={email}
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary font-fill">verified</span>
@@ -327,9 +327,9 @@ export default function Profile() {
 
                   <div className="space-y-2">
                     <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Số điện thoại</label>
-                    <input 
-                      className="glass-input" 
-                      type="tel" 
+                    <input
+                      className="glass-input"
+                      type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                     />
@@ -337,9 +337,9 @@ export default function Profile() {
 
                   <div className="space-y-2 md:col-span-2">
                     <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Tiểu sử</label>
-                    <textarea 
-                      className="glass-input h-32 py-4 resize-none" 
-                      placeholder="Viết một chút về bản thân bạn..." 
+                    <textarea
+                      className="glass-input h-32 py-4 resize-none"
+                      placeholder=""
                       rows={4}
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
@@ -349,15 +349,15 @@ export default function Profile() {
 
                 {/* Action Footer - Pill buttons with active effects applied */}
                 <div className="pt-12 border-t border-outline-variant/30 flex flex-col sm:flex-row justify-end gap-4">
-                  <button 
+                  <button
                     onClick={() => navigate('/')}
-                    className="order-2 sm:order-1 pill-button" 
+                    className="order-2 sm:order-1 pill-button"
                     type="button"
                   >
                     Hủy
                   </button>
-                  <button 
-                    className="order-1 sm:order-2 pill-button pill-button--accent" 
+                  <button
+                    className="order-1 sm:order-2 pill-button pill-button--accent"
                     type="submit"
                     disabled={submitting}
                   >
@@ -386,12 +386,12 @@ export default function Profile() {
                 orders.map((order, i) => {
                   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
                   const STATUS: Record<string, { label: string; bg: string; text: string }> = {
-                    pending:   { label: 'Chờ xử lý',   bg: 'bg-amber-50', text: 'text-amber-600' },
+                    pending: { label: 'Chờ xử lý', bg: 'bg-amber-50', text: 'text-amber-600' },
                     confirmed: { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    processing:{ label: 'Đang xử lý',  bg: 'bg-blue-50', text: 'text-blue-600' },
-                    shipped:   { label: 'Đang giao',   bg: 'bg-indigo-50', text: 'text-indigo-600' },
-                    delivered: { label: 'Đã giao',     bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    cancelled: { label: 'Đã hủy',      bg: 'bg-rose-50', text: 'text-rose-600' },
+                    processing: { label: 'Đang xử lý', bg: 'bg-blue-50', text: 'text-blue-600' },
+                    shipped: { label: 'Đang giao', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+                    delivered: { label: 'Đã giao', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    cancelled: { label: 'Đã hủy', bg: 'bg-rose-50', text: 'text-rose-600' },
                   };
                   const s = STATUS[order.status] || { label: order.status, bg: 'bg-slate-50', text: 'text-slate-600' };
                   const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method === 'qr' ? 'Chuyển khoản VietQR' : order.payment_method;
