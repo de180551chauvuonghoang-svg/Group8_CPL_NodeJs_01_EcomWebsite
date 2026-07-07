@@ -486,7 +486,7 @@ export default function Checkout() {
               {/* Actions */}
               <div className="flex flex-col gap-3">
                 <motion.button
-                  onClick={() => { setShowSuccessModal(false); navigate('/profile'); }}
+                  onClick={() => { setShowSuccessModal(false); navigate('/profile', { state: { tab: 'orders' } }); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="w-full h-12 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer flex items-center justify-center gap-2"

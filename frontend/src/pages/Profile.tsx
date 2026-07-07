@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import { motion } from 'framer-motion';
@@ -14,9 +14,10 @@ export default function Profile() {
   }
   const { user, isAuthenticated, loading } = auth;
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'profile');
 
   // Form states
   const [name, setName] = useState('');
@@ -374,56 +375,51 @@ export default function Profile() {
                 <div className="text-center py-16">
                   <span className="material-symbols-outlined text-[56px] text-on-surface-variant/30" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_bag</span>
                   <p className="mt-4 text-on-surface-variant">Bạn chưa có đơn hàng nào</p>
-                  <Link to="/products" className="mt-4 inline-flex items-center gap-1 text-sm text-primary font-semibold hover:underline">
-                    Mua sắm ngay <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                  </Link>
                 </div>
               ) : (
                 orders.map((order, i) => {
                   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
-                  const STATUS: Record<string, { label: string; color: string }> = {
-                    pending:   { label: 'Chờ xử lý',   color: '#fbbf24' },
-                    confirmed: { label: 'Đã xác nhận', color: '#34d399' },
-                    processing:{ label: 'Đang xử lý',  color: '#60a5fa' },
-                    shipped:   { label: 'Đang giao',   color: '#a78bfa' },
-                    delivered: { label: 'Đã giao',     color: '#34d399' },
-                    cancelled: { label: 'Đã hủy',      color: '#f87171' },
+                  const STATUS: Record<string, { label: string; bg: string; text: string }> = {
+                    pending:   { label: 'Chờ xử lý',   bg: 'bg-amber-50', text: 'text-amber-600' },
+                    confirmed: { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    processing:{ label: 'Đang xử lý',  bg: 'bg-blue-50', text: 'text-blue-600' },
+                    shipped:   { label: 'Đang giao',   bg: 'bg-indigo-50', text: 'text-indigo-600' },
+                    delivered: { label: 'Đã giao',     bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    cancelled: { label: 'Đã hủy',      bg: 'bg-rose-50', text: 'text-rose-600' },
                   };
-                  const s = STATUS[order.status] || { label: order.status, color: '#94a3b8' };
-                  const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method;
+                  const s = STATUS[order.status] || { label: order.status, bg: 'bg-slate-50', text: 'text-slate-600' };
+                  const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method === 'qr' ? 'Chuyển khoản VietQR' : order.payment_method;
                   return (
                     <motion.div
                       key={order.id}
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.06 }}
-                      className="rounded-2xl border border-white/8 p-5"
-                      style={{ background: 'rgba(255,255,255,0.03)' }}
+                      className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-200 text-slate-700"
                     >
                       <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div>
-                          <p className="text-xs text-on-surface-variant font-semibold uppercase tracking-wider mb-1">Mã đơn</p>
-                          <p className="font-mono font-bold text-sm text-primary">#{order.id.substring(0, 12).toUpperCase()}</p>
+                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Mã đơn hàng</p>
+                          <p className="font-mono font-bold text-sm text-blue-600">#{order.id.toUpperCase()}</p>
                         </div>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-                          style={{ background: `${s.color}20`, color: s.color }}>{s.label}</span>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-white/6 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                      <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                         <div>
-                          <p className="text-xs text-on-surface-variant mb-0.5">Tổng tiền</p>
-                          <p className="font-black">{fmt(order.total)}</p>
+                          <p className="text-xs text-slate-400 mb-1">Tổng tiền</p>
+                          <p className="font-black text-blue-600 text-base">{fmt(order.total)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-on-surface-variant mb-0.5">Thanh toán</p>
-                          <p className="font-semibold">{pm}</p>
+                          <p className="text-xs text-slate-400 mb-1">Thanh toán</p>
+                          <p className="font-bold text-slate-700">{pm}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-on-surface-variant mb-0.5">Ngày đặt</p>
-                          <p className="font-semibold">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
+                          <p className="text-xs text-slate-400 mb-1">Ngày đặt hàng</p>
+                          <p className="font-bold text-slate-700">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
                         </div>
                         <div className="col-span-2 sm:col-span-3">
-                          <p className="text-xs text-on-surface-variant mb-0.5">Địa chỉ giao hàng</p>
-                          <p className="text-xs">{order.shipping_address}</p>
+                          <p className="text-xs text-slate-400 mb-1">Địa chỉ giao hàng</p>
+                          <p className="text-xs font-medium text-slate-600">{order.shipping_address}</p>
                         </div>
                       </div>
                     </motion.div>
