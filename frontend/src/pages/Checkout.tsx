@@ -491,7 +491,7 @@ export default function Checkout() {
               {/* Actions */}
               <div className="flex flex-col gap-3">
                 <motion.button
-                  onClick={() => { setShowSuccessModal(false); navigate('/profile', { state: { tab: 'orders' } }); }}
+                  onClick={() => { navigate('/profile', { state: { tab: 'orders' } }); }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="w-full h-12 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer flex items-center justify-center gap-2"
@@ -500,7 +500,7 @@ export default function Checkout() {
                   Xem đơn hàng của tôi
                 </motion.button>
                 <motion.button
-                  onClick={() => { setShowSuccessModal(false); navigate('/'); }}
+                  onClick={() => { navigate('/'); }}
                   whileHover={{ scale: 1.02, boxShadow: '0 10px 20px -5px rgba(37,99,235,0.3)' }}
                   whileTap={{ scale: 0.98 }}
                   className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
