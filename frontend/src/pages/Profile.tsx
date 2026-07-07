@@ -16,8 +16,14 @@ export default function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Tab state
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'profile');
+
+  // Sync tab from router state (e.g. when redirecting from checkout to orders tab)
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
 
   // Form states
   const [name, setName] = useState('');
