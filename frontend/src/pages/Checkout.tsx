@@ -167,8 +167,13 @@ export default function Checkout() {
     }
   };
 
+  useEffect(() => {
+    if (cartItems.length === 0 && !showSuccessModal) {
+      navigate('/cart');
+    }
+  }, [cartItems.length, showSuccessModal, navigate]);
+
   if (cartItems.length === 0 && !showSuccessModal) {
-    navigate('/cart');
     return null;
   }
 
