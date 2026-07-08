@@ -40,29 +40,27 @@ export const emailService = {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mã Xác Thực Volitify</title>
-        <style>
-          body {
+        <title>Mã Xác Thực Volitify</titl          body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #0b0f19;
+            background-color: #f3f4f6;
             margin: 0;
             padding: 0;
             -webkit-font-smoothing: antialiased;
           }
           .wrapper {
             width: 100%;
-            background-color: #0b0f19;
+            background-color: #f3f4f6;
             padding: 40px 20px;
             box-sizing: border-box;
           }
           .container {
             max-width: 560px;
             margin: 0 auto;
-            background-color: #111827;
+            background-color: #ffffff;
             border-radius: 24px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
           }
           .header {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
@@ -79,33 +77,33 @@ export const emailService = {
           }
           .content {
             padding: 40px;
-            color: #d1d5db;
+            color: #374151;
           }
           .title {
             font-size: 24px;
             font-weight: 800;
-            color: #ffffff;
+            color: #111827;
             margin-bottom: 20px;
             letter-spacing: -0.5px;
           }
           .text {
             font-size: 15px;
             line-height: 26px;
-            color: #9ca3af;
+            color: #4b5563;
             margin-bottom: 30px;
           }
           .otp-card {
             text-align: center;
             margin: 35px 0;
             padding: 30px;
-            background: rgba(255, 255, 255, 0.03);
+            background: #f8fafc;
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid #e2e8f0;
           }
           .otp-label {
             font-size: 12px;
             font-weight: 700;
-            color: #3b82f6;
+            color: #2563eb;
             letter-spacing: 2.5px;
             text-transform: uppercase;
             margin-bottom: 12px;
@@ -114,31 +112,31 @@ export const emailService = {
             font-size: 42px;
             font-weight: 900;
             letter-spacing: 8px;
-            color: #ffffff;
+            color: #1d4ed8;
             font-family: 'Courier New', Courier, monospace;
             margin: 0;
           }
           .expire-text {
             font-size: 13px;
-            color: #f87171;
+            color: #dc2626;
             font-weight: 600;
             margin-top: 15px;
-            background: rgba(248, 113, 113, 0.1);
+            background: #fef2f2;
             display: inline-block;
             padding: 6px 14px;
             border-radius: 30px;
           }
           .footer {
-            background-color: #0f172a;
+            background-color: #f8fafc;
             padding: 30px 40px;
             text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid #e2e8f0;
             font-size: 12px;
             color: #6b7280;
             line-height: 20px;
           }
           .footer a {
-            color: #3b82f6;
+            color: #2563eb;
             text-decoration: none;
             font-weight: 600;
           }
@@ -174,7 +172,6 @@ export const emailService = {
       </body>
       </html>
     `;
-
     try {
       await transporter.sendMail({
         from: `"Volitify Security" <${user}>`,
