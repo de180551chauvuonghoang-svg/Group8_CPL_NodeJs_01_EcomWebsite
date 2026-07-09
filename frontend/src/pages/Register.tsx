@@ -84,6 +84,12 @@ export default function Register() {
       return;
     }
 
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      setErrorMsg('Số điện thoại không hợp lệ. Phải bao gồm đúng 10 chữ số và bắt đầu bằng số 0.');
+      return;
+    }
+
     try {
       await register(name, email, password, phone);
       setSuccessMsg('Đăng ký tài khoản thành công! Đang chuyển hướng...');
