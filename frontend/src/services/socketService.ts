@@ -1,33 +1,40 @@
 import { io, Socket } from "socket.io-client";
 
-// URL của Backend API (dựa vào file api.ts hoặc lấy base URL tương đương)
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL 
-  ? import.meta.env.VITE_API_BASE_URL.replace("/api", "") 
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace("/api", "")
   : "http://localhost:5000";
 
 class SocketService {
   private socket: Socket | null = null;
 
-  // Kết nối và đăng ký userId
-  connect(userId: string) {
+  connect(_userId: string) {
     if (this.socket) return;
+
+    const token = localStorage.getItem("ecom_token");
+    if (!token || token === "mock_token_123456") {
+      console.warn("[Socket Offline] Missing valid auth token.");
+      return;
+    }
 
     this.socket = io(SOCKET_URL, {
       transports: ["websocket"],
-      autoConnect: true
+      autoConnect: true,
+      auth: { token },
     });
 
     this.socket.on("connect", () => {
-      console.log("[🔌 Socket Connected] Connected to Socket Server");
-      this.socket?.emit("join", userId);
+      console.log("[Socket Connected] Connected to Socket Server");
+    });
+
+    this.socket.on("connect_error", (error) => {
+      console.warn("[Socket Auth Error]", error.message);
     });
 
     this.socket.on("disconnect", () => {
-      console.log("[🔌 Socket Disconnected] Disconnected from Socket Server");
+      console.log("[Socket Disconnected] Disconnected from Socket Server");
     });
   }
 
-  // Ngắt kết nối
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
@@ -35,31 +42,24 @@ class SocketService {
     }
   }
 
-  // Gửi tin nhắn
-  sendMessage(senderId: string, receiverId: string, messageText: string) {
+  sendMessage(_senderId: string, receiverId: string, messageText: string) {
     if (!this.socket) {
-      console.warn("[⚠️ Socket Offline] Cannot send message, socket is not connected.");
+      console.warn("[Socket Offline] Cannot send message, socket is not connected.");
       return;
     }
-    this.socket.emit("sendMessage", { senderId, receiverId, messageText });
+    this.socket.emit("sendMessage", { receiverId, messageText });
   }
 
-  // Đăng ký lắng nghe nhận tin nhắn
   onReceiveMessage(callback: (msg: any) => void) {
     if (!this.socket) return;
-    // Tắt các listener cũ để tránh trùng lặp listener
     this.socket.off("receiveMessage");
     this.socket.on("receiveMessage", callback);
   }
 
-  // Huỷ đăng ký nhận tin nhắn (Cleanup)
   offReceiveMessage() {
-    if (this.socket) {
-      this.socket.off("receiveMessage");
-    }
+    this.socket?.off("receiveMessage");
   }
 
-  // Lắng nghe xác nhận gửi tin nhắn thành công
   onMessageSent(callback: (msg: any) => void) {
     if (!this.socket) return;
     this.socket.off("messageSent");
@@ -67,9 +67,7 @@ class SocketService {
   }
 
   offMessageSent() {
-    if (this.socket) {
-      this.socket.off("messageSent");
-    }
+    this.socket?.off("messageSent");
   }
 
   onChatUnreadUpdated(callback: (payload: any) => void) {
@@ -79,9 +77,7 @@ class SocketService {
   }
 
   offChatUnreadUpdated() {
-    if (this.socket) {
-      this.socket.off("chatUnreadUpdated");
-    }
+    this.socket?.off("chatUnreadUpdated");
   }
 }
 

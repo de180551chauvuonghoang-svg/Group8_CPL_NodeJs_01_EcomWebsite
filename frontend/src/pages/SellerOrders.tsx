@@ -46,6 +46,9 @@ function ItemActions({ item, onDone }: { item: SellerOrderItem; onDone: () => vo
         cancelReason: nextStatus === 'cancelled' ? cancelReason || 'Seller hủy đơn' : undefined,
       });
       onDone();
+    } catch (error) {
+      console.error('Failed to update seller order item.', error);
+      alert('Không thể cập nhật đơn hàng. Vui lòng thử lại.');
     } finally {
       setLoading('');
     }
@@ -90,14 +93,20 @@ export default function SellerOrders() {
   const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState(searchParams.get('status') || 'all');
 
   const fetchOrders = async () => {
     setLoading(true);
+    setErrorMessage('');
     try {
       const data = await sellerService.getOrders();
       setOrders(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load seller orders.', error);
+      setErrorMessage('Không thể tải danh sách đơn hàng. Vui lòng thử lại.');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -141,6 +150,12 @@ export default function SellerOrders() {
             </select>
           </div>
         </div>
+
+        {errorMessage && (
+          <div className="mb-4 rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-sm font-semibold text-error">
+            {errorMessage}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex h-56 items-center justify-center">

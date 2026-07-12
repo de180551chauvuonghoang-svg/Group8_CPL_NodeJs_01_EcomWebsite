@@ -321,7 +321,15 @@ export const cancelOrderAndRestoreStock = async (req, res, next) => {
       throw new Error('Order not found.');
     }
 
-    if (!['cancelled', 'refunded', 'failed'].includes(order.status)) {
+    const closedStatuses = ['cancelled', 'refunded', 'failed'];
+    const cancellableStatuses = ['pending', 'confirmed', 'pending_payment'];
+    if (!closedStatuses.includes(order.status) && !cancellableStatuses.includes(order.status)) {
+      const err = new Error('Order cannot be cancelled at its current status.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!closedStatuses.includes(order.status)) {
       const itemsResult = await transaction.request()
         .input('order_id', orderId)
         .query(`

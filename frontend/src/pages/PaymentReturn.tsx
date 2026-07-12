@@ -55,6 +55,7 @@ export default function PaymentReturn() {
 
   const [order,   setOrder]   = useState<OrderStatusData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelError, setCancelError] = useState('');
   const cancelRequestedRef = useRef(false);
   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
 
@@ -62,7 +63,10 @@ export default function PaymentReturn() {
     if (!orderId) { setLoading(false); return; }
     if (!isSuccess && !cancelRequestedRef.current) {
       cancelRequestedRef.current = true;
-      paymentService.cancelOrder(orderId).catch(() => {});
+      paymentService.cancelOrder(orderId).catch((error) => {
+        console.warn('Unable to cancel failed payment order.', error);
+        setCancelError('Chưa thể tự động hủy đơn và hoàn kho. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+      });
     }
     paymentService.getOrderStatus(orderId)
       .then(setOrder)
@@ -126,6 +130,11 @@ export default function PaymentReturn() {
                 : 'Thanh toán MoMo thành công. Đơn hàng của bạn đang được xử lý.'
               : 'Thanh toán không thành công. Bạn có thể thử lại hoặc chọn phương thức khác.'}
           </p>
+          {cancelError && (
+            <p className="mt-3 rounded-2xl border border-error/20 bg-error/10 px-4 py-3 text-xs font-semibold text-error">
+              {cancelError}
+            </p>
+          )}
         </motion.div>
 
         {/* Order detail card */}

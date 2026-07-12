@@ -1,34 +1,73 @@
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 import { messageService } from "../services/messageService.js";
 
 const userSocketMap = new Map();
 
+const getAllowedOrigins = () => {
+  const origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+  ];
+
+  if (process.env.FRONTEND_URL) {
+    origins.push(...process.env.FRONTEND_URL.split(",").map(url => url.trim()).filter(Boolean));
+  }
+
+  return origins;
+};
+
 export const setupSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: getAllowedOrigins(),
       methods: ["GET", "POST"],
       credentials: true
     }
   });
 
-  io.on("connection", (socket) => {
-    console.log(`[Socket Connected] Socket ID: ${socket.id}`);
-
-    socket.on("join", (userId) => {
-      if (userId) {
-        userSocketMap.set(userId, socket.id);
-        socket.userId = userId;
-        console.log(`[User Registered] User: ${userId} -> Socket: ${socket.id}`);
+  io.use((socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (!token) {
+        return next(new Error("Socket authentication required."));
       }
-    });
+
+      if (!process.env.ACCESS_TOKEN_SECRET) {
+        return next(new Error("ACCESS_TOKEN_SECRET is not configured."));
+      }
+
+      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const userId = decoded.userID || decoded.id;
+      if (!userId) {
+        return next(new Error("Invalid socket token."));
+      }
+
+      socket.userId = userId;
+      next();
+    } catch (error) {
+      next(new Error("Invalid or expired socket token."));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    userSocketMap.set(socket.userId, socket.id);
+    console.log(`[Socket Connected] User: ${socket.userId} -> Socket: ${socket.id}`);
 
     socket.on("sendMessage", async (data) => {
       try {
-        const { senderId, receiverId, messageText } = data;
+        const { receiverId, messageText } = data;
+        const senderId = socket.userId;
 
         if (!senderId || !receiverId || !messageText) {
           console.warn("[Invalid Message Data]", data);
+          return;
+        }
+
+        if (senderId === receiverId) {
+          socket.emit("error", { message: "Cannot send message to yourself." });
           return;
         }
 
