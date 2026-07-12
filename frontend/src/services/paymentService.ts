@@ -53,19 +53,20 @@ export const paymentService = {
     return response;
   },
 
-  /** POST /api/payments/cod/create → returns { orderId } */
   createCODOrder: async (payload: CheckoutPayload): Promise<{ orderId: string }> => {
     const response: any = await API.post('/payments/cod/create', payload);
     return response;
   },
 
-  /** GET /api/payments/order/:orderId → order + payment status */
   getOrderStatus: async (orderId: string): Promise<OrderStatusData> => {
     const response: any = await API.get(`/payments/order/${orderId}`);
     return response.data?.data || response.data;
   },
 
-  /** GET /api/payments/orders → all orders for current user */
+  cancelOrder: async (orderId: string): Promise<void> => {
+    await API.post(`/payments/order/${orderId}/cancel`);
+  },
+
   getUserOrders: async (): Promise<UserOrder[]> => {
     const response: any = await API.get('/payments/orders');
     return response.data?.data || response.data || [];

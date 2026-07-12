@@ -17,11 +17,12 @@ export const authService = {
   login: async (name: string, password: string): Promise<LoginResponse> => {
     const response: any = await API.post('/auth/login', { name, password });
     const data = response.data || response;
-    if (data.accessToken) {
-      localStorage.setItem('ecom_token', data.accessToken);
-      localStorage.setItem('ecom_user', JSON.stringify(data.user));
+    const actualData = data.data || data;
+    if (actualData.accessToken) {
+      localStorage.setItem('ecom_token', actualData.accessToken);
+      localStorage.setItem('ecom_user', JSON.stringify(actualData.user));
     }
-    return { token: data.accessToken, user: data.user };
+    return { token: actualData.accessToken, user: actualData.user };
   },
 
   loginWithGoogle: async (idToken: string): Promise<LoginResponse> => {

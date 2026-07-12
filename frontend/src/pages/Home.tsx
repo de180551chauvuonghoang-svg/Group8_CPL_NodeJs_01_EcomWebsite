@@ -56,11 +56,11 @@ export default function Home() {
 
   const categories = [
     { key: '', label: 'Tất cả sản phẩm' },
-    { key: 'Audio', label: 'Audio & Âm Thanh' },
-    { key: 'Accessories', label: 'Phụ Kiện' },
-    { key: 'Wearables', label: 'Thiết Bị Đeo' },
-    { key: 'Home & Kitchen', label: 'Bếp & Gia Dụng' },
-    { key: 'Electronics', label: 'Điện Tử' }
+    { key: 'am-thanh', label: 'Audio & Âm Thanh' },
+    { key: 'phu-kien', label: 'Phụ Kiện' },
+    { key: 'dong-ho-wear', label: 'Thiết Bị Đeo' },
+    { key: 'nha-bep', label: 'Bếp & Gia Dụng' },
+    { key: 'dien-tu', label: 'Điện Tử' }
   ];
 
   const handleCopyCode = () => {

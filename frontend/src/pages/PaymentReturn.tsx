@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { paymentService, OrderStatusData } from '../services/paymentService';
@@ -55,15 +55,20 @@ export default function PaymentReturn() {
 
   const [order,   setOrder]   = useState<OrderStatusData | null>(null);
   const [loading, setLoading] = useState(true);
+  const cancelRequestedRef = useRef(false);
   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
 
   useEffect(() => {
     if (!orderId) { setLoading(false); return; }
+    if (!isSuccess && !cancelRequestedRef.current) {
+      cancelRequestedRef.current = true;
+      paymentService.cancelOrder(orderId).catch(() => {});
+    }
     paymentService.getOrderStatus(orderId)
       .then(setOrder)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [orderId]);
+  }, [isSuccess, orderId]);
 
   return (
     <motion.div

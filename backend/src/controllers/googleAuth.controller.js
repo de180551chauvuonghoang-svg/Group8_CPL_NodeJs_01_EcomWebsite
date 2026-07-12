@@ -110,7 +110,7 @@ export const googleLogin = async (req, res, next) => {
 
     // 3. Tạo JWT Access Token & Refresh Token
     const accessToken = jwt.sign(
-      { userID: user.id, email: user.email },
+      { userID: user.id, email: user.email, role: user.role || "customer" },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );

@@ -72,14 +72,9 @@ export default function Login() {
     }
   };
 
-  const handleQuickLogin = (role: 'customer' | 'admin') => {
-    if (role === 'customer') {
-      setEmail('customer');
-      setPassword('password123');
-    } else if (role === 'admin') {
-      setEmail('admin');
-      setPassword('password123');
-    }
+  const handleQuickLogin = (role: 'customer' | 'seller' | 'admin') => {
+    setEmail(role);
+    setPassword('password123');
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -221,6 +216,19 @@ export default function Login() {
                 Đăng Nhập
               </motion.button>
             </form>
+
+            <div className="grid grid-cols-3 gap-2">
+              {(['customer', 'seller', 'admin'] as const).map(role => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => handleQuickLogin(role)}
+                  className="h-10 rounded-lg border border-outline-variant bg-surface-container text-xs font-bold capitalize text-on-surface-variant transition hover:border-primary/50 hover:text-primary"
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
 
             {/* Divider */}
             <div className="relative py-4">

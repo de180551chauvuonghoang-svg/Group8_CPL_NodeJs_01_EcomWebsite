@@ -1,6 +1,35 @@
 import { pool } from '../config/db.js';
 import sql from 'mssql';
 
+const decrementVariantStock = async (transaction, variantId, quantity) => {
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    throw new Error('So luong san pham khong hop le.');
+  }
+
+  const stockResult = await transaction.request()
+    .input('variantId', sql.VarChar, variantId)
+    .query(`
+      SELECT stock_qty
+      FROM ProductVariants WITH (UPDLOCK, ROWLOCK)
+      WHERE id = @variantId
+    `);
+
+  const stock = Number(stockResult.recordset[0]?.stock_qty ?? -1);
+  if (stock < quantity) {
+    throw new Error('So luong ton kho khong du.');
+  }
+
+  await transaction.request()
+    .input('variantId', sql.VarChar, variantId)
+    .input('quantity', sql.Int, quantity)
+    .query(`
+      UPDATE ProductVariants
+      SET stock_qty = stock_qty - @quantity,
+          updated_at = GETDATE()
+      WHERE id = @variantId
+    `);
+};
+
 // Hàm xử lý Đặt hàng & Thanh toán
 export const createOrder = async (req, res) => {
   try {
@@ -59,6 +88,12 @@ export const createOrder = async (req, res) => {
           validVariantId = variantResult.recordset[0].id;
         }
 
+        const productName = typeof item.product?.name === 'string'
+          ? item.product.name
+          : String(item.product?.name || 'Sản phẩm');
+
+        await decrementVariantStock(transaction, validVariantId, Number(item.quantity || 0));
+
         await transaction.request()
           .input('oiId', sql.VarChar, orderItemId)
           .input('oId', sql.VarChar, orderId)
@@ -66,7 +101,7 @@ export const createOrder = async (req, res) => {
           .input('qty', sql.Int, item.quantity)
           .input('uPrice', sql.Decimal(18,2), item.product.price)
           .input('tPrice', sql.Decimal(18,2), item.product.price * item.quantity)
-          .input('pName', sql.NVarChar, item.product.name || 'Sản phẩm')
+          .input('pName', sql.NVarChar, productName)
           .query(`
             INSERT INTO OrderItems (id, order_id, variant_id, quantity, unit_price, total_price, product_name)
             VALUES (@oiId, @oId, @vId, @qty, @uPrice, @tPrice, @pName)

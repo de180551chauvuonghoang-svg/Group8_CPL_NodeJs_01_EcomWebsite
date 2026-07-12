@@ -14,11 +14,11 @@ const STAR_RATING = (r: number) =>
 
 const CATEGORIES = [
   { key: '',            label: 'Tất cả' },
-  { key: 'Audio',       label: 'Audio & Âm Thanh' },
-  { key: 'Wearables',   label: 'Thiết Bị Đeo' },
-  { key: 'Electronics', label: 'Điện Tử' },
-  { key: 'Accessories', label: 'Phụ Kiện' },
-  { key: 'Home & Kitchen', label: 'Nhà & Bếp' },
+  { key: 'am-thanh',    label: 'Audio & Âm Thanh' },
+  { key: 'dong-ho-wear', label: 'Thiết Bị Đeo' },
+  { key: 'dien-tu',     label: 'Điện Tử' },
+  { key: 'phu-kien',    label: 'Phụ Kiện' },
+  { key: 'nha-bep',     label: 'Nhà & Bếp' },
 ];
 
 const SORT_OPTIONS = [
@@ -87,6 +87,9 @@ const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: 
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            {product.isFlashSale && product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error">Sale</span>
+            )}
             {isOutOfStock && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error">Hết hàng</span>
             )}
@@ -128,6 +131,12 @@ const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: 
           <h3 className="text-sm font-bold text-on-surface line-clamp-2 mb-2 group-hover:text-primary transition-colors leading-snug">
             {product.name}
           </h3>
+          {product.seller_name && (
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined text-[14px]">storefront</span>
+              <span className="line-clamp-1">{product.seller_name}</span>
+            </div>
+          )}
 
           {/* Rating — chỉ hiển thị nếu có rating */}
           {rating > 0 && (
@@ -386,14 +395,14 @@ export default function Products() {
                 </AnimatePresence>
               </div>
 
-                <div className="flex justify-center mt-10">
+                {hasMore && <div className="flex justify-center mt-10">
                   <button
                     onClick={() => setVisibleCount(c => c + 12)}
                     className="pill-button pill-button--accent font-bold"
                   >
                     Xem thêm ({sorted.length - visibleCount} sản phẩm)
                   </button>
-                </div>
+                </div>}
             </>
           )}
         </main>

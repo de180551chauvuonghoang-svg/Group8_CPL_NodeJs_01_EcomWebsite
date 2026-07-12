@@ -85,6 +85,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const updateUser = (updatedUser: User): void => {
+    localStorage.setItem('ecom_user', JSON.stringify(updatedUser));
     setUser(updatedUser);
   };
 

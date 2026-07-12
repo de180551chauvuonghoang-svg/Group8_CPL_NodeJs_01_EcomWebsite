@@ -6,6 +6,20 @@ export interface ProductFilterParams {
   search?: string;
 }
 
+const CATEGORY_ALIASES: Record<string, string[]> = {
+  'am-thanh': ['Audio', 'Âm Thanh'],
+  'dong-ho-wear': ['Wearables', 'Thiết Bị Đeo'],
+  'dien-tu': ['Electronics', 'Điện Tử'],
+  'phu-kien': ['Accessories', 'Phụ Kiện'],
+  'nha-bep': ['Home & Kitchen', 'Nhà & Bếp'],
+};
+
+const matchesCategory = (product: Product, category: string) => {
+  const values = [category, ...(CATEGORY_ALIASES[category] || [])].map(v => v.toLowerCase());
+  return values.includes((product.category || '').toLowerCase())
+    || values.includes((product.category_slug || '').toLowerCase());
+};
+
 const fallbackProducts: Product[] = [
   {
     id: 'mock-p-1',
@@ -82,7 +96,7 @@ export const productService = {
       let filtered = [...fallbackProducts];
       
       if (category) {
-        filtered = filtered.filter(p => p.category.toLowerCase() === category.toLowerCase());
+        filtered = filtered.filter(p => matchesCategory(p, category));
       }
       
       if (search) {

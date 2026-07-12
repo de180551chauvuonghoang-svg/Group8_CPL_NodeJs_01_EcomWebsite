@@ -71,6 +71,32 @@ BEGIN
 END
 GO
 
+-- Sellers: Store seller shop profile
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Sellers')
+BEGIN
+  CREATE TABLE Sellers (
+    id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+    user_id       VARCHAR(50)    NOT NULL UNIQUE REFERENCES Users(id) ON DELETE CASCADE,
+    shop_name     NVARCHAR(150)  NOT NULL UNIQUE,
+    shop_phone    VARCHAR(20)    NOT NULL,
+    shop_address  NVARCHAR(500)  NOT NULL,
+    pickup_address NVARCHAR(500) NULL,
+    logo_url      VARCHAR(2083)  NULL,
+    cover_url     VARCHAR(2083)  NULL,
+    description   NVARCHAR(MAX)  NULL,
+    identity_name NVARCHAR(150)  NULL,
+    identity_number VARCHAR(30)  NULL,
+    bank_name     NVARCHAR(100)  NULL,
+    bank_account_no VARCHAR(50)  NULL,
+    bank_account_holder NVARCHAR(150) NULL,
+    status        VARCHAR(30)    NOT NULL DEFAULT 'active',
+    created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
+    updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+  );
+  PRINT '[✓] Table Sellers created';
+END
+GO
+
 -- ============================================================
 --  GROUP 2: CATEGORIES (self-join for sub-categories)
 -- ============================================================
@@ -106,12 +132,14 @@ BEGIN
     description     NVARCHAR(MAX)  NULL,
     short_desc      NVARCHAR(500)  NULL,
     base_price      BIGINT         NOT NULL DEFAULT 0,
+    seller_id       VARCHAR(50)    NULL REFERENCES Sellers(id) ON DELETE SET NULL,
     is_active       BIT            NOT NULL DEFAULT 1,
     is_featured     BIT            NOT NULL DEFAULT 0,
     created_at      DATETIME2      NOT NULL DEFAULT GETDATE(),
     updated_at      DATETIME2      NOT NULL DEFAULT GETDATE()
   );
   CREATE INDEX IX_Products_slug ON Products(slug);
+  CREATE INDEX IX_Products_seller_id ON Products(seller_id);
   PRINT '[✓] Table Products created';
 END
 GO
@@ -189,6 +217,28 @@ BEGIN
   CREATE INDEX IX_ProductVariants_product_id ON ProductVariants(product_id);
   CREATE INDEX IX_ProductVariants_sku ON ProductVariants(sku);
   PRINT '[✓] Table ProductVariants created';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProductFlashSales')
+BEGIN
+  CREATE TABLE ProductFlashSales (
+    id             VARCHAR(50)    NOT NULL PRIMARY KEY,
+    seller_id      VARCHAR(50)    NOT NULL REFERENCES Sellers(id) ON DELETE CASCADE,
+    product_id     VARCHAR(50)    NOT NULL REFERENCES Products(id) ON DELETE CASCADE,
+    variant_id     VARCHAR(50)    NULL REFERENCES ProductVariants(id) ON DELETE NO ACTION,
+    original_price DECIMAL(18,2)  NOT NULL,
+    sale_price     DECIMAL(18,2)  NOT NULL,
+    starts_at      DATETIME2      NOT NULL,
+    ends_at        DATETIME2      NOT NULL,
+    status         VARCHAR(20)    NOT NULL DEFAULT 'active',
+    created_at     DATETIME2      NOT NULL DEFAULT GETDATE(),
+    updated_at     DATETIME2      NOT NULL DEFAULT GETDATE()
+  );
+  CREATE INDEX IX_ProductFlashSales_product_active
+    ON ProductFlashSales(product_id, variant_id, status, starts_at, ends_at);
+  CREATE INDEX IX_ProductFlashSales_seller_id ON ProductFlashSales(seller_id);
+  PRINT '[✓] Table ProductFlashSales created';
 END
 GO
 
@@ -310,6 +360,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Coupons')
 BEGIN
   CREATE TABLE Coupons (
     id                VARCHAR(50)    NOT NULL PRIMARY KEY,
+    seller_id         VARCHAR(50)    NULL REFERENCES Sellers(id) ON DELETE CASCADE,
     code              VARCHAR(50)    NOT NULL UNIQUE,
     description       NVARCHAR(500)  NULL,
     discount_type     VARCHAR(20)    NOT NULL DEFAULT 'percentage',  -- 'percentage' | 'fixed'
@@ -322,9 +373,11 @@ BEGIN
     starts_at         DATETIME2      NULL,
     expires_at        DATETIME2      NULL,
     is_active         BIT            NOT NULL DEFAULT 1,
+    deleted_at        DATETIME2      NULL,
     created_at        DATETIME2      NOT NULL DEFAULT GETDATE()
   );
   CREATE INDEX IX_Coupons_code ON Coupons(code);
+  CREATE INDEX IX_Coupons_seller_id ON Coupons(seller_id);
   PRINT '[✓] Table Coupons created';
 END
 GO
@@ -395,10 +448,15 @@ BEGIN
     total_price     BIGINT         NOT NULL,  -- unit_price * quantity
     product_name    NVARCHAR(255)  NOT NULL,
     variant_info    NVARCHAR(255)  NULL,       -- e.g. "Red / XL"
+    fulfillment_status VARCHAR(30) NOT NULL DEFAULT 'pending_fulfillment',
+    tracking_code   VARCHAR(100)   NULL,
+    shipping_label_url VARCHAR(2083) NULL,
+    cancel_reason   NVARCHAR(255)  NULL,
     created_at      DATETIME2      NOT NULL DEFAULT GETDATE()
   );
   CREATE INDEX IX_OrderItems_order_id   ON OrderItems(order_id);
   CREATE INDEX IX_OrderItems_variant_id ON OrderItems(variant_id);
+  CREATE INDEX IX_OrderItems_fulfillment_status ON OrderItems(fulfillment_status);
   PRINT '[✓] Table OrderItems created';
 END
 GO
@@ -501,7 +559,23 @@ BEGIN
 END
 GO
 
+-- Messages: Chat history
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Messages')
+BEGIN
+  CREATE TABLE Messages (
+    id           VARCHAR(50)    NOT NULL PRIMARY KEY,
+    sender_id    VARCHAR(50)    NOT NULL REFERENCES Users(id),
+    receiver_id  VARCHAR(50)    NOT NULL REFERENCES Users(id),
+    message_text NVARCHAR(MAX)  NOT NULL,
+    is_read      BIT            NOT NULL DEFAULT 0,
+    created_at   DATETIME2      NOT NULL DEFAULT GETDATE()
+  );
+  CREATE INDEX IX_Messages_sender_receiver ON Messages(sender_id, receiver_id);
+  PRINT '[✓] Table Messages created';
+END
+GO
+
 PRINT '';
 PRINT '============================================================';
-PRINT '  ✅  E-Com FPT Schema applied successfully! (25 tables)';
+PRINT '  ✅  E-Com FPT Schema applied successfully! (27 tables)';
 PRINT '============================================================';
