@@ -23,6 +23,14 @@ export const signUp = async (req, res, next) => {
         message: "Password must be at least 6 characters long",
       });
     }
+    // Kiểm tra số điện thoại phải đúng 10 số và bắt đầu bằng 0
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(phonenumber)) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Số điện thoại không hợp lệ. Số điện thoại phải có đúng 10 chữ số và bắt đầu bằng số 0.",
+      });
+    }
     //kiểm tra name đã tồn tại chưa
     const duplicateName = await userService.findByName(name);
     if (duplicateName) {

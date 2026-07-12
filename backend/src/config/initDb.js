@@ -14,6 +14,7 @@ export const initDb = async (pool, sql) => {
     await createUsersTable(pool);
     await createUserAddressesTable(pool);
     await createSessionsTable(pool);
+    await createOtpsTable(pool);
     await createSellersTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
@@ -145,6 +146,27 @@ const createSessionsTable = async (pool) => {
       CREATE INDEX IX_Sessions_user_id ON Sessions(user_id);
       CREATE INDEX IX_Sessions_refresh_token ON Sessions(refresh_token);
       PRINT '[✓] Table Sessions created';
+    END
+  `);
+};
+
+const createOtpsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Otps')
+    BEGIN
+      CREATE TABLE Otps (
+        id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+        email         VARCHAR(150)   NOT NULL,
+        otp           VARCHAR(10)    NOT NULL,
+        expires_at    DATETIME2      NOT NULL,
+        is_verified   BIT            NOT NULL DEFAULT 0,
+        attempts      INT            NOT NULL DEFAULT 0,
+        locked_until  DATETIME2      NULL,
+        created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Otps_email ON Otps(email);
+      CREATE INDEX IX_Otps_expires_at ON Otps(expires_at);
+      PRINT '[✓] Table Otps created';
     END
   `);
 };
