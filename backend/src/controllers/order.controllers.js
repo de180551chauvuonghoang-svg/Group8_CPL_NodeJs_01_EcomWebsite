@@ -107,21 +107,6 @@ export const createOrder = async (req, res) => {
             VALUES (@oiId, @oId, @vId, @qty, @uPrice, @tPrice, @pName)
           `);
 
-        // Trừ số lượng tồn kho (stock_qty) của biến thể sản phẩm.
-        // Điều kiện 'stock_qty >= @qty' giúp ngăn chặn Race Condition (tránh số lượng tồn kho bị âm).
-        const updateStockResult = await transaction.request()
-          .input('vId', sql.VarChar, validVariantId)
-          .input('qty', sql.Int, item.quantity)
-          .query(`
-            UPDATE ProductVariants
-            SET stock_qty = stock_qty - @qty
-            WHERE id = @vId AND stock_qty >= @qty
-          `);
-
-        // Nếu rowsAffected = 0, có nghĩa là sản phẩm đã hết hàng hoặc không đủ số lượng yêu cầu
-        if (updateStockResult.rowsAffected[0] === 0) {
-          throw new Error(`Sản phẩm "${item.product.name || 'Sản phẩm'}" không đủ số lượng tồn kho hoặc đã hết hàng.`);
-        }
 
         // Ghi nhận lịch sử thay đổi kho hàng (InventoryLogs)
         const logId = `LOG_${Date.now()}_${i}`;
