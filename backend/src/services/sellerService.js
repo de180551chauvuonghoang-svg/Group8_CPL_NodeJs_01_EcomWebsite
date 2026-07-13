@@ -252,12 +252,27 @@ export const sellerService = {
                fs.ends_at AS flashSaleEndsAt,
                COALESCE(pv.stock_qty, 0) AS stock,
                COALESCE(pv.image_url, pi.image_url, '') AS image,
-               c.name AS category
+               cat.name AS category
         FROM Products p
-        LEFT JOIN ProductVariants pv ON p.id = pv.product_id
-        LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        LEFT JOIN ProductCategories pc ON p.id = pc.product_id
-        LEFT JOIN Categories c ON pc.category_id = c.id
+        OUTER APPLY (
+          SELECT TOP 1 id, price, stock_qty, image_url
+          FROM ProductVariants
+          WHERE product_id = p.id
+          ORDER BY id ASC
+        ) pv
+        OUTER APPLY (
+          SELECT TOP 1 image_url
+          FROM ProductImages
+          WHERE product_id = p.id
+          ORDER BY is_primary DESC, sort_order ASC, id ASC
+        ) pi
+        OUTER APPLY (
+          SELECT TOP 1 c.name
+          FROM ProductCategories pc
+          JOIN Categories c ON pc.category_id = c.id
+          WHERE pc.product_id = p.id
+          ORDER BY c.name ASC
+        ) cat
         OUTER APPLY (
           SELECT TOP 1 id, sale_price, original_price, ends_at
           FROM ProductFlashSales

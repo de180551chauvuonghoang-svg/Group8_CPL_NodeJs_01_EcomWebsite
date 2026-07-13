@@ -60,7 +60,7 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === "production" ? 100 : 2000,
-  skip: () => process.env.NODE_ENV !== "production" && process.env.DISABLE_RATE_LIMIT !== "false",
+  skip: () => process.env.NODE_ENV !== "production" && process.env.ENABLE_RATE_LIMIT !== "true",
   message: {
     message:
       "Too many requests from this IP, please try again after 15 minutes.",

@@ -194,6 +194,66 @@ const createPaymentRecord = async (db, { orderId, method, amount, status = 'pend
   return paymentId;
 };
 
+const recordCouponUsage = async (db, { couponId, orderId, userId }) => {
+  if (!couponId) return;
+
+  const updateResult = await db.request()
+    .input('coupon_id', couponId)
+    .query(`
+      UPDATE Coupons
+      SET used_count = used_count + 1
+      WHERE id = @coupon_id
+        AND is_active = 1
+        AND deleted_at IS NULL
+        AND (usage_limit IS NULL OR used_count < usage_limit)
+    `);
+
+  if (updateResult.rowsAffected[0] === 0) {
+    throw new Error('Voucher da het luot su dung.');
+  }
+
+  await db.request()
+    .input('id', uuidv4())
+    .input('coupon_id', couponId)
+    .input('order_id', orderId)
+    .input('user_id', userId)
+    .query(`
+      INSERT INTO CouponUsage (id, coupon_id, order_id, user_id, used_at)
+      VALUES (@id, @coupon_id, @order_id, @user_id, GETDATE())
+    `);
+};
+
+const restoreCouponUsage = async (db, { couponId, orderId }) => {
+  if (!couponId) return;
+
+  const usageResult = await db.request()
+    .input('coupon_id', couponId)
+    .input('order_id', orderId)
+    .query(`
+      SELECT TOP 1 id
+      FROM CouponUsage
+      WHERE coupon_id = @coupon_id AND order_id = @order_id
+    `);
+
+  if (usageResult.recordset.length === 0) return;
+
+  await db.request()
+    .input('coupon_id', couponId)
+    .input('order_id', orderId)
+    .query(`
+      DELETE FROM CouponUsage
+      WHERE coupon_id = @coupon_id AND order_id = @order_id
+    `);
+
+  await db.request()
+    .input('coupon_id', couponId)
+    .query(`
+      UPDATE Coupons
+      SET used_count = CASE WHEN used_count > 0 THEN used_count - 1 ELSE 0 END
+      WHERE id = @coupon_id
+    `);
+};
+
 // ─── Controllers ─────────────────────────────────────────────────────────────
 
 /**
@@ -224,6 +284,7 @@ export const createCODOrder = async (req, res, next) => {
       total, subtotal, discount: discount || 0, shippingFee: shippingFee || 0,
     });
 
+    await recordCouponUsage(transaction, { couponId, orderId, userId });
     // COD payment record — confirmed immediately
     await createPaymentRecord(transaction, { orderId, method: 'cod', amount: total, status: 'pending' });
 
@@ -311,7 +372,7 @@ export const cancelOrderAndRestoreStock = async (req, res, next) => {
       .input('order_id', orderId)
       .input('user_id', userId)
       .query(`
-        SELECT id, status
+        SELECT id, status, coupon_id
         FROM Orders WITH (UPDLOCK, ROWLOCK)
         WHERE id = @order_id AND user_id = @user_id
       `);
@@ -349,6 +410,8 @@ export const cancelOrderAndRestoreStock = async (req, res, next) => {
             WHERE id = @variant_id
           `);
       }
+
+      await restoreCouponUsage(transaction, { couponId: order.coupon_id, orderId });
 
       await transaction.request()
         .input('order_id', orderId)
