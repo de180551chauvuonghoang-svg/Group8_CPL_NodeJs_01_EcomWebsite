@@ -202,7 +202,7 @@ export default function SellerInbox() {
 
     appendMessage(pendingMessage);
     setSending(true);
-    socketService.sendMessage(user.id, activeChat.id, messageText);
+    socketService.sendMessage(activeChat.id, messageText);
     setChats(prev => prev.map(chat =>
       chat.id === activeChat.id
         ? { ...chat, last_message: messageText, last_message_time: pendingMessage.created_at }

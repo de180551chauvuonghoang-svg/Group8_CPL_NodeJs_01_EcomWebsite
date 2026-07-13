@@ -258,7 +258,7 @@ export default function LiveChatWidget() {
       ? { ...item, last_message: messageText, last_message_time: pendingMessage.created_at }
       : item
     ));
-    socketService.sendMessage(user.id, activePartnerId, messageText);
+    socketService.sendMessage(activePartnerId, messageText);
     setInputText('');
     setSending(true);
     window.setTimeout(() => setSending(false), 5000);

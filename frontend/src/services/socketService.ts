@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { ChatUnreadUpdate, Message } from "../types";
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL
   ? import.meta.env.VITE_API_BASE_URL.replace("/api", "")
@@ -42,7 +43,7 @@ class SocketService {
     }
   }
 
-  sendMessage(_senderId: string, receiverId: string, messageText: string) {
+  sendMessage(receiverId: string, messageText: string) {
     if (!this.socket) {
       console.warn("[Socket Offline] Cannot send message, socket is not connected.");
       return;
@@ -50,7 +51,7 @@ class SocketService {
     this.socket.emit("sendMessage", { receiverId, messageText });
   }
 
-  onReceiveMessage(callback: (msg: any) => void) {
+  onReceiveMessage(callback: (msg: Message) => void) {
     if (!this.socket) return;
     this.socket.off("receiveMessage");
     this.socket.on("receiveMessage", callback);
@@ -60,7 +61,7 @@ class SocketService {
     this.socket?.off("receiveMessage");
   }
 
-  onMessageSent(callback: (msg: any) => void) {
+  onMessageSent(callback: (msg: Message) => void) {
     if (!this.socket) return;
     this.socket.off("messageSent");
     this.socket.on("messageSent", callback);
@@ -70,7 +71,7 @@ class SocketService {
     this.socket?.off("messageSent");
   }
 
-  onChatUnreadUpdated(callback: (payload: any) => void) {
+  onChatUnreadUpdated(callback: (payload: ChatUnreadUpdate) => void) {
     if (!this.socket) return;
     this.socket.off("chatUnreadUpdated");
     this.socket.on("chatUnreadUpdated", callback);
