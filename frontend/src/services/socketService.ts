@@ -44,7 +44,7 @@ class SocketService {
   }
 
   sendMessage(receiverId: string, messageText: string) {
-    if (!this.socket) {
+    if (!this.socket || !this.socket.connected) {
       console.warn("[Socket Offline] Cannot send message, socket is not connected.");
       return;
     }
