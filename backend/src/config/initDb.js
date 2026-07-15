@@ -689,6 +689,44 @@ const createOrdersTable = async (pool) => {
       CREATE INDEX IX_Orders_status  ON Orders(status);
       PRINT '[✓] Table Orders created';
     END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'coupon_id')
+      BEGIN
+        ALTER TABLE Orders ADD coupon_id VARCHAR(50) NULL REFERENCES Coupons(id) ON DELETE SET NULL;
+        PRINT '[ok] Column coupon_id added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'discount_amount')
+      BEGIN
+        ALTER TABLE Orders ADD discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0;
+        PRINT '[ok] Column discount_amount added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'shipping_fee')
+      BEGIN
+        ALTER TABLE Orders ADD shipping_fee DECIMAL(18,2) NOT NULL DEFAULT 0;
+        PRINT '[ok] Column shipping_fee added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'shipping_city')
+      BEGIN
+        ALTER TABLE Orders ADD shipping_city NVARCHAR(100) NULL;
+        PRINT '[ok] Column shipping_city added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'shipping_country')
+      BEGIN
+        ALTER TABLE Orders ADD shipping_country NVARCHAR(100) NOT NULL DEFAULT 'Vietnam';
+        PRINT '[ok] Column shipping_country added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'note')
+      BEGIN
+        ALTER TABLE Orders ADD note NVARCHAR(500) NULL;
+        PRINT '[ok] Column note added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'updated_at')
+      BEGIN
+        ALTER TABLE Orders ADD updated_at DATETIME2 NULL;
+        PRINT '[ok] Column updated_at added to Orders';
+      END
+    END
   `);
 };
 
@@ -722,6 +760,16 @@ const createOrderItemsTable = async (pool) => {
       BEGIN
         ALTER TABLE OrderItems ADD fulfillment_status VARCHAR(30) NOT NULL DEFAULT 'pending_fulfillment';
         PRINT '[✓] Column fulfillment_status added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'product_name')
+      BEGIN
+        ALTER TABLE OrderItems ADD product_name NVARCHAR(255) NULL;
+        PRINT '[ok] Column product_name added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'variant_info')
+      BEGIN
+        ALTER TABLE OrderItems ADD variant_info NVARCHAR(255) NULL;
+        PRINT '[ok] Column variant_info added to OrderItems';
       END
       IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'tracking_code')
       BEGIN
