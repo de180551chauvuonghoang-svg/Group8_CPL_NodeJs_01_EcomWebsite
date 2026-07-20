@@ -110,12 +110,14 @@ export const userService = {
     return result.recordset[0];
   },
 
-  // Find user by Name
+  // Find user by Name or Email
   findByName: async (name) => {
+    const inputLower = name ? name.toString().trim() : "";
     const result = await pool
       .request()
-      .input("name", sql.NVarChar, name)
-      .query("SELECT * FROM Users WHERE name = @name");
+      .input("name", sql.NVarChar, inputLower)
+      .input("email", sql.VarChar, inputLower.toLowerCase())
+      .query("SELECT * FROM Users WHERE name = @name OR email = @email");
 
     if (result.recordset[0]) {
       // Map password field to hashedPassword for consistency

@@ -73,22 +73,23 @@ export const signUp = async (req, res, next) => {
 
 export const login = async (req, res, next) => {
   try {
-    //lấy inputs
-    const { name, password } = req.body;
+    //lấy inputs (có thể nhận name hoặc email từ frontend)
+    const { name, email, password } = req.body;
+    const loginIdentifier = name || email;
 
-    if (!name || !password) {
+    if (!loginIdentifier || !password) {
       return res.status(400).json({
         status: "fail",
-        message: "Please provide name and password",
+        message: "Please provide username/email and password",
       });
     }
 
-    //lấy hashed password từ database so sánh với password đã nhập
-    const user = await userService.findByName(name);
+    //lấy hashed password từ database so sánh với password đã nhập (tìm theo tên hoặc email)
+    const user = await userService.findByName(loginIdentifier);
     if (!user) {
       return res.status(400).json({
         status: "fail",
-        message: "Invalid name or password",
+        message: "Tên đăng nhập/email hoặc mật khẩu không đúng",
       });
     }
 
@@ -97,7 +98,7 @@ export const login = async (req, res, next) => {
     if (!passwordCorrect) {
       return res.status(400).json({
         status: "fail",
-        message: "Invalid name or password",
+        message: "Tên đăng nhập/email hoặc mật khẩu không đúng",
       });
     }
 
