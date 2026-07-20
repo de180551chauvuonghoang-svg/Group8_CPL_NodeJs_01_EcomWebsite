@@ -107,7 +107,7 @@ export const login = async (req, res, next) => {
       throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
     }
     const accessToken = jwt.sign(
-      { userID: user.id, email: user.email },
+      { userID: user.id, email: user.email, role: user.role || "customer" },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );
@@ -187,7 +187,7 @@ export const refreshAccessToken = async (req, res, next) => {
       throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
     }
     const newAccessToken = jwt.sign(
-      { userID: user.id, email: user.email },
+      { userID: user.id, email: user.email, role: user.role || "customer" },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: ACCESS_TOKEN_TTL },
     );

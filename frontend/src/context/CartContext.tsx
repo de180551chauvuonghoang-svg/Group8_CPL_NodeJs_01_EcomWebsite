@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 import { Product } from '../types';
+import API from '../services/api';
 
 export interface CartItem {
   id: string;
@@ -17,7 +18,7 @@ interface CartContextType {
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, action: 'add' | 'remove') => void;
   clearCart: () => void;
-  applyDiscount: (code: string) => boolean;
+  applyDiscount: (code: string) => Promise<{ ok: boolean; message: string; discountAmount?: number }>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -179,16 +180,44 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setDiscountPercentage(0);
   };
 
-  const applyDiscount = (code: string): boolean => {
+  const applyDiscount = async (code: string): Promise<{ ok: boolean; message: string; discountAmount?: number }> => {
     const sanitized = code.trim().toUpperCase();
+    const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
     if (sanitized === 'ECOM2026') {
       setPromoCode('ECOM2026');
       setDiscountPercentage(10); // 10% discount
-      return true;
+      return { ok: true, message: 'Áp dụng thành công. Giảm 10%' };
     }
-    setPromoCode('');
-    setDiscountPercentage(0);
-    return false;
+
+    try {
+      const response: any = await API.post('/payments/coupons/validate', {
+        code: sanitized,
+        subtotal,
+        cartItems,
+      });
+      const data = response.data || response;
+      const coupon = data.data || data;
+      const discountAmount = Number(coupon.discountAmount || 0);
+      if (discountAmount <= 0) {
+        throw new Error('Mã voucher hợp lệ nhưng chưa tạo được số tiền giảm.');
+      }
+      const percent = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+      setPromoCode(coupon.code || sanitized);
+      setDiscountPercentage(percent);
+      return {
+        ok: true,
+        message: `Áp dụng thành công. Giảm ${new Intl.NumberFormat('vi-VN').format(discountAmount)}đ`,
+        discountAmount,
+      };
+    } catch (err: any) {
+      setPromoCode('');
+      setDiscountPercentage(0);
+      return {
+        ok: false,
+        message: err?.data?.message || err?.message || 'Mã không hợp lệ hoặc đã hết hạn',
+      };
+    }
   };
 
   return (

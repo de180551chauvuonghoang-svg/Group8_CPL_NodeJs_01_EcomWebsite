@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { productService } from '../services/productService';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
 import { Product } from '../types';
+import { setLiveChatSeller } from '../components/common/LiveChatWidget';
 
 /* ─── Helpers ─── */
 const fmt = (n: number) =>
@@ -112,6 +114,8 @@ export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const authCtx = useContext(AuthContext);
+  const user = authCtx?.user;
 
   const [product, setProduct]   = useState<Product | null>(null);
   const [related, setRelated]   = useState<Product[]>([]);
@@ -159,6 +163,20 @@ export default function ProductDetail() {
     addToCart(product);
     navigate('/cart');
   }, [product, addToCart, navigate]);
+
+  const handleChatWithSeller = useCallback(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (product?.seller_user_id) {
+      setLiveChatSeller(product.seller_user_id, {
+        name: product.seller_name || 'Shop',
+        avatarUrl: product.seller_logo_url,
+        shopId: product.seller_id,
+      });
+    }
+  }, [user, product, navigate]);
 
   /* ─── Loading skeleton ─── */
   if (loading) return (
@@ -339,7 +357,7 @@ export default function ProductDetail() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <button
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
@@ -369,6 +387,27 @@ export default function ProductDetail() {
                 Mua ngay
               </button>
             </div>
+
+            {product.seller_id && (
+              <Link
+                to={`/shops/${product.seller_id}`}
+                className="w-full h-12 mb-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-outline hover:border-primary/50 text-on-surface-variant hover:text-primary transition-all duration-200 active:scale-98"
+              >
+                <span className="material-symbols-outlined text-[20px]">storefront</span>
+                Xem shop
+              </Link>
+            )}
+
+            {/* Chat with Seller Button */}
+            {product.seller_user_id && (!user || (user.id !== product.seller_user_id && user.role !== 'admin')) && (
+              <button
+                onClick={handleChatWithSeller}
+                className="w-full h-12 mb-8 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-outline hover:border-primary/50 text-on-surface-variant hover:text-primary transition-all duration-200 active:scale-98"
+              >
+                <span className="material-symbols-outlined text-[20px]">chat</span>
+                Chat với người bán
+              </button>
+            )}
 
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-outline-variant/30">
@@ -514,7 +553,7 @@ export default function ProductDetail() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-navy-dark">Sản phẩm liên quan</h2>
               <Link
-                to={`/products?category=${product.category}`}
+                to={`/products?category=${product.category_slug || product.category}`}
                 className="text-sm text-primary font-semibold hover:underline flex items-center gap-1"
               >
                 Xem tất cả

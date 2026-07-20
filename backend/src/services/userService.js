@@ -64,9 +64,12 @@ export const userService = {
     }
 
     // 3. Generate JWT token
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
+    }
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "supersecretkeyforecommerce2026_dev_env",
+      { userID: user.id, email: user.email, role: user.role || "customer" },
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
     );
 

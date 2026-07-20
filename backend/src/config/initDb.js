@@ -15,6 +15,7 @@ export const initDb = async (pool, sql) => {
     await createUserAddressesTable(pool);
     await createSessionsTable(pool);
     await createOtpsTable(pool);
+    await createSellersTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
     await createProductImagesTable(pool);
@@ -22,6 +23,7 @@ export const initDb = async (pool, sql) => {
     await createAttributesTable(pool);
     await createAttributeValuesTable(pool);
     await createProductVariantsTable(pool);
+    await createProductFlashSalesTable(pool);
     await createVariantAttributeValuesTable(pool);
     await createInventoryLogsTable(pool);
     await createReviewsTable(pool); // order_item_id FK added later
@@ -46,6 +48,7 @@ export const initDb = async (pool, sql) => {
     await createUserInteractionsTable(pool);
     await createSearchAnalyticsTable(pool);
     await createComboEmbeddingsTable(pool);
+    await createMessagesTable(pool);
 
     console.log("[✓] initDb: All 24 tables + AI tables verified/created.");
 
@@ -169,6 +172,81 @@ const createOtpsTable = async (pool) => {
 };
 
 // ============================================================
+//  GROUP 1D: SELLERS (NEW)
+// ============================================================
+
+const createSellersTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Sellers')
+    BEGIN
+      CREATE TABLE Sellers (
+        id            VARCHAR(50)    NOT NULL PRIMARY KEY,
+        user_id       VARCHAR(50)    NOT NULL UNIQUE REFERENCES Users(id) ON DELETE CASCADE,
+        shop_name     NVARCHAR(150)  NOT NULL UNIQUE,
+        shop_phone    VARCHAR(20)    NOT NULL,
+        shop_address  NVARCHAR(500)  NOT NULL,
+        pickup_address NVARCHAR(500) NULL,
+        logo_url      VARCHAR(2083)   NULL,
+        cover_url     VARCHAR(2083)   NULL,
+        description   NVARCHAR(MAX)  NULL,
+        identity_name NVARCHAR(150)   NULL,
+        identity_number VARCHAR(30)   NULL,
+        bank_name     NVARCHAR(100)   NULL,
+        bank_account_no VARCHAR(50)   NULL,
+        bank_account_holder NVARCHAR(150) NULL,
+        status        VARCHAR(30)    NOT NULL DEFAULT 'active',
+        created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
+        updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      PRINT '[✓] Table Sellers created';
+    END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'logo_url')
+      BEGIN
+        ALTER TABLE Sellers ADD logo_url VARCHAR(2083) NULL;
+        PRINT '[✓] Column logo_url added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'cover_url')
+      BEGIN
+        ALTER TABLE Sellers ADD cover_url VARCHAR(2083) NULL;
+        PRINT '[✓] Column cover_url added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'pickup_address')
+      BEGIN
+        ALTER TABLE Sellers ADD pickup_address NVARCHAR(500) NULL;
+        PRINT '[✓] Column pickup_address added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'identity_name')
+      BEGIN
+        ALTER TABLE Sellers ADD identity_name NVARCHAR(150) NULL;
+        PRINT '[✓] Column identity_name added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'identity_number')
+      BEGIN
+        ALTER TABLE Sellers ADD identity_number VARCHAR(30) NULL;
+        PRINT '[✓] Column identity_number added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'bank_name')
+      BEGIN
+        ALTER TABLE Sellers ADD bank_name NVARCHAR(100) NULL;
+        PRINT '[✓] Column bank_name added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'bank_account_no')
+      BEGIN
+        ALTER TABLE Sellers ADD bank_account_no VARCHAR(50) NULL;
+        PRINT '[✓] Column bank_account_no added to Sellers';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'bank_account_holder')
+      BEGIN
+        ALTER TABLE Sellers ADD bank_account_holder NVARCHAR(150) NULL;
+        PRINT '[✓] Column bank_account_holder added to Sellers';
+      END
+    END
+  `);
+};
+
+// ============================================================
 //  GROUP 2: CATEGORIES
 // ============================================================
 
@@ -208,13 +286,29 @@ const createProductsTable = async (pool) => {
         description   NVARCHAR(MAX)  NULL,
         short_desc    NVARCHAR(500)  NULL,
         base_price    DECIMAL(18,2)  NOT NULL DEFAULT 0,
+        seller_id     VARCHAR(50)    NULL REFERENCES Sellers(id) ON DELETE SET NULL,
         is_active     BIT            NOT NULL DEFAULT 1,
         is_featured   BIT            NOT NULL DEFAULT 0,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_Products_slug ON Products(slug);
+      CREATE INDEX IX_Products_seller_id ON Products(seller_id);
       PRINT '[✓] Table Products created';
+    END
+    ELSE
+    BEGIN
+      -- Add seller_id column if not exists
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Products') AND name = 'seller_id')
+      BEGIN
+        ALTER TABLE Products ADD seller_id VARCHAR(50) NULL REFERENCES Sellers(id) ON DELETE SET NULL;
+        PRINT '[✓] Column seller_id added to Products';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Products_seller_id' AND object_id = OBJECT_ID('Products'))
+      BEGIN
+        CREATE INDEX IX_Products_seller_id ON Products(seller_id);
+        PRINT '[✓] Index IX_Products_seller_id added';
+      END
     END
   `);
 };
@@ -303,6 +397,31 @@ const createProductVariantsTable = async (pool) => {
       CREATE INDEX IX_ProductVariants_product_id ON ProductVariants(product_id);
       CREATE INDEX IX_ProductVariants_sku ON ProductVariants(sku);
       PRINT '[✓] Table ProductVariants created';
+    END
+  `);
+};
+
+const createProductFlashSalesTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ProductFlashSales')
+    BEGIN
+      CREATE TABLE ProductFlashSales (
+        id             VARCHAR(50)    NOT NULL PRIMARY KEY,
+        seller_id      VARCHAR(50)    NOT NULL REFERENCES Sellers(id) ON DELETE CASCADE,
+        product_id     VARCHAR(50)    NOT NULL REFERENCES Products(id) ON DELETE CASCADE,
+        variant_id     VARCHAR(50)    NULL REFERENCES ProductVariants(id) ON DELETE NO ACTION,
+        original_price DECIMAL(18,2)  NOT NULL,
+        sale_price     DECIMAL(18,2)  NOT NULL,
+        starts_at      DATETIME2      NOT NULL,
+        ends_at        DATETIME2      NOT NULL,
+        status         VARCHAR(20)    NOT NULL DEFAULT 'active',
+        created_at     DATETIME2      NOT NULL DEFAULT GETDATE(),
+        updated_at     DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_ProductFlashSales_product_active
+        ON ProductFlashSales(product_id, variant_id, status, starts_at, ends_at);
+      CREATE INDEX IX_ProductFlashSales_seller_id ON ProductFlashSales(seller_id);
+      PRINT '[✓] Table ProductFlashSales created';
     END
   `);
 };
@@ -462,6 +581,7 @@ const createCouponsTable = async (pool) => {
     BEGIN
       CREATE TABLE Coupons (
         id                VARCHAR(50)    NOT NULL PRIMARY KEY,
+        seller_id         VARCHAR(50)    NULL REFERENCES Sellers(id) ON DELETE CASCADE,
         code              VARCHAR(50)    NOT NULL UNIQUE,
         description       NVARCHAR(500)  NULL,
         discount_type     VARCHAR(20)    NOT NULL DEFAULT 'percentage',
@@ -474,10 +594,39 @@ const createCouponsTable = async (pool) => {
         starts_at         DATETIME2      NULL,
         expires_at        DATETIME2      NULL,
         is_active         BIT            NOT NULL DEFAULT 1,
+        deleted_at        DATETIME2      NULL,
         created_at        DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_Coupons_code ON Coupons(code);
       PRINT '[✓] Table Coupons created';
+    END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Coupons') AND name = 'seller_id')
+      BEGIN
+        ALTER TABLE Coupons ADD seller_id VARCHAR(50) NULL REFERENCES Sellers(id) ON DELETE CASCADE;
+        PRINT '[✓] Column seller_id added to Coupons';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Coupons_seller_id' AND object_id = OBJECT_ID('Coupons'))
+      BEGIN
+        CREATE INDEX IX_Coupons_seller_id ON Coupons(seller_id);
+        PRINT '[✓] Index IX_Coupons_seller_id added';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Coupons') AND name = 'deleted_at')
+      BEGIN
+        ALTER TABLE Coupons ADD deleted_at DATETIME2 NULL;
+        PRINT '[Coupons] Column deleted_at added';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Coupons') AND name = 'starts_at')
+      BEGIN
+        ALTER TABLE Coupons ADD starts_at DATETIME2 NULL;
+        PRINT '[Coupons] Column starts_at added';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Coupons') AND name = 'expires_at')
+      BEGIN
+        ALTER TABLE Coupons ADD expires_at DATETIME2 NULL;
+        PRINT '[Coupons] Column expires_at added';
+      END
     END
   `);
 };
@@ -540,6 +689,44 @@ const createOrdersTable = async (pool) => {
       CREATE INDEX IX_Orders_status  ON Orders(status);
       PRINT '[✓] Table Orders created';
     END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'coupon_id')
+      BEGIN
+        ALTER TABLE Orders ADD coupon_id VARCHAR(50) NULL REFERENCES Coupons(id) ON DELETE SET NULL;
+        PRINT '[ok] Column coupon_id added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'discount_amount')
+      BEGIN
+        ALTER TABLE Orders ADD discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0;
+        PRINT '[ok] Column discount_amount added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'shipping_fee')
+      BEGIN
+        ALTER TABLE Orders ADD shipping_fee DECIMAL(18,2) NOT NULL DEFAULT 0;
+        PRINT '[ok] Column shipping_fee added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'shipping_city')
+      BEGIN
+        ALTER TABLE Orders ADD shipping_city NVARCHAR(100) NULL;
+        PRINT '[ok] Column shipping_city added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'shipping_country')
+      BEGIN
+        ALTER TABLE Orders ADD shipping_country NVARCHAR(100) NOT NULL DEFAULT 'Vietnam';
+        PRINT '[ok] Column shipping_country added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'note')
+      BEGIN
+        ALTER TABLE Orders ADD note NVARCHAR(500) NULL;
+        PRINT '[ok] Column note added to Orders';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Orders') AND name = 'updated_at')
+      BEGIN
+        ALTER TABLE Orders ADD updated_at DATETIME2 NULL;
+        PRINT '[ok] Column updated_at added to Orders';
+      END
+    END
   `);
 };
 
@@ -556,11 +743,54 @@ const createOrderItemsTable = async (pool) => {
         total_price    DECIMAL(18,2)  NOT NULL,
         product_name   NVARCHAR(255)  NOT NULL,
         variant_info   NVARCHAR(255)  NULL,
+        fulfillment_status VARCHAR(30) NOT NULL DEFAULT 'pending_fulfillment',
+        tracking_code  VARCHAR(100)   NULL,
+        shipping_label_url VARCHAR(2083) NULL,
+        cancel_reason  NVARCHAR(255)  NULL,
         created_at     DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_OrderItems_order_id   ON OrderItems(order_id);
       CREATE INDEX IX_OrderItems_variant_id ON OrderItems(variant_id);
+      CREATE INDEX IX_OrderItems_fulfillment_status ON OrderItems(fulfillment_status);
       PRINT '[✓] Table OrderItems created';
+    END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'fulfillment_status')
+      BEGIN
+        ALTER TABLE OrderItems ADD fulfillment_status VARCHAR(30) NOT NULL DEFAULT 'pending_fulfillment';
+        PRINT '[✓] Column fulfillment_status added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'product_name')
+      BEGIN
+        ALTER TABLE OrderItems ADD product_name NVARCHAR(255) NULL;
+        PRINT '[ok] Column product_name added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'variant_info')
+      BEGIN
+        ALTER TABLE OrderItems ADD variant_info NVARCHAR(255) NULL;
+        PRINT '[ok] Column variant_info added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'tracking_code')
+      BEGIN
+        ALTER TABLE OrderItems ADD tracking_code VARCHAR(100) NULL;
+        PRINT '[✓] Column tracking_code added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'shipping_label_url')
+      BEGIN
+        ALTER TABLE OrderItems ADD shipping_label_url VARCHAR(2083) NULL;
+        PRINT '[✓] Column shipping_label_url added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'cancel_reason')
+      BEGIN
+        ALTER TABLE OrderItems ADD cancel_reason NVARCHAR(255) NULL;
+        PRINT '[✓] Column cancel_reason added to OrderItems';
+      END
+      IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_OrderItems_fulfillment_status' AND object_id = OBJECT_ID('OrderItems'))
+      BEGIN
+        CREATE INDEX IX_OrderItems_fulfillment_status ON OrderItems(fulfillment_status);
+        PRINT '[✓] Index IX_OrderItems_fulfillment_status added';
+      END
     END
   `);
 };
@@ -740,11 +970,34 @@ const createComboEmbeddingsTable = async (pool) => {
 };
 
 // ============================================================
+//  GROUP 8: MESSAGES (NEW)
+// ============================================================
+
+const createMessagesTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Messages')
+    BEGIN
+      CREATE TABLE Messages (
+        id           VARCHAR(50)    NOT NULL PRIMARY KEY,
+        sender_id    VARCHAR(50)    NOT NULL REFERENCES Users(id),
+        receiver_id  VARCHAR(50)    NOT NULL REFERENCES Users(id),
+        message_text NVARCHAR(MAX)  NOT NULL,
+        is_read      BIT            NOT NULL DEFAULT 0,
+        created_at   DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Messages_sender_receiver ON Messages(sender_id, receiver_id);
+      PRINT '[✓] Table Messages created';
+    END
+  `);
+};
+
+// ============================================================
 //  SEED DATA
 // ============================================================
 
 const seedData = async (pool, sql) => {
   await seedUsers(pool, sql);
+  await seedSellers(pool, sql); // Seed sellers after users but before products
   await seedCategories(pool, sql);
   await seedAttributes(pool, sql);
   await seedProducts(pool, sql);
@@ -765,7 +1018,15 @@ const seedUsers = async (pool, sql) => {
   const { recordset } = await pool
     .request()
     .query(`SELECT COUNT(*) AS cnt FROM Users`);
-  if (recordset[0].cnt > 0) return;
+  if (recordset[0].cnt > 0) {
+    // Đồng bộ tên đăng nhập (username) cho các tài khoản mẫu trong DB hiện tại
+    await pool.request().query(`
+      UPDATE Users SET name = 'admin' WHERE id = 'usr_admin001';
+      UPDATE Users SET name = 'customer' WHERE id = 'usr_cust001';
+      UPDATE Users SET name = 'seller' WHERE id = 'usr_seller001';
+    `);
+    return;
+  }
 
   // Read seed password from env var; fall back to a dev-only default
   const seedPassword =
@@ -784,7 +1045,7 @@ const seedUsers = async (pool, sql) => {
   await pool
     .request()
     .input("id", sql.VarChar, "usr_admin001")
-    .input("name", sql.NVarChar, "Admin Manager")
+    .input("name", sql.NVarChar, "admin")
     .input("email", sql.VarChar, "admin@ecom.com")
     .input("password", sql.VarChar, hashed)
     .input("phone", sql.VarChar, "0901234567")
@@ -795,7 +1056,7 @@ const seedUsers = async (pool, sql) => {
   await pool
     .request()
     .input("id", sql.VarChar, "usr_cust001")
-    .input("name", sql.NVarChar, "Nguyen Van A")
+    .input("name", sql.NVarChar, "customer")
     .input("email", sql.VarChar, "customer@ecom.com")
     .input("password", sql.VarChar, hashed)
     .input("phone", sql.VarChar, "0909876543")
@@ -803,7 +1064,76 @@ const seedUsers = async (pool, sql) => {
     .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
             VALUES (@id,@name,@email,@password,@phone,@role)`);
 
+  await pool
+    .request()
+    .input("id", sql.VarChar, "usr_seller001")
+    .input("name", sql.NVarChar, "seller")
+    .input("email", sql.VarChar, "seller@ecom.com")
+    .input("password", sql.VarChar, hashed)
+    .input("phone", sql.VarChar, "0912345678")
+    .input("role", sql.VarChar, "seller")
+    .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
+            VALUES (@id,@name,@email,@password,@phone,@role)`);
+
   console.log("[Seed] ✓ Users seeded.");
+};
+
+const seedSellers = async (pool, sql) => {
+  // Never seed in production
+  if (process.env.NODE_ENV === "production") return;
+
+  const { recordset } = await pool
+    .request()
+    .query(`SELECT COUNT(*) AS cnt FROM Sellers`);
+  if (recordset[0].cnt > 0) return;
+
+  // 1. Kiểm tra xem user usr_seller001 có tồn tại không
+  const userCheck = await pool.request()
+    .input("userId", sql.VarChar, "usr_seller001")
+    .query("SELECT id FROM Users WHERE id = @userId");
+
+  // 2. Nếu chưa tồn tại, hãy tạo user usr_seller001 trước
+  if (userCheck.recordset.length === 0) {
+    console.log("[Seed] User usr_seller001 does not exist. Creating seller user first...");
+    const seedPassword =
+      process.env.SEED_PASSWORD ??
+      (process.env.NODE_ENV === "development" ? "password123" : undefined);
+    if (!seedPassword) {
+      throw new Error(
+        "SEED_PASSWORD env var is required when seeding users outside development.",
+      );
+    }
+    const bcrypt = await import("bcryptjs");
+    const hashed = await bcrypt.default.hash(seedPassword, 10);
+
+    await pool.request()
+      .input("id", sql.VarChar, "usr_seller001")
+      .input("name", sql.NVarChar, "seller")
+      .input("email", sql.VarChar, "seller@ecom.com")
+      .input("password", sql.VarChar, hashed)
+      .input("phone", sql.VarChar, "0912345678")
+      .input("role", sql.VarChar, "seller")
+      .query(`INSERT INTO Users (id,name,email,password,phone_number,role)
+              VALUES (@id,@name,@email,@password,@phone,@role)`);
+  } else {
+    // Nếu user đã tồn tại, hãy cập nhật name và role của họ thành seller
+    await pool.request()
+      .input("userId", sql.VarChar, "usr_seller001")
+      .query("UPDATE Users SET name = 'seller', role = 'seller' WHERE id = @userId");
+  }
+
+  console.log("[Seed] Seeding initial sellers...");
+  await pool
+    .request()
+    .input("id", sql.VarChar, "sel_001")
+    .input("userId", sql.VarChar, "usr_seller001")
+    .input("shopName", sql.NVarChar, "Shop FPT Tech")
+    .input("shopPhone", sql.VarChar, "0912345678")
+    .input("shopAddress", sql.NVarChar, "Khu Công Nghệ Cao Hòa Lạc, Hà Nội")
+    .input("description", sql.NVarChar, "Chuyên cung cấp các thiết bị công nghệ chính hãng FPT")
+    .query(`INSERT INTO Sellers (id,user_id,shop_name,shop_phone,shop_address,description,status)
+            VALUES (@id,@userId,@shopName,@shopPhone,@shopAddress,@description,'active')`);
+  console.log("[Seed] ✓ Sellers seeded.");
 };
 
 const seedCategories = async (pool, sql) => {
@@ -936,6 +1266,7 @@ const seedProducts = async (pool, sql) => {
       desc: "Trải nghiệm âm thanh đỉnh cao với công nghệ chống ồn chủ động tiên tiến, pin sử dụng 40 giờ và đệm tai bằng memory foam cao cấp.",
       base_price: 4599000,
       category: "cat_audio",
+      seller_id: "sel_001",
       variants: [
         {
           id: "var_001_black",
@@ -969,6 +1300,7 @@ const seedProducts = async (pool, sql) => {
       desc: "Switch cơ học Blue tactile, đèn RGB tùy chỉnh từng phím, khung nhôm cao cấp và phím media chuyên dụng.",
       base_price: 2099000,
       category: "cat_accessories",
+      seller_id: "sel_001",
       variants: [
         {
           id: "var_002_black",
@@ -1247,8 +1579,9 @@ const seedProducts = async (pool, sql) => {
         .input("desc", sql.NVarChar, p.desc)
         .input("shortDesc", sql.NVarChar, p.short_desc)
         .input("basePrice", sql.Decimal(18, 2), p.base_price)
-        .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured)
-                VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1)`);
+        .input("sellerId", sql.VarChar, p.seller_id || null)
+        .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured,seller_id)
+                VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1,@sellerId)`);
 
       // Link to category
       await req()

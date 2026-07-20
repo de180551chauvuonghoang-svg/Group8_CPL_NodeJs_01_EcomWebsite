@@ -7,21 +7,54 @@ export const productService = {
       WITH product_variants AS (
         SELECT 
           p.id, p.name, p.description,
-          COALESCE(pv.price, p.base_price) AS price,
+          COALESCE(fs.sale_price, pv.price, p.base_price) AS price,
+          CASE WHEN fs.id IS NOT NULL THEN COALESCE(fs.original_price, pv.price, p.base_price) ELSE NULL END AS originalPrice,
+          CASE WHEN fs.id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isFlashSale,
+          fs.ends_at AS flashSaleEndsAt,
           COALESCE(pv.stock_qty, 0) AS stock,
           COALESCE(pv.image_url, pi.image_url, '') AS image,
+          c.name AS category,
+          c.slug AS category_slug,
+          p.seller_id,
+          s.user_id AS seller_user_id,
+          s.shop_name AS seller_name,
+          s.logo_url AS seller_logo_url,
           ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY pv.id) AS rn
         FROM Products p
         LEFT JOIN ProductVariants pv ON p.id = pv.product_id
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
+        LEFT JOIN Sellers s ON p.seller_id = s.id
         LEFT JOIN ProductCategories pc ON p.id = pc.product_id
         LEFT JOIN Categories c ON pc.category_id = c.id
-        WHERE 1=1
+        OUTER APPLY (
+          SELECT TOP 1 id, sale_price, original_price, ends_at
+          FROM ProductFlashSales
+          WHERE product_id = p.id
+            AND (variant_id IS NULL OR variant_id = pv.id)
+            AND status = 'active'
+            AND starts_at <= GETDATE()
+            AND ends_at >= GETDATE()
+          ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
+        ) fs
+        WHERE ISNULL(p.is_active, 1) = 1
     `;
     const request = pool.request();
 
     if (category) {
-      query += ' AND LOWER(c.slug) = LOWER(@category)';
+      query += `
+        AND (
+          LOWER(c.slug) = LOWER(@category)
+          OR LOWER(c.id) = LOWER(@category)
+          OR LOWER(c.name) = LOWER(@category)
+          OR LOWER(CASE c.slug
+            WHEN 'am-thanh' THEN 'Audio'
+            WHEN 'dong-ho-wear' THEN 'Wearables'
+            WHEN 'dien-tu' THEN 'Electronics'
+            WHEN 'phu-kien' THEN 'Accessories'
+            WHEN 'nha-bep' THEN 'Home & Kitchen'
+            ELSE c.slug
+          END) = LOWER(@category)
+        )`;
       request.input('category', sql.NVarChar, category);
     }
 
@@ -32,7 +65,9 @@ export const productService = {
 
     query += `
       )
-      SELECT id, name, description, price, stock, image
+      SELECT id, name, description, price, originalPrice, isFlashSale, flashSaleEndsAt,
+             stock, image, category, category_slug,
+             seller_id, seller_user_id, seller_name, seller_logo_url
       FROM product_variants
       WHERE rn = 1
     `;
@@ -43,6 +78,8 @@ export const productService = {
     return result.recordset.map(product => ({
       ...product,
       price: parseFloat(product.price || 0),
+      originalPrice: product.originalPrice === null ? null : parseFloat(product.originalPrice || 0),
+      isFlashSale: Boolean(product.isFlashSale),
       stock: parseInt(product.stock || 0)
     }));
   },
@@ -54,13 +91,35 @@ export const productService = {
       .query(`
         SELECT 
           p.id, p.name, p.description,
-          COALESCE(pv.price, p.base_price) AS price,
+          COALESCE(fs.sale_price, pv.price, p.base_price) AS price,
+          CASE WHEN fs.id IS NOT NULL THEN COALESCE(fs.original_price, pv.price, p.base_price) ELSE NULL END AS originalPrice,
+          CASE WHEN fs.id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isFlashSale,
+          fs.ends_at AS flashSaleEndsAt,
           COALESCE(pv.stock_qty, 0) AS stock,
-          COALESCE(pv.image_url, pi.image_url, '') AS image
+          COALESCE(pv.image_url, pi.image_url, '') AS image,
+          c.name AS category,
+          c.slug AS category_slug,
+          p.seller_id,
+          s.user_id AS seller_user_id,
+          s.shop_name AS seller_name,
+          s.logo_url AS seller_logo_url
         FROM Products p
         LEFT JOIN ProductVariants pv ON p.id = pv.product_id
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        WHERE p.id = @id
+        LEFT JOIN Sellers s ON p.seller_id = s.id
+        LEFT JOIN ProductCategories pc ON p.id = pc.product_id
+        LEFT JOIN Categories c ON pc.category_id = c.id
+        OUTER APPLY (
+          SELECT TOP 1 id, sale_price, original_price, ends_at
+          FROM ProductFlashSales
+          WHERE product_id = p.id
+            AND (variant_id IS NULL OR variant_id = pv.id)
+            AND status = 'active'
+            AND starts_at <= GETDATE()
+            AND ends_at >= GETDATE()
+          ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
+        ) fs
+        WHERE p.id = @id AND ISNULL(p.is_active, 1) = 1
       `);
 
     const product = result.recordset[0];
@@ -71,7 +130,11 @@ export const productService = {
     return {
       ...product,
       price: parseFloat(product.price || 0),
-      stock: parseInt(product.stock || 0)
+      originalPrice: product.originalPrice === null ? null : parseFloat(product.originalPrice || 0),
+      isFlashSale: Boolean(product.isFlashSale),
+      stock: parseInt(product.stock || 0),
+      seller_id: product.seller_id || null,
+      seller_user_id: product.seller_user_id || null
     };
   },
 

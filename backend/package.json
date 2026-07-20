@@ -23,6 +23,7 @@
     "morgan": "^1.10.0",
     "mssql": "^12.5.4",
     "nodemailer": "^8.0.10",
+    "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.0"
