@@ -1,10 +1,12 @@
 import express from 'express';
-import { 
-  getAllProducts, 
-  getProductById, 
-  createProduct, 
-  updateProduct, 
-  deleteProduct 
+import {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getBrandsList,
+  getCategoriesList
 } from '../controllers/product.controller.js';
 import { protect, restrictTo } from '../middlewares/auth.middleware.js';
 
@@ -21,6 +23,10 @@ const router = express.Router();
  *         description: Trả về danh sách sản phẩm thành công
  */
 router.get('/', getAllProducts);
+
+// Danh sách thương hiệu/danh mục active — phải khai báo trước '/:id' để không bị nuốt làm param id
+router.get('/meta/brands', getBrandsList);
+router.get('/meta/categories', getCategoriesList);
 
 /**
  * @openapi

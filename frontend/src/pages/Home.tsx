@@ -15,6 +15,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Product } from '../types';
 import Spinner from '../components/common/Spinner';
 import AIBanner from '../components/home/AIBanner';
+import PromoBanners from '../components/home/PromoBanners';
 
 export default function Home() {
   const auth = useContext(AuthContext);
@@ -56,11 +57,11 @@ export default function Home() {
 
   const categories = [
     { key: '', label: 'Tất cả sản phẩm' },
-    { key: 'Audio', label: 'Audio & Âm Thanh' },
-    { key: 'Accessories', label: 'Phụ Kiện' },
-    { key: 'Wearables', label: 'Thiết Bị Đeo' },
-    { key: 'Home & Kitchen', label: 'Bếp & Gia Dụng' },
-    { key: 'Electronics', label: 'Điện Tử' }
+    { key: 'am-thanh', label: 'Audio & Âm Thanh' },
+    { key: 'phu-kien', label: 'Phụ Kiện' },
+    { key: 'dong-ho-wear', label: 'Thiết Bị Đeo' },
+    { key: 'nha-bep', label: 'Bếp & Gia Dụng' },
+    { key: 'dien-tu', label: 'Điện Tử' }
   ];
 
   const handleCopyCode = () => {
@@ -134,6 +135,9 @@ export default function Home() {
 
       {/* AI Banner Section */}
       <AIBanner />
+
+      {/* Promo Banners (quản lý bởi Admin — A004) */}
+      <PromoBanners />
 
       {/* Featured Categories (Bento Grid with Glow Effect) */}
       <section className="py-24 max-w-container-max mx-auto px-margin-desktop transition-all duration-1000 opacity-100 translate-y-0">

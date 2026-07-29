@@ -2,13 +2,45 @@ import { productService } from '../services/productService.js';
 
 export const getAllProducts = async (req, res) => {
   try {
-    const { category, search } = req.query;
-    const products = await productService.getAll({ category, search });
-    
+    const { category, search, brand } = req.query;
+    const products = await productService.getAll({ category, search, brand });
+
     res.status(200).json({
       status: 'success',
       results: products.length,
       data: { products }
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: err.message
+    });
+  }
+};
+
+export const getBrandsList = async (req, res) => {
+  try {
+    const brands = await productService.getBrandsList();
+    res.status(200).json({
+      status: 'success',
+      results: brands.length,
+      data: { brands }
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: err.message
+    });
+  }
+};
+
+export const getCategoriesList = async (req, res) => {
+  try {
+    const categories = await productService.getCategoriesList();
+    res.status(200).json({
+      status: 'success',
+      results: categories.length,
+      data: { categories }
     });
   } catch (err) {
     res.status(400).json({

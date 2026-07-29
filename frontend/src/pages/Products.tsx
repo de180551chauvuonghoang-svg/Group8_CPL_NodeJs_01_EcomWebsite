@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { productService } from '../services/productService';
+import { productService, BrandOption, CategoryOption } from '../services/productService';
 import { useCart } from '../context/CartContext';
 import { Product } from '../types';
 
@@ -11,15 +11,6 @@ const fmt = (n: number) =>
 
 const STAR_RATING = (r: number) =>
   Array.from({ length: 5 }, (_, i) => i < Math.floor(r) ? '★' : i < r ? '½' : '☆').join('');
-
-const CATEGORIES = [
-  { key: '',            label: 'Tất cả' },
-  { key: 'Audio',       label: 'Audio & Âm Thanh' },
-  { key: 'Wearables',   label: 'Thiết Bị Đeo' },
-  { key: 'Electronics', label: 'Điện Tử' },
-  { key: 'Accessories', label: 'Phụ Kiện' },
-  { key: 'Home & Kitchen', label: 'Nhà & Bếp' },
-];
 
 const SORT_OPTIONS = [
   { key: 'featured',   label: 'Nổi bật' },
@@ -87,6 +78,9 @@ const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: 
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            {product.isFlashSale && product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error">Sale</span>
+            )}
             {isOutOfStock && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error">Hết hàng</span>
             )}
@@ -123,11 +117,17 @@ const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: 
         {/* Info */}
         <div className="p-4">
           <p className="text-[11px] text-primary font-semibold uppercase tracking-wide mb-1">
-            {product.category}
+            {product.category}{product.brand_name ? ` · ${product.brand_name}` : ''}
           </p>
           <h3 className="text-sm font-bold text-on-surface line-clamp-2 mb-2 group-hover:text-primary transition-colors leading-snug">
             {product.name}
           </h3>
+          {product.seller_name && (
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined text-[14px]">storefront</span>
+              <span className="line-clamp-1">{product.seller_name}</span>
+            </div>
+          )}
 
           {/* Rating — chỉ hiển thị nếu có rating */}
           {rating > 0 && (
@@ -161,17 +161,27 @@ export default function Products() {
   const { addToCart } = useCart();
 
   const urlCategory = searchParams.get('category') || '';
+  const urlBrand    = searchParams.get('brand')     || '';
   const urlSearch   = searchParams.get('search')   || '';
   const urlSort     = searchParams.get('sort')      || 'featured';
 
   const [products, setProducts]     = useState<Product[]>([]);
   const [loading, setLoading]       = useState(true);
   const [selectedCat, setSelectedCat] = useState(urlCategory);
+  const [selectedBrand, setSelectedBrand] = useState(urlBrand);
+  const [brands, setBrands]         = useState<BrandOption[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [sortKey, setSortKey]       = useState(urlSort);
   const [searchVal, setSearchVal]   = useState(urlSearch);
   const [filterOpen, setFilterOpen] = useState(false); // mobile filter
   const [addedId, setAddedId]       = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(12);
+
+  /* Load available brands & categories once */
+  useEffect(() => {
+    productService.getBrands().then(setBrands);
+    productService.getCategories().then(setCategories);
+  }, []);
 
   /* Fetch products */
   useEffect(() => {
@@ -179,7 +189,7 @@ export default function Products() {
     setVisibleCount(12);
     const t = setTimeout(async () => {
       try {
-        const data = await productService.getAll({ category: selectedCat, search: searchVal });
+        const data = await productService.getAll({ category: selectedCat, brand: selectedBrand, search: searchVal });
         setProducts(data);
       } catch {
         setProducts([]);
@@ -188,16 +198,17 @@ export default function Products() {
       }
     }, 200);
     return () => clearTimeout(t);
-  }, [selectedCat, searchVal]);
+  }, [selectedCat, selectedBrand, searchVal]);
 
   /* Sync URL */
   useEffect(() => {
     const p = new URLSearchParams();
     if (selectedCat) p.set('category', selectedCat);
+    if (selectedBrand) p.set('brand', selectedBrand);
     if (searchVal)   p.set('search', searchVal);
     if (sortKey !== 'featured') p.set('sort', sortKey);
     setSearchParams(p, { replace: true });
-  }, [selectedCat, searchVal, sortKey]);
+  }, [selectedCat, selectedBrand, searchVal, sortKey]);
 
   /* Sort */
   const sorted = [...products].sort((a, b) => {
@@ -233,7 +244,7 @@ export default function Products() {
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-black text-navy-dark tracking-tight">
-                {selectedCat ? CATEGORIES.find(c => c.key === selectedCat)?.label ?? selectedCat : 'Tất cả sản phẩm'}
+                {selectedCat ? categories.find(c => c.slug === selectedCat)?.name ?? selectedCat : 'Tất cả sản phẩm'}
               </h1>
               {!loading && (
                 <p className="text-on-surface-variant text-sm mt-1">
@@ -279,21 +290,63 @@ export default function Products() {
             <div>
               <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Danh mục</h2>
               <div className="space-y-1">
-                {CATEGORIES.map(cat => (
+                <button
+                  onClick={() => setSelectedCat('')}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
+                    ${selectedCat === ''
+                      ? 'bg-primary/10 text-primary shadow-sm'
+                      : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                    }`}
+                >
+                  Tất cả
+                </button>
+                {categories.map(cat => (
                   <button
-                    key={cat.key}
-                    onClick={() => setSelectedCat(cat.key)}
+                    key={cat.id}
+                    onClick={() => setSelectedCat(cat.slug)}
                     className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
-                      ${selectedCat === cat.key
+                      ${selectedCat === cat.slug
                         ? 'bg-primary/10 text-primary shadow-sm'
                         : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
                       }`}
                   >
-                    {cat.label}
+                    {cat.name}
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Brands */}
+            {brands.length > 0 && (
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">Thương hiệu</h2>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setSelectedBrand('')}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
+                      ${selectedBrand === ''
+                        ? 'bg-primary/10 text-primary shadow-sm'
+                        : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                      }`}
+                  >
+                    Tất cả
+                  </button>
+                  {brands.map(brand => (
+                    <button
+                      key={brand.id}
+                      onClick={() => setSelectedBrand(brand.id)}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer
+                        ${selectedBrand === brand.id
+                          ? 'bg-primary/10 text-primary shadow-sm'
+                          : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                        }`}
+                    >
+                      {brand.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Sort */}
             <div>
@@ -322,17 +375,27 @@ export default function Products() {
 
           {/* Mobile filter bar */}
           <div className="lg:hidden flex gap-2 mb-4 overflow-x-auto pb-1">
-            {CATEGORIES.map(cat => (
+            <button
+              onClick={() => setSelectedCat('')}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all
+                ${selectedCat === ''
+                  ? 'bg-primary text-white border-primary'
+                  : 'border-outline-variant text-on-surface-variant hover:border-primary/40'
+                }`}
+            >
+              Tất cả
+            </button>
+            {categories.map(cat => (
               <button
-                key={cat.key}
-                onClick={() => setSelectedCat(cat.key)}
+                key={cat.id}
+                onClick={() => setSelectedCat(cat.slug)}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all
-                  ${selectedCat === cat.key
+                  ${selectedCat === cat.slug
                     ? 'bg-primary text-white border-primary'
                     : 'border-outline-variant text-on-surface-variant hover:border-primary/40'
                   }`}
               >
-                {cat.label}
+                {cat.name}
               </button>
             ))}
           </div>
@@ -368,7 +431,7 @@ export default function Products() {
                 {searchVal ? `Không có kết quả cho "${searchVal}".` : 'Danh mục này hiện chưa có sản phẩm.'}
               </p>
               <button
-                onClick={() => { setSearchVal(''); setSelectedCat(''); }}
+                onClick={() => { setSearchVal(''); setSelectedCat(''); setSelectedBrand(''); }}
                 className="px-6 py-2.5 rounded-full bg-primary text-white text-sm font-bold hover:brightness-110 transition-all"
               >
                 Xem tất cả sản phẩm
@@ -386,14 +449,14 @@ export default function Products() {
                 </AnimatePresence>
               </div>
 
-                <div className="flex justify-center mt-10">
+                {hasMore && <div className="flex justify-center mt-10">
                   <button
                     onClick={() => setVisibleCount(c => c + 12)}
                     className="pill-button pill-button--accent font-bold"
                   >
                     Xem thêm ({sorted.length - visibleCount} sản phẩm)
                   </button>
-                </div>
+                </div>}
             </>
           )}
         </main>

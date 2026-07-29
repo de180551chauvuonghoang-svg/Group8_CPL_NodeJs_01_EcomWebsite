@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { adminService } from "./adminService.js";
 
 /**
  * Service to handle email sending using Nodemailer.
@@ -39,116 +40,140 @@ export const emailService = {
       <html>
       <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Mã Xác Thực Volitify</title>
         <style>
           body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
             margin: 0;
             padding: 0;
             -webkit-font-smoothing: antialiased;
           }
+          .wrapper {
+            width: 100%;
+            background-color: #f3f4f6;
+            padding: 40px 20px;
+            box-sizing: border-box;
+          }
           .container {
-            max-width: 600px;
-            margin: 40px auto;
+            max-width: 560px;
+            margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 16px;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e2e8f0;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
           }
           .header {
-            background: linear-gradient(135deg, #004ac6 0%, #002e82 100%);
-            padding: 30px 40px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            padding: 35px 40px;
             text-align: center;
           }
           .logo {
-            font-size: 28px;
-            font-weight: 800;
+            font-size: 30px;
+            font-weight: 900;
             color: #ffffff;
-            letter-spacing: -1px;
+            letter-spacing: -1.5px;
             text-decoration: none;
+            font-family: 'Outfit', sans-serif;
           }
           .content {
             padding: 40px;
-            color: #1e293b;
+            color: #374151;
           }
           .title {
-            font-size: 22px;
-            font-weight: 700;
-            color: #0f172a;
+            font-size: 24px;
+            font-weight: 800;
+            color: #111827;
             margin-bottom: 20px;
+            letter-spacing: -0.5px;
           }
           .text {
-            font-size: 16px;
+            font-size: 15px;
             line-height: 26px;
-            color: #475569;
+            color: #4b5563;
             margin-bottom: 30px;
           }
-          .otp-container {
+          .otp-card {
             text-align: center;
             margin: 35px 0;
-            padding: 20px;
-            background-color: #f1f5f9;
-            border-radius: 12px;
-            border: 1px dashed #cbd5e1;
+            padding: 30px;
+            background: #f8fafc;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+          }
+          .otp-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #2563eb;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
           }
           .otp-code {
-            font-size: 36px;
-            font-weight: 800;
-            letter-spacing: 6px;
-            color: #004ac6;
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: #1d4ed8;
             font-family: 'Courier New', Courier, monospace;
+            margin: 0;
           }
           .expire-text {
-            font-size: 14px;
-            color: #ef4444;
+            font-size: 13px;
+            color: #dc2626;
             font-weight: 600;
-            margin-top: 10px;
+            margin-top: 15px;
+            background: #fef2f2;
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 30px;
           }
           .footer {
             background-color: #f8fafc;
-            padding: 20px 40px;
+            padding: 30px 40px;
             text-align: center;
-            border-top: 1px solid #f1f5f9;
+            border-top: 1px solid #e2e8f0;
             font-size: 12px;
-            color: #94a3b8;
+            color: #6b7280;
+            line-height: 20px;
           }
           .footer a {
-            color: #004ac6;
+            color: #2563eb;
             text-decoration: none;
+            font-weight: 600;
           }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <span class="logo">Volitify</span>
-          </div>
-          <div class="content">
-            <div class="title">Yêu cầu khôi phục mật khẩu</div>
-            <div class="text">
-              Chào bạn,<br/><br/>
-              Chúng tôi nhận được yêu cầu lấy lại mật khẩu cho tài khoản Volitify của bạn. Dưới đây là mã xác thực OTP của bạn. Mã này có thời hạn sử dụng trong <strong>5 phút</strong>.
+        <div class="wrapper">
+          <div class="container">
+            <div class="header">
+              <span class="logo">Volitify</span>
             </div>
-            <div class="otp-container">
-              <div class="otp-code">${otp}</div>
-              <div class="expire-text">⚠️ Không chia sẻ mã này với bất kỳ ai để bảo vệ tài khoản của bạn.</div>
+            <div class="content">
+              <div class="title">Yêu cầu khôi phục mật khẩu</div>
+              <div class="text">
+                Chào bạn,<br/><br/>
+                Chúng tôi nhận được yêu cầu cấp lại mật khẩu cho tài khoản Volitify của bạn. Sử dụng mã OTP dưới đây để hoàn tất việc thiết lập lại. Mã xác thực này có hiệu lực trong vòng <strong>5 phút</strong>.
+              </div>
+              <div class="otp-card">
+                <div class="otp-label">MÃ XÁC THỰC CỦA BẠN</div>
+                <div class="otp-code">${otp}</div>
+                <div class="expire-text">⚠️ Tuyệt đối không chia sẻ mã này với bất kỳ ai</div>
+              </div>
+              <div class="text" style="margin-bottom: 0;">
+                Nếu bạn không thực hiện yêu cầu này, bạn có thể yên tâm bỏ qua email này. Mật khẩu của bạn vẫn được giữ an toàn.
+              </div>
             </div>
-            <div class="text" style="margin-bottom: 0;">
-              Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email này hoặc liên hệ với bộ phận hỗ trợ khách hàng để được trợ giúp bảo mật tài khoản.
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Volitify Systems. All rights reserved.</p>
+              <p>Hệ thống bán lẻ điện tử & giải pháp nhà thông minh cao cấp.</p>
             </div>
-          </div>
-          <div class="footer">
-            <p>© ${new Date().getFullYear()} Volitify Systems. All rights reserved.</p>
-            <p>Hệ thống bán lẻ điện tử tiêu dùng thông minh hàng đầu.</p>
           </div>
         </div>
       </body>
       </html>
     `;
-
     try {
       await transporter.sendMail({
         from: `"Volitify Security" <${user}>`,
@@ -160,6 +185,50 @@ export const emailService = {
       return { success: true, mock: false };
     } catch (error) {
       console.error(`[🚨 Nodemailer Error] Failed to send email via SMTP to ${email}:`, error);
+      return { success: false, mock: false, error: error.message };
+    }
+  },
+
+  /**
+   * A005: Gửi email theo mẫu do Admin soạn trong NotificationTemplates (thay thế biến {{key}}).
+   * Best-effort: nếu chưa có mẫu / mẫu bị tắt thì bỏ qua (không throw) để không chặn luồng chính (đặt hàng, huỷ đơn...).
+   * @param {string} code - mã mẫu, ví dụ 'order_confirmed' | 'order_cancelled' | 'order_shipped'
+   * @param {string} toEmail
+   * @param {Record<string,string|number>} variables - thay vào {{key}} trong subject/html_body
+   */
+  sendFromTemplate: async (code, toEmail, variables = {}) => {
+    try {
+      const template = await adminService.getNotificationTemplateByCode(code);
+      if (!template || !template.is_active) {
+        console.log(`[📧 EMAIL] Bỏ qua gửi mail — chưa có mẫu "${code}" đang bật.`);
+        return { success: true, mock: true, skipped: true };
+      }
+
+      const applyVars = (text) =>
+        Object.entries(variables).reduce(
+          (acc, [key, value]) => acc.replace(new RegExp(`{{\\s*${key}\\s*}}`, "g"), String(value ?? "")),
+          text
+        );
+      const subject = applyVars(template.subject);
+      const html = applyVars(template.html_body);
+
+      const user = process.env.EMAIL_USER;
+      const pass = process.env.EMAIL_PASS;
+      if (!user || !pass) {
+        console.log(`\n[📧 MOCK EMAIL] To: ${toEmail} | Subject: ${subject}\n`);
+        return { success: true, mock: true };
+      }
+
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: { user, pass },
+      });
+
+      await transporter.sendMail({ from: `"Volitify" <${user}>`, to: toEmail, subject, html });
+      console.log(`[📧 EMAIL] Đã gửi mail "${code}" tới ${toEmail}`);
+      return { success: true, mock: false };
+    } catch (error) {
+      console.error(`[🚨 Nodemailer Error] Gửi mail "${code}" tới ${toEmail} thất bại:`, error.message);
       return { success: false, mock: false, error: error.message };
     }
   },

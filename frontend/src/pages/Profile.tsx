@@ -1,11 +1,34 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../services/authService';
 import AddressBook from '../components/profile/AddressBook';
-import { paymentService, UserOrder } from '../services/paymentService';
+import { paymentService, UserOrder, OrderItemDetail } from '../services/paymentService';
+import { reviewService } from '../services/reviewService';
+
+// ─── Star picker ──────────────────────────────────────────────────────────────
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map(star => (
+        <button
+          key={star}
+          type="button"
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(star)}
+          className="text-4xl leading-none transition-colors focus:outline-none"
+          style={{ color: star <= (hovered || value) ? '#f59e0b' : '#d1d5db' }}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function Profile() {
   const auth = useContext(AuthContext);
@@ -38,6 +61,20 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // Order item expansion
+  const [expandedOrders, setExpandedOrders]     = useState<Set<string>>(new Set());
+  const [orderItemsMap, setOrderItemsMap]         = useState<Record<string, OrderItemDetail[]>>({});
+  const [orderItemsLoading, setOrderItemsLoading] = useState<Set<string>>(new Set());
+
+  // Review modal
+  const [reviewModal, setReviewModal] = useState<{
+    productId: string; productName: string; orderId: string; itemId: string;
+  } | null>(null);
+  const [reviewForm, setReviewForm]         = useState({ rating: 5, title: '', body: '' });
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError]       = useState('');
+  const [reviewSuccess, setReviewSuccess]   = useState('');
 
   // Sync state with logged in user
   useEffect(() => {
@@ -141,6 +178,58 @@ export default function Profile() {
       setErrorMsg(errMsg);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const toggleOrderExpand = async (orderId: string) => {
+    const next = new Set(expandedOrders);
+    if (next.has(orderId)) {
+      next.delete(orderId);
+      setExpandedOrders(next);
+      return;
+    }
+    next.add(orderId);
+    setExpandedOrders(next);
+    if (!orderItemsMap[orderId]) {
+      setOrderItemsLoading(s => new Set([...s, orderId]));
+      try {
+        const items = await paymentService.getOrderItems(orderId);
+        setOrderItemsMap(m => ({ ...m, [orderId]: items }));
+      } catch {
+        setOrderItemsMap(m => ({ ...m, [orderId]: [] }));
+      } finally {
+        setOrderItemsLoading(s => { const n = new Set(s); n.delete(orderId); return n; });
+      }
+    }
+  };
+
+  const handleReviewSubmit = async () => {
+    if (!reviewModal) return;
+    if (!reviewForm.title.trim() || !reviewForm.body.trim()) {
+      setReviewError('Vui lòng điền tiêu đề và nội dung đánh giá');
+      return;
+    }
+    setReviewSubmitting(true);
+    setReviewError('');
+    try {
+      await reviewService.createReview({
+        productId: reviewModal.productId,
+        rating:    reviewForm.rating,
+        title:     reviewForm.title.trim(),
+        body:      reviewForm.body.trim(),
+      });
+      setOrderItemsMap(m => ({
+        ...m,
+        [reviewModal.orderId]: (m[reviewModal.orderId] || []).map(item =>
+          item.id === reviewModal.itemId ? { ...item, has_reviewed: true } : item
+        ),
+      }));
+      setReviewSuccess('Đánh giá của bạn đã được ghi nhận!');
+      setTimeout(() => { setReviewModal(null); setReviewSuccess(''); }, 1800);
+    } catch (err: any) {
+      setReviewError(err?.message || 'Đã xảy ra lỗi, vui lòng thử lại');
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -386,48 +475,143 @@ export default function Profile() {
                 orders.map((order, i) => {
                   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
                   const STATUS: Record<string, { label: string; bg: string; text: string }> = {
-                    pending: { label: 'Chờ xử lý', bg: 'bg-amber-50', text: 'text-amber-600' },
-                    confirmed: { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    processing: { label: 'Đang xử lý', bg: 'bg-blue-50', text: 'text-blue-600' },
-                    shipped: { label: 'Đang giao', bg: 'bg-indigo-50', text: 'text-indigo-600' },
-                    delivered: { label: 'Đã giao', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    cancelled: { label: 'Đã hủy', bg: 'bg-rose-50', text: 'text-rose-600' },
+                    pending:    { label: 'Chờ xử lý',   bg: 'bg-amber-50',   text: 'text-amber-600' },
+                    confirmed:  { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    processing: { label: 'Đang xử lý',  bg: 'bg-blue-50',    text: 'text-blue-600' },
+                    shipped:    { label: 'Đang giao',    bg: 'bg-indigo-50',  text: 'text-indigo-600' },
+                    delivered:  { label: 'Đã giao',     bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    cancelled:  { label: 'Đã hủy',      bg: 'bg-rose-50',    text: 'text-rose-600' },
                   };
-                  const s = STATUS[order.status] || { label: order.status, bg: 'bg-slate-50', text: 'text-slate-600' };
-                  const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method === 'qr' ? 'Chuyển khoản VietQR' : order.payment_method;
+                  const s   = STATUS[order.status] || { label: order.status, bg: 'bg-slate-50', text: 'text-slate-600' };
+                  const pm  = order.payment_method === 'cod' ? 'COD' : order.payment_method === 'qr' ? 'Chuyển khoản VietQR' : order.payment_method;
+                  const isExpanded   = expandedOrders.has(order.id);
+                  const itemsSpinner = orderItemsLoading.has(order.id);
+                  const items        = orderItemsMap[order.id] || [];
+
                   return (
                     <motion.div
                       key={order.id}
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.06 }}
-                      className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-200 text-slate-700"
+                      className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-200 text-slate-700 overflow-hidden"
                     >
-                      <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Mã đơn hàng</p>
-                          <p className="font-mono font-bold text-sm text-blue-600">#{order.id.toUpperCase()}</p>
+                      {/* Order header */}
+                      <div className="p-6">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div>
+                            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Mã đơn hàng</p>
+                            <p className="font-mono font-bold text-sm text-blue-600">#{order.id.toUpperCase()}</p>
+                          </div>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
                         </div>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
+                        <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Tổng tiền</p>
+                            <p className="font-black text-blue-600 text-base">{fmt(order.total)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Thanh toán</p>
+                            <p className="font-bold text-slate-700">{pm}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Ngày đặt hàng</p>
+                            <p className="font-bold text-slate-700">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
+                          </div>
+                          <div className="col-span-2 sm:col-span-3">
+                            <p className="text-xs text-slate-400 mb-1">Địa chỉ giao hàng</p>
+                            <p className="text-xs font-medium text-slate-600">{order.shipping_address}</p>
+                          </div>
+                        </div>
+
+                        {/* Expand / collapse */}
+                        <button
+                          onClick={() => toggleOrderExpand(order.id)}
+                          className="mt-4 flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">
+                            {isExpanded ? 'expand_less' : 'expand_more'}
+                          </span>
+                          {isExpanded ? 'Ẩn sản phẩm' : 'Xem sản phẩm & đánh giá'}
+                        </button>
                       </div>
-                      <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Tổng tiền</p>
-                          <p className="font-black text-blue-600 text-base">{fmt(order.total)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Thanh toán</p>
-                          <p className="font-bold text-slate-700">{pm}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Ngày đặt hàng</p>
-                          <p className="font-bold text-slate-700">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
-                        </div>
-                        <div className="col-span-2 sm:col-span-3">
-                          <p className="text-xs text-slate-400 mb-1">Địa chỉ giao hàng</p>
-                          <p className="text-xs font-medium text-slate-600">{order.shipping_address}</p>
-                        </div>
-                      </div>
+
+                      {/* Items (expandable) */}
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            key="items"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.22 }}
+                            className="overflow-hidden border-t border-slate-100"
+                          >
+                            <div className="px-6 py-4 bg-slate-50 space-y-3">
+                              {itemsSpinner ? (
+                                <div className="flex items-center gap-2 text-slate-500 py-2 text-sm">
+                                  <span className="material-symbols-outlined animate-spin text-[18px]">sync</span>
+                                  Đang tải sản phẩm...
+                                </div>
+                              ) : items.length === 0 ? (
+                                <p className="text-sm text-slate-400">Không có sản phẩm nào.</p>
+                              ) : (
+                                items.map(item => (
+                                  <div key={item.id} className="flex items-center gap-4">
+                                    {/* Thumbnail */}
+                                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+                                      {item.product_image
+                                        ? <img src={item.product_image} alt={item.product_name} className="w-full h-full object-cover" />
+                                        : <div className="w-full h-full flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-slate-400 text-[28px]">image</span>
+                                          </div>
+                                      }
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold text-slate-800 line-clamp-1">{item.product_name}</p>
+                                      {item.variant_info && <p className="text-xs text-slate-400">{item.variant_info}</p>}
+                                      <p className="text-xs text-slate-500 mt-0.5">
+                                        x{item.quantity} · {fmt(item.unit_price)}/sp
+                                      </p>
+                                    </div>
+
+                                    {/* Review button / badge */}
+                                    {item.product_id && (
+                                      item.has_reviewed ? (
+                                        <span className="shrink-0 flex items-center gap-1 text-xs text-emerald-600 font-semibold">
+                                          <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                          Đã đánh giá
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            setReviewForm({ rating: 5, title: '', body: '' });
+                                            setReviewError('');
+                                            setReviewSuccess('');
+                                            setReviewModal({
+                                              productId:   item.product_id!,
+                                              productName: item.product_name,
+                                              orderId:     order.id,
+                                              itemId:      item.id,
+                                            });
+                                          }}
+                                          className="shrink-0 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg
+                                                     bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200"
+                                        >
+                                          <span className="material-symbols-outlined text-[16px]">star</span>
+                                          Đánh giá
+                                        </button>
+                                      )
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   );
                 })
@@ -436,6 +620,129 @@ export default function Profile() {
           )}
         </section>
       </main>
+
+      {/* ── Review Modal ── */}
+      <AnimatePresence>
+        {reviewModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={e => { if (e.target === e.currentTarget && !reviewSubmitting) setReviewModal(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.93, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.93, y: 20 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8"
+            >
+              {/* Modal header */}
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                    Đánh giá sản phẩm
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-1 line-clamp-2">{reviewModal.productName}</p>
+                </div>
+                <button
+                  onClick={() => { if (!reviewSubmitting) setReviewModal(null); }}
+                  className="text-slate-400 hover:text-slate-600 transition-colors ml-4 shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[24px]">close</span>
+                </button>
+              </div>
+
+              {/* Success state */}
+              {reviewSuccess ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center py-8 text-center"
+                >
+                  <span className="material-symbols-outlined text-emerald-500 text-[56px]"
+                        style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                  <p className="mt-3 font-bold text-slate-800">{reviewSuccess}</p>
+                </motion.div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Star rating */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Số sao <span className="text-red-400">*</span>
+                    </label>
+                    <StarPicker value={reviewForm.rating} onChange={v => setReviewForm(f => ({ ...f, rating: v }))} />
+                  </div>
+
+                  {/* Title */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Tiêu đề <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={255}
+                      placeholder="Tóm tắt ngắn về trải nghiệm của bạn"
+                      value={reviewForm.title}
+                      onChange={e => setReviewForm(f => ({ ...f, title: e.target.value }))}
+                      className="w-full h-11 px-4 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50
+                                 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                    />
+                  </div>
+
+                  {/* Body */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Nhận xét chi tiết <span className="text-red-400">*</span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="Chia sẻ về chất lượng, thiết kế, hiệu năng..."
+                      value={reviewForm.body}
+                      onChange={e => setReviewForm(f => ({ ...f, body: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50
+                                 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Error */}
+                  {reviewError && (
+                    <p className="text-sm text-red-500 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">error</span>
+                      {reviewError}
+                    </p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { if (!reviewSubmitting) setReviewModal(null); }}
+                      className="flex-1 h-11 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600
+                                 hover:bg-slate-50 transition-all"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReviewSubmit}
+                      disabled={reviewSubmitting}
+                      className="flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60
+                                 text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
+                    >
+                      {reviewSubmitting
+                        ? <><span className="material-symbols-outlined animate-spin text-[18px]">sync</span>Đang gửi...</>
+                        : <><span className="material-symbols-outlined text-[18px]">send</span>Gửi đánh giá</>
+                      }
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

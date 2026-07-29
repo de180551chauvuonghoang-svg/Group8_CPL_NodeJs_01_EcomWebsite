@@ -72,14 +72,9 @@ export default function Login() {
     }
   };
 
-  const handleQuickLogin = (role: 'customer' | 'admin') => {
-    if (role === 'customer') {
-      setEmail('customer');
-      setPassword('password123');
-    } else if (role === 'admin') {
-      setEmail('admin');
-      setPassword('password123');
-    }
+  const handleQuickLogin = (role: 'customer' | 'seller' | 'admin') => {
+    setEmail(role);
+    setPassword('password123');
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -148,7 +143,7 @@ export default function Login() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="email">
-                  Tên đăng nhập
+                  Tên đăng nhập / Email
                 </label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">
@@ -158,7 +153,7 @@ export default function Login() {
                     className="w-full h-[56px] pl-12 pr-4 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                     id="email"
                     name="email"
-                    placeholder="customer"
+                    placeholder="Nhập tên tài khoản hoặc email..."
                     required
                     type="text"
                     value={email}
@@ -221,6 +216,19 @@ export default function Login() {
                 Đăng Nhập
               </motion.button>
             </form>
+
+            <div className="grid grid-cols-3 gap-2">
+              {(['customer', 'seller', 'admin'] as const).map(role => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => handleQuickLogin(role)}
+                  className="h-10 rounded-lg border border-outline-variant bg-surface-container text-xs font-bold capitalize text-on-surface-variant transition hover:border-primary/50 hover:text-primary"
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
 
             {/* Divider */}
             <div className="relative py-4">

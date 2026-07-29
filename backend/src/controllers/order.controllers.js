@@ -71,6 +71,36 @@ export const createOrder = async (req, res) => {
             INSERT INTO OrderItems (id, order_id, variant_id, quantity, unit_price, total_price, product_name)
             VALUES (@oiId, @oId, @vId, @qty, @uPrice, @tPrice, @pName)
           `);
+
+        // Trừ số lượng tồn kho (stock_qty) của biến thể sản phẩm.
+        // Điều kiện 'stock_qty >= @qty' giúp ngăn chặn Race Condition (tránh số lượng tồn kho bị âm).
+        const updateStockResult = await transaction.request()
+          .input('vId', sql.VarChar, validVariantId)
+          .input('qty', sql.Int, item.quantity)
+          .query(`
+            UPDATE ProductVariants
+            SET stock_qty = stock_qty - @qty
+            WHERE id = @vId AND stock_qty >= @qty
+          `);
+
+        // Nếu rowsAffected = 0, có nghĩa là sản phẩm đã hết hàng hoặc không đủ số lượng yêu cầu
+        if (updateStockResult.rowsAffected[0] === 0) {
+          throw new Error(`Sản phẩm "${item.product.name || 'Sản phẩm'}" không đủ số lượng tồn kho hoặc đã hết hàng.`);
+        }
+
+        // Ghi nhận lịch sử thay đổi kho hàng (InventoryLogs)
+        const logId = `LOG_${Date.now()}_${i}`;
+        await transaction.request()
+          .input('logId', sql.VarChar, logId)
+          .input('vId', sql.VarChar, validVariantId)
+          .input('changeQty', sql.Int, -item.quantity)
+          .input('reason', sql.NVarChar, `Đơn hàng ${orderId}`)
+          .input('refId', sql.VarChar, orderId)
+          .input('userId', sql.VarChar, userId)
+          .query(`
+            INSERT INTO InventoryLogs (id, variant_id, change_qty, reason, reference_id, created_by)
+            VALUES (@logId, @vId, @changeQty, @reason, @refId, @userId)
+          `);
       }
 
       // 5. Insert vào bảng Payments
@@ -119,6 +149,6 @@ export const createOrder = async (req, res) => {
     }
   } catch (error) {
     console.error('Lỗi tạo đơn hàng:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server khi đặt hàng' });
+    res.status(400).json({ success: false, message: error.message || 'Lỗi server khi đặt hàng' });
   }
 };

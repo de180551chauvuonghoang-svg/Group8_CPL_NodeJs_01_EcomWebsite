@@ -42,6 +42,18 @@ export interface UserOrder {
   created_at: string;
 }
 
+export interface OrderItemDetail {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  variant_info: string | null;
+  product_id: string | null;
+  product_image: string | null;
+  has_reviewed: boolean;
+}
+
 export const paymentService = {
   placeOrder: async (payload: {
     items: any[];
@@ -65,9 +77,19 @@ export const paymentService = {
     return response.data?.data || response.data;
   },
 
+  cancelOrder: async (orderId: string): Promise<void> => {
+    await API.post(`/payments/order/${orderId}/cancel`);
+  },
+
   /** GET /api/payments/orders → all orders for current user */
   getUserOrders: async (): Promise<UserOrder[]> => {
     const response: any = await API.get('/payments/orders');
+    return response.data?.data || response.data || [];
+  },
+
+  /** GET /api/payments/orders/:orderId/items → line items for an order */
+  getOrderItems: async (orderId: string): Promise<OrderItemDetail[]> => {
+    const response: any = await API.get(`/payments/orders/${orderId}/items`);
     return response.data?.data || response.data || [];
   },
 };

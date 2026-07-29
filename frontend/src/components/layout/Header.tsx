@@ -227,6 +227,34 @@ export default function Header() {
           {/* Authentication Buttons */}
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
+              {user.role === 'seller' ? (
+                <Link
+                  to="/seller/dashboard"
+                  title="Kênh người bán"
+                  className="hidden md:flex items-center gap-1.5 h-10 px-4 rounded-full border border-primary/20 hover:bg-primary/5 hover:border-primary/60 text-primary font-bold text-sm transition-all duration-200"
+                >
+                  <span className="material-symbols-outlined text-[18px]">storefront</span>
+                  Kênh người bán
+                </Link>
+              ) : user.role === 'admin' ? (
+                <Link
+                  to="/admin/dashboard"
+                  title="Trang quản trị"
+                  className="hidden md:flex items-center gap-1.5 h-10 px-4 rounded-full border border-primary/20 hover:bg-primary/5 hover:border-primary/60 text-primary font-bold text-sm transition-all duration-200"
+                >
+                  <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                  Trang quản trị
+                </Link>
+              ) : (
+                <Link
+                  to="/become-seller"
+                  title="Đăng ký bán hàng"
+                  className="hidden md:flex items-center gap-1.5 h-10 px-4 rounded-full border border-outline-variant/60 hover:border-primary/40 hover:bg-primary/5 text-on-surface-variant font-bold text-sm transition-all duration-200"
+                >
+                  <span className="material-symbols-outlined text-[18px]">storefront</span>
+                  Đăng ký bán hàng
+                </Link>
+              )}
 
               {/* User profile pill */}
               <Link

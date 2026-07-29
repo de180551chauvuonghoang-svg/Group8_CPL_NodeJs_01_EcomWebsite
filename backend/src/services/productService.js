@@ -1,28 +1,73 @@
 import { sql, pool } from '../config/db.js';
 
 export const productService = {
-  // Get all products with optional category filter and search
-  getAll: async ({ category, search }) => {
+  // Get all products with optional category/brand filter and search
+  getAll: async ({ category, search, brand }) => {
     let query = `
       WITH product_variants AS (
-        SELECT 
+        SELECT
           p.id, p.name, p.description,
-          COALESCE(pv.price, p.base_price) AS price,
+          COALESCE(fs.sale_price, pv.price, p.base_price) AS price,
+          CASE WHEN fs.id IS NOT NULL THEN COALESCE(fs.original_price, pv.price, p.base_price) ELSE NULL END AS originalPrice,
+          CASE WHEN fs.id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isFlashSale,
+          fs.ends_at AS flashSaleEndsAt,
           COALESCE(pv.stock_qty, 0) AS stock,
           COALESCE(pv.image_url, pi.image_url, '') AS image,
+          c.name AS category,
+          c.slug AS category_slug,
+          b.id AS brand_id,
+          b.name AS brand_name,
+          p.seller_id,
+          s.user_id AS seller_user_id,
+          s.shop_name AS seller_name,
+          s.logo_url AS seller_logo_url,
           ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY pv.id) AS rn
         FROM Products p
         LEFT JOIN ProductVariants pv ON p.id = pv.product_id
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
+        LEFT JOIN Sellers s ON p.seller_id = s.id
         LEFT JOIN ProductCategories pc ON p.id = pc.product_id
         LEFT JOIN Categories c ON pc.category_id = c.id
-        WHERE 1=1
+        LEFT JOIN Brands b ON p.brand_id = b.id
+        OUTER APPLY (
+          SELECT TOP 1 id, sale_price, original_price, ends_at
+          FROM ProductFlashSales
+          WHERE product_id = p.id
+            AND (variant_id IS NULL OR variant_id = pv.id)
+            AND status = 'active'
+            AND starts_at <= GETDATE()
+            AND ends_at >= GETDATE()
+          ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
+        ) fs
+        WHERE ISNULL(p.is_active, 1) = 1
     `;
     const request = pool.request();
 
     if (category) {
-      query += ' AND LOWER(c.slug) = LOWER(@category)';
+      query += `
+        AND (
+          LOWER(c.slug) = LOWER(@category)
+          OR LOWER(c.id) = LOWER(@category)
+          OR LOWER(c.name) = LOWER(@category)
+          OR LOWER(CASE c.slug
+            WHEN 'am-thanh' THEN 'Audio'
+            WHEN 'dong-ho-wear' THEN 'Wearables'
+            WHEN 'dien-tu' THEN 'Electronics'
+            WHEN 'phu-kien' THEN 'Accessories'
+            WHEN 'nha-bep' THEN 'Home & Kitchen'
+            ELSE c.slug
+          END) = LOWER(@category)
+        )`;
       request.input('category', sql.NVarChar, category);
+    }
+
+    if (brand) {
+      query += `
+        AND (
+          LOWER(b.id) = LOWER(@brand)
+          OR LOWER(b.name) = LOWER(@brand)
+        )`;
+      request.input('brand', sql.NVarChar, brand);
     }
 
     if (search) {
@@ -32,18 +77,30 @@ export const productService = {
 
     query += `
       )
-      SELECT id, name, description, price, stock, image
-      FROM product_variants
+      SELECT
+        pv.id, pv.name, pv.description, pv.price, pv.originalPrice, pv.isFlashSale, pv.flashSaleEndsAt,
+        pv.stock, pv.image, pv.category, pv.category_slug, pv.brand_id, pv.brand_name,
+        pv.seller_id, pv.seller_user_id, pv.seller_name, pv.seller_logo_url,
+        (SELECT AVG(CAST(r.rating AS FLOAT))
+           FROM Reviews r
+           WHERE r.product_id = pv.id AND r.is_approved = 1) AS rating,
+        (SELECT COUNT(*)
+           FROM Reviews r
+           WHERE r.product_id = pv.id AND r.is_approved = 1) AS reviewsCount
+      FROM product_variants pv
       WHERE rn = 1
     `;
 
     const result = await request.query(query);
-    
-    // Ensure correct types for numeric values from decimal SQL columns
+
     return result.recordset.map(product => ({
       ...product,
-      price: parseFloat(product.price || 0),
-      stock: parseInt(product.stock || 0)
+      price:         parseFloat(product.price || 0),
+      originalPrice: product.originalPrice === null ? null : parseFloat(product.originalPrice || 0),
+      isFlashSale:   Boolean(product.isFlashSale),
+      stock:         parseInt(product.stock || 0),
+      rating:        product.rating != null ? parseFloat(product.rating) : 0,
+      reviewsCount:  product.reviewsCount != null ? parseInt(product.reviewsCount) : 0,
     }));
   },
 
@@ -52,15 +109,51 @@ export const productService = {
     const result = await pool.request()
       .input('id', sql.VarChar, productId)
       .query(`
-        SELECT 
+        SELECT
           p.id, p.name, p.description,
-          COALESCE(pv.price, p.base_price) AS price,
-          COALESCE(pv.stock_qty, 0) AS stock,
-          COALESCE(pv.image_url, pi.image_url, '') AS image
+          COALESCE(fs.sale_price, pv.price, p.base_price) AS price,
+          CASE WHEN fs.id IS NOT NULL THEN COALESCE(fs.original_price, pv.price, p.base_price) ELSE NULL END AS originalPrice,
+          CASE WHEN fs.id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isFlashSale,
+          fs.ends_at AS flashSaleEndsAt,
+          COALESCE(pv.stock_qty, 0)           AS stock,
+          COALESCE(pv.image_url, pi.image_url, '') AS image,
+          c.name AS category,
+          c.slug AS category_slug,
+          br.id AS brand_id,
+          br.name AS brand_name,
+          p.seller_id,
+          s.user_id AS seller_user_id,
+          s.shop_name AS seller_name,
+          s.logo_url AS seller_logo_url,
+          (SELECT AVG(CAST(r.rating AS FLOAT))
+             FROM Reviews r
+             WHERE r.product_id = p.id AND r.is_approved = 1) AS rating,
+          (SELECT COUNT(*)
+             FROM Reviews r
+             WHERE r.product_id = p.id AND r.is_approved = 1) AS reviewsCount
         FROM Products p
-        LEFT JOIN ProductVariants pv ON p.id = pv.product_id
+        OUTER APPLY (
+          SELECT TOP 1 id, price, stock_qty, image_url
+          FROM ProductVariants
+          WHERE product_id = p.id
+          ORDER BY id
+        ) pv
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        WHERE p.id = @id
+        LEFT JOIN Sellers s ON p.seller_id = s.id
+        LEFT JOIN ProductCategories pc ON p.id = pc.product_id
+        LEFT JOIN Categories c ON pc.category_id = c.id
+        LEFT JOIN Brands br ON p.brand_id = br.id
+        OUTER APPLY (
+          SELECT TOP 1 id, sale_price, original_price, ends_at
+          FROM ProductFlashSales
+          WHERE product_id = p.id
+            AND (variant_id IS NULL OR variant_id = pv.id)
+            AND status = 'active'
+            AND starts_at <= GETDATE()
+            AND ends_at >= GETDATE()
+          ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
+        ) fs
+        WHERE p.id = @id AND ISNULL(p.is_active, 1) = 1
       `);
 
     const product = result.recordset[0];
@@ -70,8 +163,14 @@ export const productService = {
 
     return {
       ...product,
-      price: parseFloat(product.price || 0),
-      stock: parseInt(product.stock || 0)
+      price:          parseFloat(product.price || 0),
+      originalPrice:  product.originalPrice === null ? null : parseFloat(product.originalPrice || 0),
+      isFlashSale:    Boolean(product.isFlashSale),
+      stock:          parseInt(product.stock || 0),
+      rating:         product.rating != null ? parseFloat(product.rating) : 0,
+      reviewsCount:   product.reviewsCount != null ? parseInt(product.reviewsCount) : 0,
+      seller_id:      product.seller_id || null,
+      seller_user_id: product.seller_user_id || null,
     };
   },
 
@@ -219,5 +318,27 @@ export const productService = {
       stock: newStock,
       reviewsCount: parseInt(product.reviewsCount)
     };
+  },
+
+  // Danh sách thương hiệu đang active — dùng cho filter công khai
+  getBrandsList: async () => {
+    const result = await pool.request().query(`
+      SELECT id, name, logo_url
+      FROM Brands
+      WHERE status = 'active'
+      ORDER BY name ASC
+    `);
+    return result.recordset;
+  },
+
+  // Danh sách danh mục đang active — dùng cho filter công khai
+  getCategoriesList: async () => {
+    const result = await pool.request().query(`
+      SELECT id, name, slug, parent_id
+      FROM Categories
+      WHERE is_active = 1
+      ORDER BY sort_order ASC, name ASC
+    `);
+    return result.recordset;
   }
 };

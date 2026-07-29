@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
+import { socketService } from '../services/socketService';
 import { User, AuthContextType } from '../types';
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUser(freshUser);
         } catch (error) {
           console.warn('Session expired or invalid, logging out automatically.');
+          socketService.disconnect();
           authService.logout();
           setUser(null);
         }
@@ -80,11 +82,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = (): void => {
+    socketService.disconnect();
     authService.logout();
     setUser(null);
   };
 
   const updateUser = (updatedUser: User): void => {
+    localStorage.setItem('ecom_user', JSON.stringify(updatedUser));
     setUser(updatedUser);
   };
 

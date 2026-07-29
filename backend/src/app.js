@@ -16,6 +16,11 @@ import aiRoutes from "./routes/ai.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import orderRoutes from "./routes/order.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
+import sellerRoutes from "./routes/seller.routes.js";
+import chatRoutes from "./routes/chat.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import bannerRoutes from "./routes/banner.routes.js";
 
 // Middlewares imports
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -57,7 +62,8 @@ app.use(express.urlencoded({ extended: true }));
 // Rate limiter to prevent abusive API calls
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === "production" ? 100 : 2000, // limit each IP to 100 requests per windowMs
+  skip: () => process.env.NODE_ENV !== "production" && process.env.ENABLE_RATE_LIMIT !== "true",
   message: {
     message:
       "Too many requests from this IP, please try again after 15 minutes.",
@@ -88,6 +94,11 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/seller", sellerRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/banners", bannerRoutes);
 
 // 4. Handle 404 Routes
 app.all("*", (req, res, next) => {

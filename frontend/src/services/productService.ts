@@ -4,7 +4,35 @@ import { Product } from '../types';
 export interface ProductFilterParams {
   category?: string;
   search?: string;
+  brand?: string;
 }
+
+export interface BrandOption {
+  id: string;
+  name: string;
+  logo_url?: string;
+}
+
+export interface CategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id?: string | null;
+}
+
+const CATEGORY_ALIASES: Record<string, string[]> = {
+  'am-thanh': ['Audio', 'Âm Thanh'],
+  'dong-ho-wear': ['Wearables', 'Thiết Bị Đeo'],
+  'dien-tu': ['Electronics', 'Điện Tử'],
+  'phu-kien': ['Accessories', 'Phụ Kiện'],
+  'nha-bep': ['Home & Kitchen', 'Nhà & Bếp'],
+};
+
+const matchesCategory = (product: Product, category: string) => {
+  const values = [category, ...(CATEGORY_ALIASES[category] || [])].map(v => v.toLowerCase());
+  return values.includes((product.category || '').toLowerCase())
+    || values.includes((product.category_slug || '').toLowerCase());
+};
 
 const fallbackProducts: Product[] = [
   {
@@ -82,7 +110,7 @@ export const productService = {
       let filtered = [...fallbackProducts];
       
       if (category) {
-        filtered = filtered.filter(p => p.category.toLowerCase() === category.toLowerCase());
+        filtered = filtered.filter(p => matchesCategory(p, category));
       }
       
       if (search) {
@@ -107,6 +135,26 @@ export const productService = {
       const found = fallbackProducts.find(p => p.id === productId);
       if (found) return found;
       throw error;
+    }
+  },
+
+  getBrands: async (): Promise<BrandOption[]> => {
+    try {
+      const response: any = await API.get('/products/meta/brands');
+      const data = response.data || response;
+      return data.brands || [];
+    } catch {
+      return [];
+    }
+  },
+
+  getCategories: async (): Promise<CategoryOption[]> => {
+    try {
+      const response: any = await API.get('/products/meta/categories');
+      const data = response.data || response;
+      return data.categories || [];
+    } catch {
+      return [];
     }
   },
 

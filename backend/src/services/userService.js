@@ -64,9 +64,12 @@ export const userService = {
     }
 
     // 3. Generate JWT token
+    if (!process.env.ACCESS_TOKEN_SECRET) {
+      throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
+    }
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "supersecretkeyforecommerce2026_dev_env",
+      { userID: user.id, email: user.email, role: user.role || "customer" },
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
     );
 
@@ -110,12 +113,14 @@ export const userService = {
     return result.recordset[0];
   },
 
-  // Find user by Name
+  // Find user by Name or Email
   findByName: async (name) => {
+    const inputLower = name ? name.toString().trim() : "";
     const result = await pool
       .request()
-      .input("name", sql.NVarChar, name)
-      .query("SELECT * FROM Users WHERE name = @name");
+      .input("name", sql.NVarChar, inputLower)
+      .input("email", sql.VarChar, inputLower.toLowerCase())
+      .query("SELECT * FROM Users WHERE name = @name OR email = @email");
 
     if (result.recordset[0]) {
       // Map password field to hashedPassword for consistency

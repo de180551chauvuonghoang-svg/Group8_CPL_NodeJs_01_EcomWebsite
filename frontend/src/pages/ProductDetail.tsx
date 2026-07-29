@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { productService } from '../services/productService';
+import { reviewService, Review } from '../services/reviewService';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
 import { Product } from '../types';
+import { setLiveChatSeller } from '../components/common/LiveChatWidget';
 
 /* ─── Helpers ─── */
 const fmt = (n: number) =>
@@ -112,6 +115,8 @@ export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const authCtx = useContext(AuthContext);
+  const user = authCtx?.user;
 
   const [product, setProduct]   = useState<Product | null>(null);
   const [related, setRelated]   = useState<Product[]>([]);
@@ -122,6 +127,8 @@ export default function ProductDetail() {
   const [tab, setTab]           = useState<Tab>('description');
   const [added, setAdded]       = useState(false);
   const [boughtNow, setBoughtNow] = useState(false);
+  const [reviews, setReviews]     = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   /* Fetch product */
   useEffect(() => {
@@ -147,6 +154,16 @@ export default function ProductDetail() {
     })();
   }, [id]);
 
+  /* Fetch reviews when the Reviews tab is opened */
+  useEffect(() => {
+    if (tab !== 'reviews' || !id) return;
+    setReviewsLoading(true);
+    reviewService.getProductReviews(id)
+      .then(setReviews)
+      .catch(() => setReviews([]))
+      .finally(() => setReviewsLoading(false));
+  }, [tab, id]);
+
   const handleAddToCart = useCallback(() => {
     if (!product) return;
     addToCart(product);
@@ -159,6 +176,20 @@ export default function ProductDetail() {
     addToCart(product);
     navigate('/cart');
   }, [product, addToCart, navigate]);
+
+  const handleChatWithSeller = useCallback(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (product?.seller_user_id) {
+      setLiveChatSeller(product.seller_user_id, {
+        name: product.seller_name || 'Shop',
+        avatarUrl: product.seller_logo_url,
+        shopId: product.seller_id,
+      });
+    }
+  }, [user, product, navigate]);
 
   /* ─── Loading skeleton ─── */
   if (loading) return (
@@ -339,7 +370,7 @@ export default function ProductDetail() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <button
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
@@ -370,6 +401,27 @@ export default function ProductDetail() {
               </button>
             </div>
 
+            {product.seller_id && (
+              <Link
+                to={`/shops/${product.seller_id}`}
+                className="w-full h-12 mb-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-outline hover:border-primary/50 text-on-surface-variant hover:text-primary transition-all duration-200 active:scale-98"
+              >
+                <span className="material-symbols-outlined text-[20px]">storefront</span>
+                Xem shop
+              </Link>
+            )}
+
+            {/* Chat with Seller Button */}
+            {product.seller_user_id && (!user || (user.id !== product.seller_user_id && user.role !== 'admin')) && (
+              <button
+                onClick={handleChatWithSeller}
+                className="w-full h-12 mb-8 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 border-outline hover:border-primary/50 text-on-surface-variant hover:text-primary transition-all duration-200 active:scale-98"
+              >
+                <span className="material-symbols-outlined text-[20px]">chat</span>
+                Chat với người bán
+              </button>
+            )}
+
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-outline-variant/30">
               {[
@@ -393,7 +445,7 @@ export default function ProductDetail() {
             {([
               { key: 'description', label: 'Mô tả sản phẩm', icon: 'description' },
               { key: 'specs',       label: 'Thông số kỹ thuật', icon: 'tune' },
-              { key: 'reviews',     label: `Đánh giá (${reviewCount})`, icon: 'star' },
+              { key: 'reviews',     label: `Đánh giá (${tab === 'reviews' && !reviewsLoading ? reviews.length : reviewCount})`, icon: 'star' },
             ] as { key: Tab; label: string; icon: string }[]).map(t => (
               <button
                 key={t.key}
@@ -454,54 +506,83 @@ export default function ProductDetail() {
 
               {tab === 'reviews' && (
                 <div className="space-y-4 max-w-xl">
-                  {/* Summary */}
-                  <div className="flex items-center gap-6 p-5 rounded-2xl bg-surface-container">
-                    <div className="text-center">
-                      <div className="text-5xl font-black text-primary">{rating.toFixed(1)}</div>
-                      <StarRating rating={rating} />
-                      <p className="text-xs text-on-surface-variant mt-1">{reviewCount} đánh giá</p>
+                  {reviewsLoading ? (
+                    <div className="flex items-center gap-2 text-on-surface-variant py-6">
+                      <span className="material-symbols-outlined animate-spin text-primary">sync</span>
+                      Đang tải đánh giá...
                     </div>
-                    <div className="flex-1 space-y-1.5">
-                      {[5,4,3,2,1].map(star => {
-                        const pct = star === Math.round(rating) ? 65
-                                  : star === Math.round(rating) - 1 ? 25
-                                  : star > Math.round(rating) ? 5 : 5;
+                  ) : reviews.length === 0 ? (
+                    <div className="text-center py-12">
+                      <span className="material-symbols-outlined text-[48px] text-on-surface-variant/30">rate_review</span>
+                      <p className="mt-3 text-on-surface-variant text-sm">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+                      <p className="text-xs text-on-surface-variant/60 mt-1">Mua hàng xong, vào Đơn hàng → Đánh giá sản phẩm.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Rating summary — calculated from real reviews */}
+                      <div className="flex items-center gap-6 p-5 rounded-2xl bg-surface-container">
+                        <div className="text-center shrink-0">
+                          <div className="text-5xl font-black text-primary">
+                            {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
+                          </div>
+                          <StarRating rating={reviews.reduce((s, r) => s + r.rating, 0) / reviews.length} />
+                          <p className="text-xs text-on-surface-variant mt-1">{reviews.length} đánh giá</p>
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          {[5, 4, 3, 2, 1].map(star => {
+                            const count = reviews.filter(r => r.rating === star).length;
+                            const pct   = Math.round((count / reviews.length) * 100);
+                            return (
+                              <div key={star} className="flex items-center gap-2 text-xs">
+                                <span className="w-3 text-on-surface-variant">{star}</span>
+                                <span className="text-warning text-[10px]">★</span>
+                                <div className="flex-1 h-2 rounded-full bg-surface-container-high overflow-hidden">
+                                  <div className="h-full rounded-full bg-warning transition-all duration-500"
+                                       style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="w-7 text-right text-on-surface-variant">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Review cards */}
+                      {reviews.map(r => {
+                        const initials = r.user_name?.slice(0, 1).toUpperCase() || '?';
+                        const dateStr  = new Date(r.created_at).toLocaleDateString('vi-VN');
                         return (
-                          <div key={star} className="flex items-center gap-2 text-xs">
-                            <span className="w-3 text-on-surface-variant">{star}</span>
-                            <span className="text-warning text-[10px]">★</span>
-                            <div className="flex-1 h-2 rounded-full bg-surface-container-high overflow-hidden">
-                              <div className="h-full rounded-full bg-warning" style={{ width: `${pct}%` }} />
+                          <div key={r.id} className="p-4 rounded-2xl border border-outline-variant/40 bg-surface-container">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2">
+                                {r.avatar_url ? (
+                                  <img src={r.avatar_url} alt={r.user_name}
+                                       className="w-8 h-8 rounded-full object-cover" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                    {initials}
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-sm font-bold text-on-surface">{r.user_name}</p>
+                                  <p className="text-[10px] text-on-surface-variant">{dateStr}</p>
+                                </div>
+                              </div>
+                              <div className="flex text-warning text-sm shrink-0">
+                                {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                              </div>
                             </div>
-                            <span className="w-6 text-on-surface-variant">{pct}%</span>
+                            {r.title && (
+                              <p className="text-sm font-semibold text-on-surface mb-1">{r.title}</p>
+                            )}
+                            {r.body && (
+                              <p className="text-sm text-on-surface-variant leading-relaxed">{r.body}</p>
+                            )}
                           </div>
                         );
                       })}
-                    </div>
-                  </div>
-
-                  {/* Mock review cards */}
-                  {[
-                    { name: 'Minh Tuấn', rating: 5, date: '15/05/2026', text: 'Sản phẩm rất tốt, đúng như mô tả. Đóng gói cẩn thận, giao hàng nhanh. Sẽ mua lại.' },
-                    { name: 'Thu Hà',    rating: 4, date: '02/05/2026', text: 'Chất lượng ổn cho tầm giá. Thiết kế đẹp, dùng được một tuần thấy hoạt động tốt.' },
-                    { name: 'Bảo Long',  rating: 5, date: '28/04/2026', text: 'Xuất sắc! Vượt kỳ vọng. Chăm sóc khách hàng nhiệt tình. Highly recommend.' },
-                  ].map((r, i) => (
-                    <div key={i} className="p-4 rounded-2xl border border-outline-variant/40 bg-surface-container">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-                            {r.name[0]}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-on-surface">{r.name}</p>
-                            <p className="text-[10px] text-on-surface-variant">{r.date}</p>
-                          </div>
-                        </div>
-                        <div className="flex text-warning text-sm">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div>
-                      </div>
-                      <p className="text-sm text-on-surface-variant leading-relaxed">{r.text}</p>
-                    </div>
-                  ))}
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -514,7 +595,7 @@ export default function ProductDetail() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-black text-navy-dark">Sản phẩm liên quan</h2>
               <Link
-                to={`/products?category=${product.category}`}
+                to={`/products?category=${product.category_slug || product.category}`}
                 className="text-sm text-primary font-semibold hover:underline flex items-center gap-1"
               >
                 Xem tất cả

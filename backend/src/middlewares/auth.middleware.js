@@ -24,11 +24,19 @@ export const protect = async (req, res, next) => {
     );
 
     // Tìm user
-    const user = await userService.findById(decodedUser.userID);
+    const userId = decodedUser.userID || decodedUser.id;
+    const user = await userService.findById(userId);
     if (!user) {
       return res.status(404).json({
         status: "fail",
         message: "User not found",
+      });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({
+        status: "fail",
+        message: "Tài khoản của bạn đã bị khoá.",
       });
     }
 

@@ -112,13 +112,17 @@ router.post("/signup", signUp);
  *           schema:
  *             type: object
  *             required:
- *               - email
  *               - password
  *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Tên đăng nhập hoặc Email
+ *                 example: customer
  *               email:
  *                 type: string
  *                 format: email
- *                 example: nguyenvana@gmail.com
+ *                 description: Hoặc nhập Email
+ *                 example: de180551chauvuonghoang@gmail.com
  *               password:
  *                 type: string
  *                 format: password
