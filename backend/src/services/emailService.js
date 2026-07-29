@@ -39,8 +39,9 @@ export const emailService = {
       <html>
       <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mã Xác Thực Volitify</titl          body {
+        <title>Mã Xác Thực Volitify</title>
+        <style>
+          body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: #f3f4f6;
             margin: 0;

@@ -143,7 +143,7 @@ export default function Login() {
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="email">
-                  Tên đăng nhập
+                  Tên đăng nhập / Email
                 </label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">
@@ -153,7 +153,7 @@ export default function Login() {
                     className="w-full h-[56px] pl-12 pr-4 bg-[#F1F5F9] border border-outline-variant rounded-xl focus:border-primary focus:ring-0 focus:outline-none input-focus-glow transition-all font-body-md text-on-surface"
                     id="email"
                     name="email"
-                    placeholder="customer"
+                    placeholder="Nhập tên tài khoản hoặc email..."
                     required
                     type="text"
                     value={email}
