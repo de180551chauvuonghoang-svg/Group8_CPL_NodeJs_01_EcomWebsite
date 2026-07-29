@@ -24,7 +24,9 @@ const loadGoogleScript = () => {
   }
 
   gsiScriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]') as HTMLScriptElement | null;
+    const existing = document.querySelector(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    ) as HTMLScriptElement | null;
     const script = existing || document.createElement('script');
 
     script.src = 'https://accounts.google.com/gsi/client';
@@ -100,7 +102,8 @@ export const useGoogleAuth = ({ onSuccess, onError, buttonElementId }: UseGoogle
 
         setIsScriptLoaded(true);
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Không khởi tạo được Google Login.';
+        const message =
+          error instanceof Error ? error.message : 'Không khởi tạo được Google Login.';
         onErrorRef.current(message);
       }
     };

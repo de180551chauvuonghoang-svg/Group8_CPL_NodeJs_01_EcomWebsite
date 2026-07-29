@@ -1,48 +1,64 @@
 <!doctype html>
 <html lang="vi" class="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Volitify | Điện tử Tiêu dùng Tương lai</title>
 
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Volitify | Điện tử Tiêu dùng Tương lai</title>
+    <!-- Google Identity Services (OAuth) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- Google Identity Services (OAuth) -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google Fonts (optional — falls back to system stack if offline) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
-  <!-- Google Fonts (optional — falls back to system stack if offline) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Performance: DNS prefetch cho external domains -->
+    <link rel="dns-prefetch" href="https://lh3.googleusercontent.com" />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="dns-prefetch" href="https://accounts.google.com" />
 
-  <!-- Performance: DNS prefetch cho external domains -->
-  <link rel="dns-prefetch" href="https://lh3.googleusercontent.com" />
-  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-  <link rel="dns-prefetch" href="https://accounts.google.com" />
+    <meta
+      name="description"
+      content="Volitify - Mua sắm điện tử tiêu dùng cao cấp: TV, âm thanh, nhà thông minh và nhiều hơn nữa. Trải nghiệm mua sắm hiện đại."
+    />
+    <meta name="theme-color" content="#004ac6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)" />
 
-  <meta name="description" content="Volitify - Mua sắm điện tử tiêu dùng cao cấp: TV, âm thanh, nhà thông minh và nhiều hơn nữa. Trải nghiệm mua sắm hiện đại." />
-  <meta name="theme-color" content="#004ac6" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)" />
+    <style>
+      /* Prevent flash of unstyled content before CSS loads */
+      body {
+        visibility: hidden;
+      }
+      body.loaded {
+        visibility: visible;
+      }
 
-  <style>
-    /* Prevent flash of unstyled content before CSS loads */
-    body { visibility: hidden; }
-    body.loaded { visibility: visible; }
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+    </style>
+  </head>
 
-    .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-    }
-  </style>
-
-</head>
-
-<body class="bg-background text-on-surface">
-  <div id="root"></div>
-  <!-- Mark body as loaded to remove FOUC prevention -->
-  <script>document.body.classList.add('loaded');</script>
-  <script type="module" src="/src/main.tsx"></script>
-</body>
-
+  <body class="bg-background text-on-surface">
+    <div id="root"></div>
+    <!-- Mark body as loaded to remove FOUC prevention -->
+    <script>
+      document.body.classList.add('loaded');
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
