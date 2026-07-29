@@ -15,14 +15,17 @@ const formatTime = (dateStr?: string) => {
   }
 };
 
-const sortChats = (items: ChatPartner[]) => [...items].sort((a, b) => {
-  const unreadDiff = Number(b.unread_count || 0) - Number(a.unread_count || 0);
-  if (unreadDiff !== 0) return unreadDiff;
-  return new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime();
-});
+const sortChats = (items: ChatPartner[]) =>
+  [...items].sort((a, b) => {
+    const unreadDiff = Number(b.unread_count || 0) - Number(a.unread_count || 0);
+    if (unreadDiff !== 0) return unreadDiff;
+    return (
+      new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime()
+    );
+  });
 
 const filterSellerChats = (items: ChatPartner[], currentUserId?: string) => {
-  return items.filter(chat => {
+  return items.filter((chat) => {
     if (!chat?.id) return false;
     if (chat.id === currentUserId) return false;
     if (chat.seller_id || chat.shop_name || chat.shop_logo_url) return false;
@@ -44,19 +47,22 @@ export default function SellerInbox() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const appendMessage = useCallback((msg: Message) => {
-    setMessages(prev => {
-      if (prev.some(item => item.id === msg.id)) return prev;
+    setMessages((prev) => {
+      if (prev.some((item) => item.id === msg.id)) return prev;
       return [...prev, msg];
     });
   }, []);
 
-  const applyChats = useCallback((items: ChatPartner[]) => {
-    setChats(sortChats(filterSellerChats(items, user?.id)));
-  }, [user?.id]);
+  const applyChats = useCallback(
+    (items: ChatPartner[]) => {
+      setChats(sortChats(filterSellerChats(items, user?.id)));
+    },
+    [user?.id],
+  );
 
   useEffect(() => {
     if (!user?.id) return;
-    socketService.connect(user.id);
+    socketService.connect();
     return () => {
       socketService.offReceiveMessage();
       socketService.offMessageSent();
@@ -93,8 +99,8 @@ export default function SellerInbox() {
       const belongsToActiveChat = Boolean(activeChat && partnerId === activeChat.id);
       if (belongsToActiveChat) appendMessage(msg);
 
-      setChats(prev => {
-        const existing = prev.find(chat => chat.id === partnerId);
+      setChats((prev) => {
+        const existing = prev.find((chat) => chat.id === partnerId);
         if (!existing && msg.sender_id === user.id) return prev;
 
         const partner: ChatPartner = existing || {
@@ -104,9 +110,10 @@ export default function SellerInbox() {
           unread_count: 0,
         };
 
-        const unread = msg.sender_id !== user.id && !belongsToActiveChat
-          ? Number(partner.unread_count || 0) + 1
-          : Number(partner.unread_count || 0);
+        const unread =
+          msg.sender_id !== user.id && !belongsToActiveChat
+            ? Number(partner.unread_count || 0) + 1
+            : Number(partner.unread_count || 0);
 
         const nextPartner = {
           ...partner,
@@ -115,7 +122,7 @@ export default function SellerInbox() {
           unread_count: belongsToActiveChat ? 0 : unread,
         };
 
-        return sortChats([nextPartner, ...prev.filter(chat => chat.id !== partnerId)]);
+        return sortChats([nextPartner, ...prev.filter((chat) => chat.id !== partnerId)]);
       });
     });
 
@@ -126,9 +133,15 @@ export default function SellerInbox() {
     socketService.offChatUnreadUpdated();
     socketService.onChatUnreadUpdated((payload: ChatUnreadUpdate) => {
       if (!user?.id) return;
-      if (payload.partnerId === user.id || payload.seller_id || payload.shop_name || payload.shop_logo_url) return;
+      if (
+        payload.partnerId === user.id ||
+        payload.seller_id ||
+        payload.shop_name ||
+        payload.shop_logo_url
+      )
+        return;
 
-      setChats(prev => {
+      setChats((prev) => {
         const partner: ChatPartner = {
           id: payload.partnerId,
           name: payload.partnerName || 'Khách hàng',
@@ -139,7 +152,7 @@ export default function SellerInbox() {
           unread_count: activeChat?.id === payload.partnerId ? 0 : payload.unread_count,
         };
 
-        return sortChats([partner, ...prev.filter(chat => chat.id !== payload.partnerId)]);
+        return sortChats([partner, ...prev.filter((chat) => chat.id !== payload.partnerId)]);
       });
     });
     return () => socketService.offChatUnreadUpdated();
@@ -148,14 +161,17 @@ export default function SellerInbox() {
   useEffect(() => {
     socketService.offMessageSent();
     socketService.onMessageSent((msg: Message) => {
-      setMessages(prev => {
-        const withoutPending = prev.filter(item =>
-          !(item.id.startsWith('pending_')
-            && item.sender_id === msg.sender_id
-            && item.receiver_id === msg.receiver_id
-            && item.message_text === msg.message_text)
+      setMessages((prev) => {
+        const withoutPending = prev.filter(
+          (item) =>
+            !(
+              item.id.startsWith('pending_') &&
+              item.sender_id === msg.sender_id &&
+              item.receiver_id === msg.receiver_id &&
+              item.message_text === msg.message_text
+            ),
         );
-        if (withoutPending.some(item => item.id === msg.id)) return withoutPending;
+        if (withoutPending.some((item) => item.id === msg.id)) return withoutPending;
         return [...withoutPending, msg];
       });
       setSending(false);
@@ -180,7 +196,9 @@ export default function SellerInbox() {
       const history = await chatService.getChatHistory(partner.id);
       setMessages(Array.isArray(history) ? history : []);
       await chatService.markChatAsRead(partner.id);
-      setChats(prev => prev.map(chat => chat.id === partner.id ? { ...chat, unread_count: 0 } : chat));
+      setChats((prev) =>
+        prev.map((chat) => (chat.id === partner.id ? { ...chat, unread_count: 0 } : chat)),
+      );
     } catch {
       setMessages([]);
     } finally {
@@ -200,14 +218,17 @@ export default function SellerInbox() {
       created_at: new Date().toISOString(),
     };
 
+    if (!socketService.sendMessage(activeChat.id, messageText)) return;
+
     appendMessage(pendingMessage);
     setSending(true);
-    socketService.sendMessage(activeChat.id, messageText);
-    setChats(prev => prev.map(chat =>
-      chat.id === activeChat.id
-        ? { ...chat, last_message: messageText, last_message_time: pendingMessage.created_at }
-        : chat
-    ));
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === activeChat.id
+          ? { ...chat, last_message: messageText, last_message_time: pendingMessage.created_at }
+          : chat,
+      ),
+    );
     setInputText('');
     window.setTimeout(() => setSending(false), 5000);
   };
@@ -245,7 +266,7 @@ export default function SellerInbox() {
               <p className="text-sm text-on-surface-variant">Chưa có tin nhắn nào</p>
             </div>
           ) : (
-            chats.map(chat => (
+            chats.map((chat) => (
               <motion.button
                 key={chat.id}
                 onClick={() => openChat(chat)}
@@ -256,10 +277,16 @@ export default function SellerInbox() {
               >
                 <div className="relative shrink-0">
                   {chat.avatar_url ? (
-                    <img src={chat.avatar_url} alt={chat.name} className="h-11 w-11 rounded-full object-cover" />
+                    <img
+                      src={chat.avatar_url}
+                      alt={chat.name}
+                      className="h-11 w-11 rounded-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/15">
-                      <span className="text-sm font-black text-primary">{chat.name?.charAt(0)?.toUpperCase()}</span>
+                      <span className="text-sm font-black text-primary">
+                        {chat.name?.charAt(0)?.toUpperCase()}
+                      </span>
                     </div>
                   )}
                   {(chat.unread_count ?? 0) > 0 && (
@@ -271,9 +298,13 @@ export default function SellerInbox() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <span className="truncate text-sm font-bold text-on-surface">{chat.name}</span>
-                    <span className="ml-2 shrink-0 text-[10px] text-on-surface-variant">{formatTime(chat.last_message_time)}</span>
+                    <span className="ml-2 shrink-0 text-[10px] text-on-surface-variant">
+                      {formatTime(chat.last_message_time)}
+                    </span>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-on-surface-variant">{chat.last_message || 'Bắt đầu trò chuyện'}</p>
+                  <p className="mt-0.5 truncate text-xs text-on-surface-variant">
+                    {chat.last_message || 'Bắt đầu trò chuyện'}
+                  </p>
                 </div>
               </motion.button>
             ))
@@ -287,17 +318,25 @@ export default function SellerInbox() {
             <div className="text-center">
               <MessageSquare size={60} className="mx-auto mb-4 text-on-surface-variant/20" />
               <h3 className="text-lg font-bold text-on-surface">Chọn cuộc hội thoại</h3>
-              <p className="mt-1 text-sm text-on-surface-variant">Chọn một khách hàng từ danh sách để bắt đầu chat</p>
+              <p className="mt-1 text-sm text-on-surface-variant">
+                Chọn một khách hàng từ danh sách để bắt đầu chat
+              </p>
             </div>
           </div>
         ) : (
           <>
             <header className="flex shrink-0 items-center gap-3 border-b border-outline-variant/30 bg-surface-container-lowest/80 p-4 backdrop-blur">
               {activeChat.avatar_url ? (
-                <img src={activeChat.avatar_url} alt={activeChat.name} className="h-10 w-10 rounded-full object-cover" />
+                <img
+                  src={activeChat.avatar_url}
+                  alt={activeChat.name}
+                  className="h-10 w-10 rounded-full object-cover"
+                />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                  <span className="font-black text-primary">{activeChat.name?.charAt(0)?.toUpperCase()}</span>
+                  <span className="font-black text-primary">
+                    {activeChat.name?.charAt(0)?.toUpperCase()}
+                  </span>
                 </div>
               )}
               <div>
@@ -330,15 +369,19 @@ export default function SellerInbox() {
                     >
                       {!isMe && (
                         <div className="mt-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                          <span className="text-xs font-black text-primary">{activeChat.name?.charAt(0)?.toUpperCase()}</span>
+                          <span className="text-xs font-black text-primary">
+                            {activeChat.name?.charAt(0)?.toUpperCase()}
+                          </span>
                         </div>
                       )}
                       <div className="max-w-[72%]">
-                        <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                          isMe
-                            ? 'rounded-tr-sm bg-primary text-white'
-                            : 'rounded-tl-sm border border-outline-variant/40 bg-surface-container-lowest text-on-surface'
-                        }`}>
+                        <div
+                          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                            isMe
+                              ? 'rounded-tr-sm bg-primary text-white'
+                              : 'rounded-tl-sm border border-outline-variant/40 bg-surface-container-lowest text-on-surface'
+                          }`}
+                        >
                           {msg.message_text}
                         </div>
                       </div>
@@ -354,8 +397,9 @@ export default function SellerInbox() {
                 <input
                   type="text"
                   value={inputText}
-                  onChange={event => setInputText(event.target.value)}
+                  onChange={(event) => setInputText(event.target.value)}
                   onKeyDown={handleKeyDown}
+                  maxLength={2000}
                   placeholder={`Nhắn tin với ${activeChat.name}...`}
                   disabled={sending}
                   className="min-w-0 flex-1 bg-transparent text-sm font-medium text-on-surface outline-none placeholder:text-on-surface-variant/50"

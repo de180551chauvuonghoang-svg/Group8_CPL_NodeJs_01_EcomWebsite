@@ -16,6 +16,8 @@ export const initDb = async (pool, sql) => {
     await createSessionsTable(pool);
     await createOtpsTable(pool);
     await createSellersTable(pool);
+    await createShopFollowersTable(pool);
+    await createNotificationsTable(pool);
     await createCategoriesTable(pool);
     await createProductsTable(pool);
     await createProductImagesTable(pool);
@@ -24,6 +26,7 @@ export const initDb = async (pool, sql) => {
     await createAttributeValuesTable(pool);
     await createProductVariantsTable(pool);
     await createProductFlashSalesTable(pool);
+    await normalizeFlashSaleDefaultVariants(pool);
     await createVariantAttributeValuesTable(pool);
     await createInventoryLogsTable(pool);
     await createReviewsTable(pool); // order_item_id FK added later
@@ -36,6 +39,10 @@ export const initDb = async (pool, sql) => {
     await createCouponCategoriesTable(pool);
     await createOrdersTable(pool);
     await createOrderItemsTable(pool);
+    await createOrderCouponsTable(pool);
+    await createOrderItemStatusHistoryTable(pool);
+    await createReturnRequestsTable(pool);
+    await createReturnStatusHistoryTable(pool);
     await addReviewsOrderItemFk(pool); // deferred FK
     await createPaymentsTable(pool);
     await createRefundsTable(pool);
@@ -53,6 +60,11 @@ export const initDb = async (pool, sql) => {
     console.log("[✓] initDb: All 24 tables + AI tables verified/created.");
 
     await seedData(pool, sql);
+    // Seed data is inserted after the first schema pass. Run the idempotent
+    // variant normalization again so a fresh database is valid immediately.
+    await createProductVariantsTable(pool);
+    await assignDevelopmentOrphanProducts(pool);
+    await backfillOrderItemStatusHistory(pool);
   } catch (err) {
     console.error("[🚨 initDb ERROR]", err.message);
     throw err;
@@ -187,7 +199,9 @@ const createSellersTable = async (pool) => {
         shop_address  NVARCHAR(500)  NOT NULL,
         pickup_address NVARCHAR(500) NULL,
         logo_url      VARCHAR(2083)   NULL,
+        logo_public_id VARCHAR(255)   NULL,
         cover_url     VARCHAR(2083)   NULL,
+        cover_public_id VARCHAR(255)  NULL,
         description   NVARCHAR(MAX)  NULL,
         identity_name NVARCHAR(150)   NULL,
         identity_number VARCHAR(30)   NULL,
@@ -212,6 +226,10 @@ const createSellersTable = async (pool) => {
         ALTER TABLE Sellers ADD cover_url VARCHAR(2083) NULL;
         PRINT '[✓] Column cover_url added to Sellers';
       END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'logo_public_id')
+        ALTER TABLE Sellers ADD logo_public_id VARCHAR(255) NULL;
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'cover_public_id')
+        ALTER TABLE Sellers ADD cover_public_id VARCHAR(255) NULL;
       IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Sellers') AND name = 'pickup_address')
       BEGIN
         ALTER TABLE Sellers ADD pickup_address NVARCHAR(500) NULL;
@@ -242,6 +260,64 @@ const createSellersTable = async (pool) => {
         ALTER TABLE Sellers ADD bank_account_holder NVARCHAR(150) NULL;
         PRINT '[✓] Column bank_account_holder added to Sellers';
       END
+    END
+  `);
+};
+
+const assignDevelopmentOrphanProducts = async (pool) => {
+  if (process.env.NODE_ENV === "production") return;
+  await pool.request().query(`
+    DECLARE @defaultSellerId VARCHAR(50) = (
+      SELECT TOP 1 id FROM Sellers ORDER BY created_at, id
+    );
+    IF @defaultSellerId IS NOT NULL
+    BEGIN
+      UPDATE Products
+      SET seller_id = @defaultSellerId,
+          updated_at = GETDATE()
+      WHERE seller_id IS NULL;
+    END
+  `);
+};
+
+const createShopFollowersTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ShopFollowers')
+    BEGIN
+      CREATE TABLE ShopFollowers (
+        user_id     VARCHAR(50) NOT NULL REFERENCES Users(id) ON DELETE NO ACTION,
+        seller_id   VARCHAR(50) NOT NULL REFERENCES Sellers(id) ON DELETE CASCADE,
+        created_at  DATETIME2   NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT PK_ShopFollowers PRIMARY KEY (user_id, seller_id)
+      );
+      CREATE INDEX IX_ShopFollowers_seller_created
+        ON ShopFollowers(seller_id, created_at);
+    END
+  `);
+};
+
+const createNotificationsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Notifications')
+    BEGIN
+      CREATE TABLE Notifications (
+        id           VARCHAR(50)    NOT NULL PRIMARY KEY,
+        user_id      VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+        type         VARCHAR(40)    NOT NULL,
+        title        NVARCHAR(200)  NOT NULL,
+        message      NVARCHAR(1000) NOT NULL,
+        entity_type  VARCHAR(40)    NULL,
+        entity_id    VARCHAR(50)    NULL,
+        data_json    NVARCHAR(MAX)  NULL,
+        dedupe_key   VARCHAR(255)   NULL,
+        is_read      BIT            NOT NULL DEFAULT 0,
+        read_at      DATETIME2      NULL,
+        created_at   DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Notifications_user_read_created
+        ON Notifications(user_id, is_read, created_at DESC);
+      CREATE UNIQUE INDEX UX_Notifications_dedupe_key
+        ON Notifications(dedupe_key) WHERE dedupe_key IS NOT NULL;
     END
   `);
 };
@@ -321,6 +397,7 @@ const createProductImagesTable = async (pool) => {
         id          VARCHAR(50)    NOT NULL PRIMARY KEY,
         product_id  VARCHAR(50)    NOT NULL REFERENCES Products(id) ON DELETE CASCADE,
         image_url   VARCHAR(2083)  NOT NULL,
+        public_id   VARCHAR(255)   NULL,
         alt_text    NVARCHAR(255)  NULL,
         sort_order  INT            NOT NULL DEFAULT 0,
         is_primary  BIT            NOT NULL DEFAULT 0,
@@ -328,6 +405,13 @@ const createProductImagesTable = async (pool) => {
       );
       CREATE INDEX IX_ProductImages_product_id ON ProductImages(product_id);
       PRINT '[✓] Table ProductImages created';
+    END
+    ELSE IF NOT EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('ProductImages') AND name = 'public_id'
+    )
+    BEGIN
+      ALTER TABLE ProductImages ADD public_id VARCHAR(255) NULL;
     END
   `);
 };
@@ -388,15 +472,104 @@ const createProductVariantsTable = async (pool) => {
         price         DECIMAL(18,2)  NOT NULL,
         compare_price DECIMAL(18,2)  NULL,
         stock_qty     INT            NOT NULL DEFAULT 0,
+        low_stock_threshold INT      NOT NULL DEFAULT 5,
         weight_kg     DECIMAL(8,3)   NULL,
         image_url     VARCHAR(2083)  NULL,
         is_active     BIT            NOT NULL DEFAULT 1,
+        is_default    BIT            NOT NULL DEFAULT 1,
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_ProductVariants_product_id ON ProductVariants(product_id);
       CREATE INDEX IX_ProductVariants_sku ON ProductVariants(sku);
       PRINT '[✓] Table ProductVariants created';
+    END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID('ProductVariants') AND name = 'low_stock_threshold'
+      )
+      BEGIN
+        ALTER TABLE ProductVariants
+          ADD low_stock_threshold INT NOT NULL
+          CONSTRAINT DF_ProductVariants_low_stock_threshold DEFAULT 5 WITH VALUES;
+      END
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID('ProductVariants') AND name = 'is_default'
+      )
+      BEGIN
+        ALTER TABLE ProductVariants
+          ADD is_default BIT NOT NULL
+          CONSTRAINT DF_ProductVariants_is_default DEFAULT 0 WITH VALUES;
+      END
+    END
+  `);
+
+  await pool.request().query(`
+    ;WITH ranked AS (
+      SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY product_id
+               ORDER BY CASE WHEN is_default = 1 THEN 0 ELSE 1 END,
+                        CASE WHEN is_active = 1 THEN 0 ELSE 1 END,
+                        created_at,
+                        id
+             ) AS row_num
+      FROM ProductVariants
+    )
+    UPDATE variant
+    SET is_default = CASE WHEN ranked.row_num = 1 THEN 1 ELSE 0 END
+    FROM ProductVariants variant
+    INNER JOIN ranked ON ranked.id = variant.id;
+
+    ;WITH stock_totals AS (
+      SELECT product_id, SUM(stock_qty) AS total_stock
+      FROM ProductVariants
+      GROUP BY product_id
+    )
+    UPDATE variant
+    SET stock_qty = stock_totals.total_stock,
+        is_active = 1
+    FROM ProductVariants variant
+    INNER JOIN stock_totals ON stock_totals.product_id = variant.product_id
+    WHERE variant.is_default = 1;
+
+    UPDATE ProductVariants
+    SET stock_qty = 0,
+        is_active = 0
+    WHERE is_default = 0;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = 'UX_ProductVariants_one_default'
+        AND object_id = OBJECT_ID('ProductVariants')
+    )
+    BEGIN
+      CREATE UNIQUE INDEX UX_ProductVariants_one_default
+        ON ProductVariants(product_id)
+        WHERE is_default = 1;
+    END
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.check_constraints
+      WHERE name = 'CK_ProductVariants_stock_nonnegative'
+    )
+    BEGIN
+      ALTER TABLE ProductVariants WITH CHECK
+        ADD CONSTRAINT CK_ProductVariants_stock_nonnegative
+        CHECK (stock_qty >= 0);
+    END
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.check_constraints
+      WHERE name = 'CK_ProductVariants_low_stock_threshold_nonnegative'
+    )
+    BEGIN
+      ALTER TABLE ProductVariants WITH CHECK
+        ADD CONSTRAINT CK_ProductVariants_low_stock_threshold_nonnegative
+        CHECK (low_stock_threshold >= 0);
     END
   `);
 };
@@ -426,6 +599,20 @@ const createProductFlashSalesTable = async (pool) => {
   `);
 };
 
+const normalizeFlashSaleDefaultVariants = async (pool) => {
+  await pool.request().query(`
+    UPDATE flash_sale
+    SET variant_id = default_variant.id,
+        updated_at = GETDATE()
+    FROM ProductFlashSales flash_sale
+    INNER JOIN ProductVariants default_variant
+      ON default_variant.product_id = flash_sale.product_id
+      AND default_variant.is_default = 1
+    WHERE flash_sale.variant_id IS NOT NULL
+      AND flash_sale.variant_id <> default_variant.id
+  `);
+};
+
 const createVariantAttributeValuesTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'VariantAttributeValues')
@@ -445,16 +632,137 @@ const createInventoryLogsTable = async (pool) => {
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'InventoryLogs')
     BEGIN
       CREATE TABLE InventoryLogs (
-        id            VARCHAR(50)    NOT NULL PRIMARY KEY,
-        variant_id    VARCHAR(50)    NOT NULL REFERENCES ProductVariants(id) ON DELETE CASCADE,
-        change_qty    INT            NOT NULL,
-        reason        NVARCHAR(255)  NULL,
-        reference_id  VARCHAR(50)    NULL,
-        created_by    VARCHAR(50)    NULL REFERENCES Users(id) ON DELETE SET NULL,
-        created_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+        id               VARCHAR(50)    NOT NULL PRIMARY KEY,
+        variant_id       VARCHAR(50)    NOT NULL REFERENCES ProductVariants(id) ON DELETE CASCADE,
+        old_quantity     INT            NOT NULL,
+        change_quantity  INT            NOT NULL,
+        new_quantity     INT            NOT NULL,
+        type             VARCHAR(30)    NOT NULL,
+        reference_id     VARCHAR(50)    NULL,
+        reason           NVARCHAR(255)  NULL,
+        created_by       VARCHAR(50)    NULL REFERENCES Users(id) ON DELETE SET NULL,
+        created_at       DATETIME2      NOT NULL DEFAULT GETDATE()
       );
-      CREATE INDEX IX_InventoryLogs_variant_id ON InventoryLogs(variant_id);
+      CREATE INDEX IX_InventoryLogs_variant_created
+        ON InventoryLogs(variant_id, created_at DESC);
+      CREATE INDEX IX_InventoryLogs_type ON InventoryLogs(type);
       PRINT '[✓] Table InventoryLogs created';
+    END
+    ELSE
+    BEGIN
+      IF COL_LENGTH('InventoryLogs', 'change_quantity') IS NULL
+         AND COL_LENGTH('InventoryLogs', 'change_qty') IS NOT NULL
+      BEGIN
+        EXEC sp_rename 'InventoryLogs.change_qty', 'change_quantity', 'COLUMN';
+      END
+
+      IF COL_LENGTH('InventoryLogs', 'old_quantity') IS NULL
+        ALTER TABLE InventoryLogs ADD old_quantity INT NULL;
+      IF COL_LENGTH('InventoryLogs', 'new_quantity') IS NULL
+        ALTER TABLE InventoryLogs ADD new_quantity INT NULL;
+      IF COL_LENGTH('InventoryLogs', 'type') IS NULL
+        ALTER TABLE InventoryLogs ADD type VARCHAR(30) NULL;
+    END
+  `);
+
+  // Reconstruct old inventory snapshots from the current stock and historical deltas.
+  await pool.request().query(`
+    ;WITH reconstructed AS (
+      SELECT
+        inventory.id,
+        variant.stock_qty - COALESCE(
+          SUM(inventory.change_quantity) OVER (
+            PARTITION BY inventory.variant_id
+            ORDER BY inventory.created_at DESC, inventory.id DESC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+          ),
+          0
+        ) AS reconstructed_new_quantity
+      FROM InventoryLogs inventory
+      INNER JOIN ProductVariants variant ON variant.id = inventory.variant_id
+    )
+    UPDATE inventory
+    SET new_quantity = reconstructed.reconstructed_new_quantity,
+        old_quantity = reconstructed.reconstructed_new_quantity - inventory.change_quantity,
+        type = CASE
+          WHEN inventory.change_quantity < 0 THEN 'sale'
+          WHEN LOWER(COALESCE(inventory.reason, '')) LIKE '%hủy%' THEN 'order_cancelled'
+          WHEN inventory.change_quantity > 0 THEN 'restock'
+          ELSE 'manual_adjustment'
+        END
+    FROM InventoryLogs inventory
+    INNER JOIN reconstructed ON reconstructed.id = inventory.id
+    WHERE inventory.old_quantity IS NULL
+       OR inventory.new_quantity IS NULL
+       OR inventory.type IS NULL;
+
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('InventoryLogs')
+        AND name = 'old_quantity' AND is_nullable = 1
+    )
+      ALTER TABLE InventoryLogs ALTER COLUMN old_quantity INT NOT NULL;
+
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('InventoryLogs')
+        AND name = 'new_quantity' AND is_nullable = 1
+    )
+      ALTER TABLE InventoryLogs ALTER COLUMN new_quantity INT NOT NULL;
+
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID('InventoryLogs')
+        AND name = 'type' AND is_nullable = 1
+    )
+      ALTER TABLE InventoryLogs ALTER COLUMN type VARCHAR(30) NOT NULL;
+  `);
+
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = 'IX_InventoryLogs_variant_created'
+        AND object_id = OBJECT_ID('InventoryLogs')
+    )
+      CREATE INDEX IX_InventoryLogs_variant_created
+        ON InventoryLogs(variant_id, created_at DESC);
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = 'IX_InventoryLogs_type'
+        AND object_id = OBJECT_ID('InventoryLogs')
+    )
+      CREATE INDEX IX_InventoryLogs_type ON InventoryLogs(type);
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.check_constraints
+      WHERE name = 'CK_InventoryLogs_quantities'
+    )
+    BEGIN
+      ALTER TABLE InventoryLogs WITH CHECK
+        ADD CONSTRAINT CK_InventoryLogs_quantities
+        CHECK (
+          old_quantity >= 0
+          AND new_quantity >= 0
+          AND change_quantity <> 0
+          AND new_quantity = old_quantity + change_quantity
+        );
+    END
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.check_constraints
+      WHERE name = 'CK_InventoryLogs_type'
+    )
+    BEGIN
+      ALTER TABLE InventoryLogs WITH CHECK
+        ADD CONSTRAINT CK_InventoryLogs_type
+        CHECK (type IN (
+          'sale',
+          'order_cancelled',
+          'restock',
+          'manual_adjustment',
+          'return_refund'
+        ));
     END
   `);
 };
@@ -477,12 +785,68 @@ const createReviewsTable = async (pool) => {
         body           NVARCHAR(MAX)  NULL,
         is_verified    BIT            NOT NULL DEFAULT 0,
         is_approved    BIT            NOT NULL DEFAULT 1,
+        seller_reply   NVARCHAR(2000) NULL,
+        replied_at     DATETIME2      NULL,
+        replied_by_seller_id VARCHAR(50) NULL,
+        deleted_at     DATETIME2      NULL,
         created_at     DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at     DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_Reviews_product_id ON Reviews(product_id);
       CREATE INDEX IX_Reviews_user_id    ON Reviews(user_id);
       PRINT '[✓] Table Reviews created';
+    END
+    ELSE
+    BEGIN
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reviews') AND name = 'seller_reply')
+        ALTER TABLE Reviews ADD seller_reply NVARCHAR(2000) NULL;
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reviews') AND name = 'replied_at')
+        ALTER TABLE Reviews ADD replied_at DATETIME2 NULL;
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reviews') AND name = 'replied_by_seller_id')
+        ALTER TABLE Reviews ADD replied_by_seller_id VARCHAR(50) NULL;
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Reviews') AND name = 'deleted_at')
+        ALTER TABLE Reviews ADD deleted_at DATETIME2 NULL;
+    END
+
+  `);
+
+  // SQL Server resolves column names before a batch runs. Keep constraints and
+  // indexes in a second batch so migrations also work for an existing table.
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Reviews_RepliedBySeller'
+    )
+    BEGIN
+      ALTER TABLE Reviews ADD CONSTRAINT FK_Reviews_RepliedBySeller
+        FOREIGN KEY (replied_by_seller_id) REFERENCES Sellers(id) ON DELETE SET NULL;
+    END
+
+    ;WITH duplicate_reviews AS (
+      SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY order_item_id
+               ORDER BY created_at ASC, id ASC
+             ) AS duplicate_number
+      FROM Reviews
+      WHERE order_item_id IS NOT NULL AND deleted_at IS NULL
+    )
+    UPDATE review
+    SET order_item_id = NULL,
+        is_verified = 0,
+        updated_at = GETDATE()
+    FROM Reviews review
+    INNER JOIN duplicate_reviews duplicate ON duplicate.id = review.id
+    WHERE duplicate.duplicate_number > 1;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = 'UX_Reviews_active_order_item'
+        AND object_id = OBJECT_ID('Reviews')
+    )
+    BEGIN
+      CREATE UNIQUE INDEX UX_Reviews_active_order_item
+        ON Reviews(order_item_id)
+        WHERE order_item_id IS NOT NULL AND deleted_at IS NULL;
     END
   `);
 };
@@ -730,6 +1094,56 @@ const createOrdersTable = async (pool) => {
   `);
 };
 
+const createOrderCouponsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'OrderCoupons')
+    BEGIN
+      CREATE TABLE OrderCoupons (
+        id                 VARCHAR(50)   NOT NULL PRIMARY KEY,
+        order_id           VARCHAR(50)   NOT NULL REFERENCES Orders(id) ON DELETE CASCADE,
+        coupon_id          VARCHAR(50)   NOT NULL REFERENCES Coupons(id) ON DELETE NO ACTION,
+        seller_id          VARCHAR(50)   NOT NULL REFERENCES Sellers(id) ON DELETE NO ACTION,
+        eligible_subtotal  DECIMAL(18,2) NOT NULL,
+        discount_amount    DECIMAL(18,2) NOT NULL,
+        created_at         DATETIME2     NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT UQ_OrderCoupons_order_coupon UNIQUE (order_id, coupon_id),
+        CONSTRAINT UQ_OrderCoupons_order_seller UNIQUE (order_id, seller_id)
+      );
+      CREATE INDEX IX_OrderCoupons_coupon_id ON OrderCoupons(coupon_id);
+      CREATE INDEX IX_OrderCoupons_seller_created ON OrderCoupons(seller_id, created_at);
+    END
+
+    INSERT INTO OrderCoupons (
+      id, order_id, coupon_id, seller_id,
+      eligible_subtotal, discount_amount, created_at
+    )
+    SELECT
+      LEFT(CONCAT('oc_', orders.id), 50),
+      orders.id,
+      orders.coupon_id,
+      coupon.seller_id,
+      seller_items.eligible_subtotal,
+      orders.discount_amount,
+      orders.created_at
+    FROM Orders orders
+    INNER JOIN Coupons coupon ON coupon.id = orders.coupon_id
+    CROSS APPLY (
+      SELECT COALESCE(SUM(item.total_price), 0) AS eligible_subtotal
+      FROM OrderItems item
+      INNER JOIN ProductVariants variant ON variant.id = item.variant_id
+      INNER JOIN Products product ON product.id = variant.product_id
+      WHERE item.order_id = orders.id
+        AND product.seller_id = coupon.seller_id
+    ) seller_items
+    WHERE coupon.seller_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM OrderCoupons existing
+        WHERE existing.order_id = orders.id
+          AND existing.coupon_id = orders.coupon_id
+      );
+  `);
+};
+
 const createOrderItemsTable = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'OrderItems')
@@ -747,7 +1161,8 @@ const createOrderItemsTable = async (pool) => {
         tracking_code  VARCHAR(100)   NULL,
         shipping_label_url VARCHAR(2083) NULL,
         cancel_reason  NVARCHAR(255)  NULL,
-        created_at     DATETIME2      NOT NULL DEFAULT GETDATE()
+        created_at     DATETIME2      NOT NULL DEFAULT GETDATE(),
+        updated_at     DATETIME2      NOT NULL DEFAULT GETDATE()
       );
       CREATE INDEX IX_OrderItems_order_id   ON OrderItems(order_id);
       CREATE INDEX IX_OrderItems_variant_id ON OrderItems(variant_id);
@@ -786,11 +1201,135 @@ const createOrderItemsTable = async (pool) => {
         ALTER TABLE OrderItems ADD cancel_reason NVARCHAR(255) NULL;
         PRINT '[✓] Column cancel_reason added to OrderItems';
       END
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OrderItems') AND name = 'updated_at')
+      BEGIN
+        ALTER TABLE OrderItems ADD updated_at DATETIME2 NOT NULL CONSTRAINT DF_OrderItems_updated_at DEFAULT GETDATE();
+        PRINT '[✓] Column updated_at added to OrderItems';
+      END
       IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_OrderItems_fulfillment_status' AND object_id = OBJECT_ID('OrderItems'))
       BEGIN
         CREATE INDEX IX_OrderItems_fulfillment_status ON OrderItems(fulfillment_status);
         PRINT '[✓] Index IX_OrderItems_fulfillment_status added';
       END
+    END
+  `);
+};
+
+const createOrderItemStatusHistoryTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'OrderItemStatusHistory')
+    BEGIN
+      CREATE TABLE OrderItemStatusHistory (
+        id                   VARCHAR(50)   NOT NULL PRIMARY KEY,
+        order_item_id        VARCHAR(50)   NOT NULL REFERENCES OrderItems(id) ON DELETE CASCADE,
+        old_status           VARCHAR(30)   NULL,
+        new_status           VARCHAR(30)   NOT NULL,
+        changed_by_user_id   VARCHAR(50)   NULL REFERENCES Users(id) ON DELETE SET NULL,
+        change_source        VARCHAR(20)   NOT NULL DEFAULT 'system',
+        note                 NVARCHAR(500) NULL,
+        created_at           DATETIME2     NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_OrderItemStatusHistory_item_created
+        ON OrderItemStatusHistory(order_item_id, created_at);
+      PRINT '[✓] Table OrderItemStatusHistory created';
+    END
+  `);
+
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = 'IX_Orders_coupon_id' AND object_id = OBJECT_ID('Orders')
+    )
+    BEGIN
+      CREATE INDEX IX_Orders_coupon_id ON Orders(coupon_id);
+    END
+  `);
+};
+
+const backfillOrderItemStatusHistory = async (pool) => {
+  await pool.request().query(`
+    UPDATE OrderItems
+    SET fulfillment_status = 'shipping', updated_at = GETDATE()
+    WHERE fulfillment_status = 'shipped';
+
+    UPDATE oi
+    SET fulfillment_status = CASE
+          WHEN o.status = 'delivered' THEN 'delivered'
+          WHEN o.status IN ('shipping', 'shipped') THEN 'shipping'
+          WHEN o.status IN ('cancelled', 'failed', 'refunded') THEN 'cancelled'
+          ELSE oi.fulfillment_status
+        END,
+        updated_at = GETDATE()
+    FROM OrderItems oi
+    INNER JOIN Orders o ON o.id = oi.order_id
+    WHERE oi.fulfillment_status = 'pending_fulfillment'
+      AND o.status IN ('delivered', 'shipping', 'shipped', 'cancelled', 'failed', 'refunded');
+
+    INSERT INTO OrderItemStatusHistory (
+      id, order_item_id, old_status, new_status,
+      changed_by_user_id, change_source, note, created_at
+    )
+    SELECT
+      'hist_' + REPLACE(CONVERT(VARCHAR(36), NEWID()), '-', ''),
+      oi.id,
+      NULL,
+      oi.fulfillment_status,
+      NULL,
+      'migration',
+      N'Khởi tạo lịch sử từ trạng thái hiện có.',
+      oi.created_at
+    FROM OrderItems oi
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM OrderItemStatusHistory history
+      WHERE history.order_item_id = oi.id
+    );
+  `);
+};
+
+const createReturnRequestsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ReturnRequests')
+    BEGIN
+      CREATE TABLE ReturnRequests (
+        id                VARCHAR(50)    NOT NULL PRIMARY KEY,
+        order_item_id     VARCHAR(50)    NOT NULL REFERENCES OrderItems(id) ON DELETE NO ACTION,
+        customer_user_id  VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE NO ACTION,
+        seller_id         VARCHAR(50)    NOT NULL REFERENCES Sellers(id) ON DELETE NO ACTION,
+        quantity          INT            NOT NULL CHECK (quantity > 0),
+        reason            NVARCHAR(1000) NOT NULL,
+        status            VARCHAR(30)    NOT NULL DEFAULT 'requested',
+        seller_response   NVARCHAR(1000) NULL,
+        requested_at      DATETIME2      NOT NULL DEFAULT GETDATE(),
+        responded_at      DATETIME2      NULL,
+        returned_at       DATETIME2      NULL,
+        updated_at        DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_ReturnRequests_seller_status_requested
+        ON ReturnRequests(seller_id, status, requested_at DESC);
+      CREATE INDEX IX_ReturnRequests_customer_requested
+        ON ReturnRequests(customer_user_id, requested_at DESC);
+      CREATE INDEX IX_ReturnRequests_order_item
+        ON ReturnRequests(order_item_id);
+    END
+  `);
+};
+
+const createReturnStatusHistoryTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ReturnStatusHistory')
+    BEGIN
+      CREATE TABLE ReturnStatusHistory (
+        id                   VARCHAR(50)    NOT NULL PRIMARY KEY,
+        return_request_id    VARCHAR(50)    NOT NULL REFERENCES ReturnRequests(id) ON DELETE CASCADE,
+        old_status           VARCHAR(30)    NULL,
+        new_status           VARCHAR(30)    NOT NULL,
+        changed_by_user_id   VARCHAR(50)    NULL REFERENCES Users(id) ON DELETE SET NULL,
+        note                 NVARCHAR(1000) NULL,
+        created_at           DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_ReturnStatusHistory_return_created
+        ON ReturnStatusHistory(return_request_id, created_at);
     END
   `);
 };
@@ -864,6 +1403,19 @@ const createCouponUsageTable = async (pool) => {
       CREATE INDEX IX_CouponUsage_coupon_id ON CouponUsage(coupon_id);
       CREATE INDEX IX_CouponUsage_user_id   ON CouponUsage(user_id);
       PRINT '[✓] Table CouponUsage created';
+    END
+  `);
+
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = 'IX_CouponUsage_coupon_used_at'
+        AND object_id = OBJECT_ID('CouponUsage')
+    )
+    BEGIN
+      CREATE INDEX IX_CouponUsage_coupon_used_at
+        ON CouponUsage(coupon_id, used_at)
+        INCLUDE (order_id, user_id);
     END
   `);
 };
@@ -1579,7 +2131,7 @@ const seedProducts = async (pool, sql) => {
         .input("desc", sql.NVarChar, p.desc)
         .input("shortDesc", sql.NVarChar, p.short_desc)
         .input("basePrice", sql.Decimal(18, 2), p.base_price)
-        .input("sellerId", sql.VarChar, p.seller_id || null)
+        .input("sellerId", sql.VarChar, p.seller_id || "sel_001")
         .query(`INSERT INTO Products (id,name,slug,description,short_desc,base_price,is_featured,seller_id)
                 VALUES (@id,@name,@slug,@desc,@shortDesc,@basePrice,1,@sellerId)`);
 
@@ -1600,7 +2152,7 @@ const seedProducts = async (pool, sql) => {
                 VALUES (@id,@productId,@imageUrl,@altText,1)`);
 
       // Variants
-      for (const v of p.variants) {
+      for (const [variantIndex, v] of p.variants.entries()) {
         await req()
           .input("id", sql.VarChar, v.id)
           .input("productId", sql.VarChar, p.id)
@@ -1609,8 +2161,12 @@ const seedProducts = async (pool, sql) => {
           .input("compare", sql.Decimal(18, 2), v.compare)
           .input("stock", sql.Int, v.stock)
           .input("imageUrl", sql.VarChar, v.image)
-          .query(`INSERT INTO ProductVariants (id,product_id,sku,price,compare_price,stock_qty,image_url)
-                  VALUES (@id,@productId,@sku,@price,@compare,@stock,@imageUrl)`);
+          .input("isDefault", sql.Bit, variantIndex === 0)
+          .query(`INSERT INTO ProductVariants (
+                    id,product_id,sku,price,compare_price,stock_qty,image_url,is_default
+                  ) VALUES (
+                    @id,@productId,@sku,@price,@compare,@stock,@imageUrl,@isDefault
+                  )`);
 
         // Link attribute values to variant
         for (const avId of v.avIds) {

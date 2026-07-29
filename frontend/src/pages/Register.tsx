@@ -40,7 +40,7 @@ export default function Register() {
     onError: (error) => {
       setErrorMsg(error);
     },
-    buttonElementId: 'google-login-btn'
+    buttonElementId: 'google-login-btn',
   });
 
   // Motion values for high-performance parallax mouse movement on the hero image
@@ -48,8 +48,14 @@ export default function Register() {
   const mouseY = useMotionValue(0);
 
   const springConfig = { damping: 30, stiffness: 150 };
-  const x = useSpring(useTransform(mouseX, [-window.innerWidth / 2, window.innerWidth / 2], [-15, 15]), springConfig);
-  const y = useSpring(useTransform(mouseY, [-window.innerHeight / 2, window.innerHeight / 2], [-15, 15]), springConfig);
+  const x = useSpring(
+    useTransform(mouseX, [-window.innerWidth / 2, window.innerWidth / 2], [-15, 15]),
+    springConfig,
+  );
+  const y = useSpring(
+    useTransform(mouseY, [-window.innerHeight / 2, window.innerHeight / 2], [-15, 15]),
+    springConfig,
+  );
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -61,8 +67,6 @@ export default function Register() {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [mouseX, mouseY]);
-
-
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -98,7 +102,10 @@ export default function Register() {
       }, 2000);
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'message' in err) {
-        setErrorMsg(String((err as { message: unknown }).message) || 'Lỗi đăng ký tài khoản. Vui lòng thử lại.');
+        setErrorMsg(
+          String((err as { message: unknown }).message) ||
+            'Lỗi đăng ký tài khoản. Vui lòng thử lại.',
+        );
       } else {
         setErrorMsg('Lỗi đăng ký tài khoản. Vui lòng thử lại.');
       }
@@ -135,7 +142,8 @@ export default function Register() {
               Kiến tạo không gian sống thông minh của bạn.
             </h2>
             <p className="font-body-lg text-body-lg opacity-90 max-w-lg">
-              Gia nhập cộng đồng Volitify để trải nghiệm sự kết hợp hoàn hảo giữa công nghệ hiện đại và sự tiện nghi tối ưu trong chính ngôi nhà của bạn.
+              Gia nhập cộng đồng Volitify để trải nghiệm sự kết hợp hoàn hảo giữa công nghệ hiện đại
+              và sự tiện nghi tối ưu trong chính ngôi nhà của bạn.
             </p>
           </div>
           {/* System status card */}
@@ -144,7 +152,9 @@ export default function Register() {
               <span className="material-symbols-outlined text-white">bolt</span>
             </div>
             <div>
-              <p className="font-label-md text-label-md uppercase tracking-wider text-white/70">Trạng thái hệ thống</p>
+              <p className="font-label-md text-label-md uppercase tracking-wider text-white/70">
+                Trạng thái hệ thống
+              </p>
               <p className="font-title-lg text-title-lg text-white font-bold">Sẵn sàng vận hành</p>
             </div>
           </div>
@@ -153,17 +163,21 @@ export default function Register() {
 
       {/* Form Side: Interaction Canvas */}
       <section className="flex-1 flex flex-col items-center justify-center p-margin-mobile md:p-margin-desktop bg-surface-container-lowest relative py-20">
-        
         {/* Mobile Brand Header */}
         <div className="md:hidden absolute top-margin-mobile left-margin-mobile">
-          <Link to="/" className="font-display-md text-title-lg font-extrabold tracking-tighter text-primary">
+          <Link
+            to="/"
+            className="font-display-md text-title-lg font-extrabold tracking-tighter text-primary"
+          >
             Volitify
           </Link>
         </div>
 
         <div className="w-full max-w-[440px] space-y-8 py-12">
           <div className="space-y-2">
-            <h1 className="font-headline-md text-headline-md text-on-surface font-bold">Tạo tài khoản mới</h1>
+            <h1 className="font-headline-md text-headline-md text-on-surface font-bold">
+              Tạo tài khoản mới
+            </h1>
             <p className="font-body-md text-on-surface-variant">
               Bắt đầu hành trình thông minh cùng chúng tôi ngay hôm nay.
             </p>
@@ -188,7 +202,10 @@ export default function Register() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Full Name */}
             <div className="space-y-2 group">
-              <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="full_name">
+              <label
+                className="font-label-md text-label-md text-on-surface-variant block"
+                htmlFor="full_name"
+              >
                 Họ và Tên
               </label>
               <div className="relative">
@@ -206,7 +223,10 @@ export default function Register() {
 
             {/* Email */}
             <div className="space-y-2 group">
-              <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="email">
+              <label
+                className="font-label-md text-label-md text-on-surface-variant block"
+                htmlFor="email"
+              >
                 Địa chỉ Email
               </label>
               <div className="relative">
@@ -224,7 +244,10 @@ export default function Register() {
 
             {/* Phone Number */}
             <div className="space-y-2 group">
-              <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="phone">
+              <label
+                className="font-label-md text-label-md text-on-surface-variant block"
+                htmlFor="phone"
+              >
                 Số điện thoại
               </label>
               <div className="relative">
@@ -243,7 +266,10 @@ export default function Register() {
             {/* Password Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 group">
-                <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="password">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant block"
+                  htmlFor="password"
+                >
                   Mật khẩu
                 </label>
                 <input
@@ -257,7 +283,10 @@ export default function Register() {
                 />
               </div>
               <div className="space-y-2 group">
-                <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="confirm_password">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant block"
+                  htmlFor="confirm_password"
+                >
                   Xác nhận
                 </label>
                 <input
@@ -282,7 +311,10 @@ export default function Register() {
                   required
                 />
               </div>
-              <label className="font-body-md text-on-surface-variant leading-tight cursor-pointer" htmlFor="terms">
+              <label
+                className="font-body-md text-on-surface-variant leading-tight cursor-pointer"
+                htmlFor="terms"
+              >
                 Tôi đồng ý với{' '}
                 <a className="text-primary font-semibold hover:underline" href="#">
                   Điều khoản Dịch vụ
@@ -311,7 +343,10 @@ export default function Register() {
           <div className="text-center pt-4">
             <p className="font-body-md text-on-surface-variant">
               Bạn đã có tài khoản?{' '}
-              <Link className="text-primary font-bold hover:underline decoration-2 underline-offset-4 ml-1 transition-all" to="/login">
+              <Link
+                className="text-primary font-bold hover:underline decoration-2 underline-offset-4 ml-1 transition-all"
+                to="/login"
+              >
                 Đăng nhập ngay
               </Link>
             </p>
@@ -323,14 +358,20 @@ export default function Register() {
               Hoặc đăng ký bằng
             </p>
             <div className="flex gap-4">
-              <div id="google-login-btn" className="flex-1 h-12 flex items-center justify-center overflow-hidden" />
+              <div
+                id="google-login-btn"
+                className="flex-1 h-12 flex items-center justify-center overflow-hidden"
+              />
               <motion.button
                 type="button"
                 className="flex-1 h-12 flex items-center justify-center border border-outline-variant rounded-xl hover:bg-surface-container transition-colors duration-200 group focus:outline-none bg-white text-on-surface-variant hover:text-primary"
                 whileHover={{ scale: 1.03, boxShadow: '0 8px 20px rgba(37,99,235,0.12)' }}
                 whileTap={{ scale: 0.98 }}
               >
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
                   ios
                 </span>
               </motion.button>

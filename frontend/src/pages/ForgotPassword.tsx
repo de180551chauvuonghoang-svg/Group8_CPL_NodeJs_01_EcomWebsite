@@ -23,7 +23,7 @@ export default function ForgotPassword(): React.ReactElement {
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -32,7 +32,7 @@ export default function ForgotPassword(): React.ReactElement {
   // Password visibility toggles
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   // Countdown Timer state
   const [timer, setTimer] = useState(300); // 5 minutes in seconds
   const [isTimerActive, setIsTimerActive] = useState(false);
@@ -43,7 +43,7 @@ export default function ForgotPassword(): React.ReactElement {
   // Parallax motion values for hero image
   const mouseX = useMotionValue(0.5);
   const mouseY = useMotionValue(0.5);
-  
+
   const springConfig = { damping: 30, stiffness: 180 };
   const x = useSpring(useTransform(mouseX, [0, 1], [-15, 15]), springConfig);
   const y = useSpring(useTransform(mouseY, [0, 1], [-15, 15]), springConfig);
@@ -108,7 +108,7 @@ export default function ForgotPassword(): React.ReactElement {
       const response: AuthResponse = await authService.forgotPassword(email);
       setIsMockOtp(!!response?.data?.mock);
       setSuccessMsg(response?.message || 'Mã OTP đã được gửi đến email của bạn.');
-      
+
       // Move to Step 2 & Reset timer
       setStep(2);
       setTimer(300);
@@ -159,7 +159,7 @@ export default function ForgotPassword(): React.ReactElement {
       setTimer(300);
       setIsTimerActive(true);
       setOtp(Array(6).fill(''));
-      
+
       // Auto focus the first OTP input
       setTimeout(() => {
         otpRefs.current[0]?.focus();
@@ -233,7 +233,7 @@ export default function ForgotPassword(): React.ReactElement {
 
     const digits = pastedData.split('');
     setOtp(digits);
-    
+
     // Focus the last field
     otpRefs.current[5]?.focus();
   };
@@ -248,7 +248,7 @@ export default function ForgotPassword(): React.ReactElement {
     >
       <div className="h-screen w-full flex flex-col md:flex-row overflow-hidden">
         {/* Left Side: Cinematic Visual Anchor */}
-        <section 
+        <section
           className="hidden lg:flex w-1/2 relative overflow-hidden bg-primary items-center justify-center p-margin-desktop cursor-pointer"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
@@ -271,7 +271,8 @@ export default function ForgotPassword(): React.ReactElement {
                 Bảo vệ ngôi nhà, an tâm tuyệt đối.
               </h2>
               <p className="font-body-lg text-body-lg opacity-90 max-w-lg leading-relaxed">
-                Sự an tâm của bạn là ưu tiên hàng đầu của chúng tôi. Hệ thống bảo mật thông minh giúp bạn luôn kết nối và bảo vệ những gì quan trọng nhất.
+                Sự an tâm của bạn là ưu tiên hàng đầu của chúng tôi. Hệ thống bảo mật thông minh
+                giúp bạn luôn kết nối và bảo vệ những gì quan trọng nhất.
               </p>
             </div>
           </div>
@@ -281,40 +282,46 @@ export default function ForgotPassword(): React.ReactElement {
         <section className="w-full lg:w-1/2 flex flex-col px-margin-mobile md:px-margin-desktop py-12 bg-background/80 backdrop-blur-md border-l border-outline-variant/20 relative overflow-y-auto h-full">
           {/* Mobile Logo */}
           <div className="lg:hidden absolute top-8 left-8">
-            <Link to="/" className="font-display-md text-title-lg font-extrabold tracking-tighter text-primary">
+            <Link
+              to="/"
+              className="font-display-md text-title-lg font-extrabold tracking-tighter text-primary"
+            >
               Volitify
             </Link>
           </div>
 
           <div className="w-full max-w-[440px] mx-auto my-auto space-y-8 py-8">
-            
             {/* Error Notification Alert */}
             {errorMsg && (
-              <motion.div 
+              <motion.div
                 className="bg-error-container text-on-error-container p-4 rounded-xl flex items-start gap-2 text-sm border border-error/20"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <span className="material-symbols-outlined text-error flex-shrink-0 mt-0.5">error</span>
+                <span className="material-symbols-outlined text-error flex-shrink-0 mt-0.5">
+                  error
+                </span>
                 <span className="font-semibold">{errorMsg}</span>
               </motion.div>
             )}
 
             {/* Success Notification Alert */}
             {successMsg && step !== 4 && (
-              <motion.div 
+              <motion.div
                 className="bg-success/10 text-success p-4 rounded-xl flex items-start gap-2 text-sm border border-success/20"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <span className="material-symbols-outlined text-success flex-shrink-0 mt-0.5">check_circle</span>
+                <span className="material-symbols-outlined text-success flex-shrink-0 mt-0.5">
+                  check_circle
+                </span>
                 <span className="font-semibold">{successMsg}</span>
               </motion.div>
             )}
 
             {/* Development Mock Otp Tip */}
             {isMockOtp && step === 2 && (
-              <motion.div 
+              <motion.div
                 className="bg-primary/10 text-primary p-4 rounded-xl flex flex-col gap-1.5 text-sm border border-primary/20"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -324,7 +331,9 @@ export default function ForgotPassword(): React.ReactElement {
                   <span className="font-bold">Môi trường Thử nghiệm (Dev Mode)</span>
                 </div>
                 <p className="text-primary/90 leading-relaxed font-medium">
-                  Vì bạn chưa thiết lập cấu hình SMTP thực tế, hệ thống đã in mã OTP 6 chữ số ra <strong>Terminal (Console) của backend</strong>. Hãy mở Terminal chạy backend để lấy mã nhập nhé!
+                  Vì bạn chưa thiết lập cấu hình SMTP thực tế, hệ thống đã in mã OTP 6 chữ số ra{' '}
+                  <strong>Terminal (Console) của backend</strong>. Hãy mở Terminal chạy backend để
+                  lấy mã nhập nhé!
                 </p>
               </motion.div>
             )}
@@ -345,13 +354,17 @@ export default function ForgotPassword(): React.ReactElement {
                       Quên mật khẩu?
                     </h1>
                     <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                      Nhập địa chỉ email của bạn để chúng tôi gửi mã xác nhận OTP 6 số để thiết lập lại mật khẩu.
+                      Nhập địa chỉ email của bạn để chúng tôi gửi mã xác nhận OTP 6 số để thiết lập
+                      lại mật khẩu.
                     </p>
                   </header>
 
                   <form className="space-y-8" onSubmit={handleEmailSubmit}>
                     <div className="space-y-2 group">
-                      <label className="font-label-md text-label-md text-on-surface-variant block font-semibold" htmlFor="email">
+                      <label
+                        className="font-label-md text-label-md text-on-surface-variant block font-semibold"
+                        htmlFor="email"
+                      >
                         ĐỊA CHỈ EMAIL
                       </label>
                       <div className="relative">
@@ -382,9 +395,25 @@ export default function ForgotPassword(): React.ReactElement {
                       >
                         {submitting ? (
                           <span className="flex items-center gap-2 justify-center text-white">
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg
+                              className="animate-spin h-5 w-5 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
                             </svg>
                             <span>Đang gửi mã...</span>
                           </span>
@@ -427,7 +456,8 @@ export default function ForgotPassword(): React.ReactElement {
                       Xác nhận OTP
                     </h1>
                     <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-                      Vui lòng nhập mã xác thực OTP gồm 6 chữ số đã được gửi đến hộp thư <strong className="text-on-surface font-semibold">{email}</strong>.
+                      Vui lòng nhập mã xác thực OTP gồm 6 chữ số đã được gửi đến hộp thư{' '}
+                      <strong className="text-on-surface font-semibold">{email}</strong>.
                     </p>
                   </header>
 
@@ -440,7 +470,9 @@ export default function ForgotPassword(): React.ReactElement {
                         {otp.map((digit, index) => (
                           <input
                             key={index}
-                            ref={(el) => { otpRefs.current[index] = el; }}
+                            ref={(el) => {
+                              otpRefs.current[index] = el;
+                            }}
                             type="text"
                             inputMode="numeric"
                             maxLength={1}
@@ -448,7 +480,7 @@ export default function ForgotPassword(): React.ReactElement {
                             onChange={(e) => handleOtpChange(e.target.value, index)}
                             onKeyDown={(e) => handleOtpKeyDown(e, index)}
                             onPaste={index === 0 ? handleOtpPaste : undefined}
-                             className="w-12 h-14 md:w-14 md:h-16 text-center text-2xl font-bold bg-surface-variant/40 border border-outline-variant/30 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all text-on-surface"
+                            className="w-12 h-14 md:w-14 md:h-16 text-center text-2xl font-bold bg-surface-variant/40 border border-outline-variant/30 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all text-on-surface"
                           />
                         ))}
                       </div>
@@ -458,7 +490,9 @@ export default function ForgotPassword(): React.ReactElement {
                         <div className="flex items-center gap-1.5 text-on-surface-variant">
                           <span className="material-symbols-outlined text-[18px]">schedule</span>
                           <span>Hết hạn sau: </span>
-                          <span className={`font-mono ${timer < 60 ? 'text-error font-bold' : 'text-primary'}`}>
+                          <span
+                            className={`font-mono ${timer < 60 ? 'text-error font-bold' : 'text-primary'}`}
+                          >
                             {formatTime(timer)}
                           </span>
                         </div>
@@ -488,9 +522,25 @@ export default function ForgotPassword(): React.ReactElement {
                       >
                         {submitting ? (
                           <span className="flex items-center gap-2 justify-center text-white">
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg
+                              className="animate-spin h-5 w-5 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
                             </svg>
                             <span>Đang xác nhận...</span>
                           </span>
@@ -543,7 +593,10 @@ export default function ForgotPassword(): React.ReactElement {
                   <form className="space-y-6" onSubmit={handleResetPasswordSubmit}>
                     {/* New Password field */}
                     <div className="space-y-2 group">
-                      <label className="font-label-md text-label-md text-on-surface-variant block font-semibold" htmlFor="newPassword">
+                      <label
+                        className="font-label-md text-label-md text-on-surface-variant block font-semibold"
+                        htmlFor="newPassword"
+                      >
                         MẬT KHẨU MỚI
                       </label>
                       <div className="relative">
@@ -575,7 +628,10 @@ export default function ForgotPassword(): React.ReactElement {
 
                     {/* Confirm Password field */}
                     <div className="space-y-2 group">
-                      <label className="font-label-md text-label-md text-on-surface-variant block font-semibold" htmlFor="confirmPassword">
+                      <label
+                        className="font-label-md text-label-md text-on-surface-variant block font-semibold"
+                        htmlFor="confirmPassword"
+                      >
                         XÁC NHẬN MẬT KHẨU
                       </label>
                       <div className="relative">
@@ -610,16 +666,24 @@ export default function ForgotPassword(): React.ReactElement {
                       <div className="text-[12px] font-bold text-outline uppercase tracking-wider">
                         RÀNG BUỘC BẢO MẬT (BACKEND RULES)
                       </div>
-                      
+
                       <div className="space-y-2">
                         {/* Rule 1: Min 6 characters */}
                         <div className="flex items-center gap-2.5 text-sm transition-all duration-300">
                           {isLengthValid ? (
-                            <span className="material-symbols-outlined text-emerald-600 font-bold text-[18px]">check_circle</span>
+                            <span className="material-symbols-outlined text-emerald-600 font-bold text-[18px]">
+                              check_circle
+                            </span>
                           ) : (
-                            <span className="material-symbols-outlined text-slate-300 text-[18px]">radio_button_unchecked</span>
+                            <span className="material-symbols-outlined text-slate-300 text-[18px]">
+                              radio_button_unchecked
+                            </span>
                           )}
-                          <span className={isLengthValid ? 'text-emerald-700 font-medium' : 'text-slate-500'}>
+                          <span
+                            className={
+                              isLengthValid ? 'text-emerald-700 font-medium' : 'text-slate-500'
+                            }
+                          >
                             Mật khẩu phải dài ít nhất 6 ký tự
                           </span>
                         </div>
@@ -627,11 +691,19 @@ export default function ForgotPassword(): React.ReactElement {
                         {/* Rule 2: Passwords match */}
                         <div className="flex items-center gap-2.5 text-sm transition-all duration-300">
                           {isMatchValid ? (
-                            <span className="material-symbols-outlined text-emerald-600 font-bold text-[18px]">check_circle</span>
+                            <span className="material-symbols-outlined text-emerald-600 font-bold text-[18px]">
+                              check_circle
+                            </span>
                           ) : (
-                            <span className="material-symbols-outlined text-slate-300 text-[18px]">radio_button_unchecked</span>
+                            <span className="material-symbols-outlined text-slate-300 text-[18px]">
+                              radio_button_unchecked
+                            </span>
                           )}
-                          <span className={isMatchValid ? 'text-emerald-700 font-medium' : 'text-slate-500'}>
+                          <span
+                            className={
+                              isMatchValid ? 'text-emerald-700 font-medium' : 'text-slate-500'
+                            }
+                          >
                             Mật khẩu xác nhận phải trùng khớp
                           </span>
                         </div>
@@ -653,16 +725,34 @@ export default function ForgotPassword(): React.ReactElement {
                       >
                         {submitting ? (
                           <span className="flex items-center gap-2 justify-center">
-                            <svg className="animate-spin h-5 w-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg
+                              className="animate-spin h-5 w-5 text-slate-400"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
                             </svg>
                             <span>Đang thiết lập...</span>
                           </span>
                         ) : (
                           <>
                             <span>Đặt lại mật khẩu</span>
-                            <span className="material-symbols-outlined">published_with_changes</span>
+                            <span className="material-symbols-outlined">
+                              published_with_changes
+                            </span>
                           </>
                         )}
                       </motion.button>
@@ -681,7 +771,10 @@ export default function ForgotPassword(): React.ReactElement {
                   className="text-center space-y-8"
                 >
                   <div className="w-20 h-20 bg-success/15 text-success rounded-full flex items-center justify-center mx-auto border border-success/30">
-                    <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    <span
+                      className="material-symbols-outlined text-[48px]"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
                       check_circle
                     </span>
                   </div>
@@ -690,10 +783,11 @@ export default function ForgotPassword(): React.ReactElement {
                       Đặt lại mật khẩu thành công!
                     </h3>
                     <p className="text-on-surface-variant font-body-lg text-body-lg leading-relaxed">
-                      Mật khẩu của bạn đã được thay đổi thành công. Bây giờ bạn có thể đăng nhập bằng mật khẩu mới này.
+                      Mật khẩu của bạn đã được thay đổi thành công. Bây giờ bạn có thể đăng nhập
+                      bằng mật khẩu mới này.
                     </p>
                   </div>
-                  
+
                   <div className="pt-4">
                     <motion.button
                       onClick={() => navigate('/login')}
@@ -713,18 +807,31 @@ export default function ForgotPassword(): React.ReactElement {
 
           {/* Footer (Minimalist) */}
           <footer className="mt-auto pt-8 w-full hidden lg:flex justify-between items-center text-outline">
-            <p className="font-label-md text-[12px]">© {new Date().getFullYear()} Volitify Systems.</p>
+            <p className="font-label-md text-[12px]">
+              © {new Date().getFullYear()} Volitify Systems.
+            </p>
             <div className="flex gap-6">
-              <a className="font-label-md text-[12px] hover:text-primary transition-colors" href="#">Bảo mật</a>
-              <a className="font-label-md text-[12px] hover:text-primary transition-colors" href="#">Điều khoản</a>
+              <a
+                className="font-label-md text-[12px] hover:text-primary transition-colors"
+                href="#"
+              >
+                Bảo mật
+              </a>
+              <a
+                className="font-label-md text-[12px] hover:text-primary transition-colors"
+                href="#"
+              >
+                Điều khoản
+              </a>
             </div>
           </footer>
           <div className="lg:hidden mt-auto pt-8 text-center w-full">
-            <p className="font-label-md text-[12px] text-outline">© {new Date().getFullYear()} Volitify Systems.</p>
+            <p className="font-label-md text-[12px] text-outline">
+              © {new Date().getFullYear()} Volitify Systems.
+            </p>
           </div>
         </section>
       </div>
     </motion.div>
   );
 }
-

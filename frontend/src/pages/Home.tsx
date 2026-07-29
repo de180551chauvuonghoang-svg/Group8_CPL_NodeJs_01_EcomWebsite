@@ -1,15 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { 
-  Star, 
-  ShoppingBag, 
-  ArrowRight, 
-  Sparkles, 
-  CheckCircle, 
-  Percent, 
-  Truck, 
-  Inbox
-} from 'lucide-react';
+import { Star, ShoppingBag, ArrowRight, Sparkles, Percent, Truck, Inbox } from 'lucide-react';
 import { productService } from '../services/productService';
 import { AuthContext } from '../context/AuthContext';
 import { Product } from '../types';
@@ -22,10 +13,9 @@ export default function Home() {
     throw new Error('Home must be used within an AuthProvider');
   }
   const { isAuthenticated, user } = auth;
-  
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [copied, setCopied] = useState<boolean>(false);
 
   // Read search & category parameters from the URL
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,14 +50,8 @@ export default function Home() {
     { key: 'phu-kien', label: 'Phụ Kiện' },
     { key: 'dong-ho-wear', label: 'Thiết Bị Đeo' },
     { key: 'nha-bep', label: 'Bếp & Gia Dụng' },
-    { key: 'dien-tu', label: 'Điện Tử' }
+    { key: 'dien-tu', label: 'Điện Tử' },
   ];
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText('ECOM2026');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleScrollToProducts = () => {
     const element = document.getElementById('products-section');
@@ -111,7 +95,8 @@ export default function Home() {
             {isAuthenticated && user ? (
               <span className="block mb-2 font-semibold">Chào mừng trở lại, {user.name}! 👋</span>
             ) : null}
-            Khám phá hệ sinh thái thiết bị điện tử cao cấp, được thiết kế để mang lại sự tiện nghi và hiệu suất tối ưu cho ngôi nhà của bạn.
+            Khám phá hệ sinh thái thiết bị điện tử cao cấp, được thiết kế để mang lại sự tiện nghi
+            và hiệu suất tối ưu cho ngôi nhà của bạn.
           </p>
           <div className="flex items-center gap-4">
             <button
@@ -139,7 +124,9 @@ export default function Home() {
       <section className="py-24 max-w-container-max mx-auto px-margin-desktop transition-all duration-1000 opacity-100 translate-y-0">
         <div className="flex justify-between items-end mb-12">
           <div>
-            <h2 className="font-headline-md text-headline-md mb-2 text-navy-dark">Danh mục nổi bật</h2>
+            <h2 className="font-headline-md text-headline-md mb-2 text-navy-dark">
+              Danh mục nổi bật
+            </h2>
             <div className="w-20 h-1.5 bg-primary rounded-full"></div>
           </div>
           <button
@@ -151,7 +138,7 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-gutter h-auto md:h-[600px]">
           {/* Smart Kitchen (Large) */}
-          <div 
+          <div
             onClick={() => {
               handleCategorySelect('Home & Kitchen');
               handleScrollToProducts();
@@ -168,7 +155,9 @@ export default function Home() {
               style={{ willChange: 'transform' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-8 flex flex-col justify-end z-10">
-              <h3 className="text-white font-headline-md text-headline-md tracking-tight">Smart Kitchen</h3>
+              <h3 className="text-white font-headline-md text-headline-md tracking-tight">
+                Smart Kitchen
+              </h3>
               <p className="text-white/70 mb-4 font-body-md">Công nghệ nấu nướng hiện đại nhất</p>
               <button className="bg-white text-black px-6 py-2 rounded-full w-fit font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
                 Khám Phá
@@ -177,7 +166,7 @@ export default function Home() {
           </div>
 
           {/* Premium Audio */}
-          <div 
+          <div
             onClick={() => {
               handleCategorySelect('Audio');
               handleScrollToProducts();
@@ -199,7 +188,7 @@ export default function Home() {
           </div>
 
           {/* Home Cinema */}
-          <div 
+          <div
             onClick={() => {
               handleCategorySelect('Electronics');
               handleScrollToProducts();
@@ -221,7 +210,7 @@ export default function Home() {
           </div>
 
           {/* Air Treatment */}
-          <div 
+          <div
             onClick={() => {
               handleCategorySelect('Accessories');
               handleScrollToProducts();
@@ -238,24 +227,32 @@ export default function Home() {
               style={{ willChange: 'transform' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-8 flex flex-col justify-end z-10">
-              <h3 className="text-white font-title-lg text-headline-md tracking-tight">Air Treatment</h3>
-              <p className="text-white/70 font-body-md">Không khí trong lành, cuộc sống khỏe mạnh</p>
+              <h3 className="text-white font-title-lg text-headline-md tracking-tight">
+                Air Treatment
+              </h3>
+              <p className="text-white/70 font-body-md">
+                Không khí trong lành, cuộc sống khỏe mạnh
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Dynamic Products Catalog */}
-      <section 
+      <section
         id="products-section"
         className="py-20 max-w-container-max mx-auto px-margin-desktop border-t border-outline-variant"
         style={{ scrollMarginTop: '90px' }}
       >
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
           <div>
-            <h2 className="font-headline-md text-headline-md mb-2 text-navy-dark">Bộ Sưu Tập Sản Phẩm</h2>
+            <h2 className="font-headline-md text-headline-md mb-2 text-navy-dark">
+              Bộ Sưu Tập Sản Phẩm
+            </h2>
             <p className="text-on-surface-variant font-body-md">
-              {search ? `Kết quả tìm kiếm cho "${search}"` : 'Những thiết bị đỉnh cao nhất phục vụ cuộc sống của bạn'}
+              {search
+                ? `Kết quả tìm kiếm cho "${search}"`
+                : 'Những thiết bị đỉnh cao nhất phục vụ cuộc sống của bạn'}
             </p>
           </div>
 
@@ -287,7 +284,8 @@ export default function Home() {
             <Inbox size={48} className="text-outline mb-4" />
             <h3 className="text-title-lg font-bold mb-2 text-navy-dark">Không tìm thấy sản phẩm</h3>
             <p className="text-on-surface-variant max-w-md">
-              Hiện tại không có sản phẩm nào khớp với từ khóa tìm kiếm hoặc bộ lọc danh mục đã chọn. Vui lòng thử lại.
+              Hiện tại không có sản phẩm nào khớp với từ khóa tìm kiếm hoặc bộ lọc danh mục đã chọn.
+              Vui lòng thử lại.
             </p>
           </div>
         ) : (
@@ -376,10 +374,15 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.1),transparent_50%)]"></div>
         <div className="max-w-container-max mx-auto px-margin-desktop relative z-10">
           <div className="text-center mb-16">
-            <span className="text-primary font-bold tracking-[0.3em] uppercase mb-4 block">CỘNG ĐỒNG VOLITIFY</span>
-            <h2 className="text-display-md font-display-md text-white mb-6 leading-tight">Đặc quyền Thành viên</h2>
+            <span className="text-primary font-bold tracking-[0.3em] uppercase mb-4 block">
+              CỘNG ĐỒNG VOLITIFY
+            </span>
+            <h2 className="text-display-md font-display-md text-white mb-6 leading-tight">
+              Đặc quyền Thành viên
+            </h2>
             <p className="text-body-lg text-surface-variant/80 max-w-2xl mx-auto">
-              Tham gia cộng đồng Volitify ngay hôm nay để nhận được những ưu đãi độc quyền và trải nghiệm mua sắm cá nhân hóa.
+              Tham gia cộng đồng Volitify ngay hôm nay để nhận được những ưu đãi độc quyền và trải
+              nghiệm mua sắm cá nhân hóa.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -417,7 +420,10 @@ export default function Home() {
             </button>
             {!isAuthenticated && (
               <p className="mt-6 text-surface-variant/40 font-body-md">
-                Đã có tài khoản? <Link className="text-primary hover:underline" to="/login">Đăng nhập</Link>
+                Đã có tài khoản?{' '}
+                <Link className="text-primary hover:underline" to="/login">
+                  Đăng nhập
+                </Link>
               </p>
             )}
           </div>
@@ -428,36 +434,27 @@ export default function Home() {
       <section className="py-20 max-w-container-max mx-auto px-margin-desktop">
         <div className="p-12 rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-outline-variant flex flex-col lg:flex-row items-center justify-between gap-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-          
+
           <div className="z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold text-xs uppercase tracking-widest mb-4">
               <Percent size={12} />
               <span>ƯU ĐÃI VIP HÔM NAY</span>
             </div>
             <h3 className="text-headline-md font-bold text-on-surface mb-3">
-              Giảm Ngay 15% Cho Đơn Hàng Đầu Tiên
+              Voucher riêng từ các cửa hàng
             </h3>
             <p className="text-on-surface-variant font-body-md max-w-xl">
-              Nhập mã ưu đãi khi thanh toán để được chiết khấu trực tiếp và nhận phần quà công nghệ giới hạn cực kỳ hấp dẫn.
+              Khám phá sản phẩm và sử dụng mã ưu đãi do từng shop đang phát hành.
             </p>
           </div>
 
           <div className="flex items-center gap-4 z-10 flex-wrap shrink-0">
-            <div className="border-2 border-dashed border-primary/40 rounded-2xl px-6 py-3 bg-surface-container font-black text-xl tracking-wider text-primary">
-              ECOM2026
-            </div>
-            <button
-              onClick={handleCopyCode}
+            <Link
+              to="/products"
               className="bg-primary text-on-primary px-6 py-4 rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-xl transition-all"
             >
-              {copied ? (
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle size={16} /> Đã Sao Chép!
-                </span>
-              ) : (
-                'Sao Chép Mã'
-              )}
-            </button>
+              Khám phá sản phẩm
+            </Link>
           </div>
         </div>
       </section>

@@ -1,9 +1,67 @@
 import { sellerService } from "../services/sellerService.js";
 import { messageService } from "../services/messageService.js";
+import { getSellerOrderTimeline as loadSellerOrderTimeline } from "../services/orderTimelineService.js";
 import { sql, pool } from "../config/db.js";
 import jwt from "jsonwebtoken";
+import {
+  normalizeSellerContact,
+  validateProductNumbers,
+  validateSellerContact
+} from "../utils/sellerValidation.js";
+import {
+  INVENTORY_TYPES,
+  recordInventoryLog,
+  validateInventoryReason
+} from "../services/inventoryService.js";
 
 const ACCESS_TOKEN_TTL = "30m";
+const DEFAULT_PRODUCT_IMAGE = "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80";
+
+const normalizeProductImages = (body, userId, { useDefault = false } = {}) => {
+  let rawImages;
+  if (body.images !== undefined) {
+    if (!Array.isArray(body.images)) {
+      const error = new Error("images phai la mot mang.");
+      error.code = "INVALID_PRODUCT_IMAGES";
+      throw error;
+    }
+    rawImages = body.images;
+  } else if (body.image) {
+    rawImages = [{ url: body.image, publicId: body.imagePublicId || null }];
+  } else {
+    rawImages = useDefault ? [{ url: DEFAULT_PRODUCT_IMAGE, publicId: null }] : null;
+  }
+  if (rawImages === null) return null;
+  if (rawImages.length < 1 || rawImages.length > 8) {
+    const error = new Error("San pham phai co tu 1 den 8 anh.");
+    error.code = "INVALID_PRODUCT_IMAGE_COUNT";
+    throw error;
+  }
+  const ownerPrefix = `volitify/${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}/product/`;
+  let primaryIndex = rawImages.findIndex((item) => Boolean(item?.isPrimary));
+  if (primaryIndex < 0) primaryIndex = 0;
+  return rawImages.map((item, index) => {
+    const url = String(item?.url || "").trim();
+    const publicId = item?.publicId ? String(item.publicId).trim() : null;
+    if (!/^https?:\/\//i.test(url) || url.length > 2083) {
+      const error = new Error("URL anh san pham khong hop le.");
+      error.code = "INVALID_PRODUCT_IMAGE_URL";
+      throw error;
+    }
+    if (publicId && (publicId.length > 255 || !publicId.startsWith(ownerPrefix))) {
+      const error = new Error("Anh upload khong thuoc tai khoan seller hien tai.");
+      error.code = "PRODUCT_IMAGE_NOT_OWNED";
+      error.statusCode = 403;
+      throw error;
+    }
+    return {
+      url,
+      publicId,
+      isPrimary: index === primaryIndex,
+      sortOrder: index
+    };
+  });
+};
 
 // Đăng ký làm Seller
 export const registerSeller = async (req, res, next) => {
@@ -14,7 +72,9 @@ export const registerSeller = async (req, res, next) => {
       shopAddress,
       description,
       logoUrl,
+      logoPublicId,
       coverUrl,
+      coverPublicId,
       pickupAddress,
       identityName,
       identityNumber,
@@ -31,19 +91,35 @@ export const registerSeller = async (req, res, next) => {
       });
     }
 
+    const validationError = validateSellerContact({
+      shopPhone,
+      identityNumber,
+      bankAccountNo
+    });
+    if (validationError) {
+      return res.status(400).json({ status: "fail", message: validationError });
+    }
+    const normalizedContact = normalizeSellerContact({
+      shopPhone,
+      identityNumber,
+      bankAccountNo
+    });
+
     const result = await sellerService.registerSeller({
       userId,
       shopName,
-      shopPhone,
+      shopPhone: normalizedContact.shopPhone,
       shopAddress,
       description,
       logoUrl,
+      logoPublicId,
       coverUrl,
+      coverPublicId,
       pickupAddress,
       identityName,
-      identityNumber,
+      identityNumber: normalizedContact.identityNumber,
       bankName,
-      bankAccountNo,
+      bankAccountNo: normalizedContact.bankAccountNo,
       bankAccountHolder
     });
 
@@ -74,8 +150,9 @@ export const registerSeller = async (req, res, next) => {
     });
 
   } catch (err) {
-    res.status(400).json({
+    res.status(err.statusCode || 400).json({
       status: "fail",
+      ...(err.code && { code: err.code }),
       message: err.message
     });
   }
@@ -103,7 +180,32 @@ export const getSellerProfile = async (req, res, next) => {
 
 export const updateSellerProfile = async (req, res, next) => {
   try {
-    const seller = await sellerService.updateSellerProfile(req.user.id, req.body);
+    const { shopName, shopPhone, shopAddress, identityNumber, bankAccountNo } = req.body;
+    if (!shopName || !shopPhone || !shopAddress) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Tên shop, số điện thoại và địa chỉ shop là bắt buộc."
+      });
+    }
+
+    const validationError = validateSellerContact({
+      shopPhone,
+      identityNumber,
+      bankAccountNo
+    });
+    if (validationError) {
+      return res.status(400).json({ status: "fail", message: validationError });
+    }
+
+    const normalizedContact = normalizeSellerContact({
+      shopPhone,
+      identityNumber,
+      bankAccountNo
+    });
+    const seller = await sellerService.updateSellerProfile(req.user.id, {
+      ...req.body,
+      ...normalizedContact
+    });
     res.status(200).json({
       status: "success",
       message: "Cập nhật hồ sơ shop thành công.",
@@ -168,11 +270,11 @@ export const getSellerProducts = async (req, res, next) => {
       });
     }
 
-    const products = await sellerService.getSellerProducts(seller.id);
+    const data = await sellerService.getSellerProducts(seller.id, req.query);
     res.status(200).json({
       status: "success",
-      results: products.length,
-      data: { products }
+      results: data.products.length,
+      data
     });
   } catch (err) {
     next(err);
@@ -182,6 +284,7 @@ export const getSellerProducts = async (req, res, next) => {
 // Tạo sản phẩm cho Seller
 export const createSellerProduct = async (req, res, next) => {
   const transaction = new sql.Transaction(pool);
+  let transactionStarted = false;
   try {
     const seller = await sellerService.getSellerByUserId(req.user.id);
     if (!seller) {
@@ -191,23 +294,50 @@ export const createSellerProduct = async (req, res, next) => {
       });
     }
 
-    const { name, price, description, categoryId, image, stock, isActive } = req.body;
-    if (!name || !price || !categoryId) {
+    const {
+      name, price, description, categoryId, stock, sku, isActive,
+      lowStockThreshold = 5
+    } = req.body;
+    if (!name || price === undefined || price === null || price === "" || !categoryId) {
       return res.status(400).json({
         status: "fail",
         message: "Tên sản phẩm và Giá cơ bản là bắt buộc!"
       });
     }
 
+    const validationError = validateProductNumbers(
+      { price, stock },
+      { requirePrice: true }
+    );
+    if (validationError) {
+      return res.status(400).json({ status: "fail", message: validationError });
+    }
+    if (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 1000000) {
+      return res.status(400).json({
+        status: "fail",
+        code: "INVALID_LOW_STOCK_THRESHOLD",
+        message: "lowStockThreshold phai la so nguyen tu 0 den 1000000."
+      });
+    }
+
     const productId = `prod_${Math.random().toString(36).substr(2, 9)}`;
     const variantId = `var_${Math.random().toString(36).substr(2, 9)}`;
-    const imageId = `img_${Math.random().toString(36).substr(2, 9)}`;
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const basePrice = parseFloat(price) || 0;
-    const stockQty = parseInt(stock) || 0;
-    const defaultImage = image || "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80";
+    const basePrice = price;
+    const stockQty = stock === undefined ? 0 : stock;
+    const productImages = normalizeProductImages(req.body, req.user.id, { useDefault: true });
+    const defaultImage = productImages.find((item) => item.isPrimary).url;
+    const defaultSku = String(sku || `SKU-${slug.toUpperCase()}`).trim().toUpperCase();
+    if (!/^[A-Z0-9._-]{3,100}$/.test(defaultSku)) {
+      return res.status(400).json({
+        status: "fail",
+        code: "INVALID_SKU",
+        message: "SKU phải có 3-100 ký tự gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang."
+      });
+    }
 
     await transaction.begin();
+    transactionStarted = true;
     const reqTx = () => transaction.request();
 
     // 1. Chèn vào bảng Products
@@ -234,29 +364,58 @@ export const createSellerProduct = async (req, res, next) => {
       `);
 
     // 3. Chèn vào bảng ProductImages
-    await reqTx()
-      .input("id", sql.VarChar, imageId)
-      .input("productId", sql.VarChar, productId)
-      .input("imageUrl", sql.VarChar, defaultImage)
-      .query(`
-        INSERT INTO ProductImages (id, product_id, image_url, is_primary, sort_order)
-        VALUES (@id, @productId, @imageUrl, 1, 0)
-      `);
+    for (const productImage of productImages) {
+      await reqTx()
+        .input("id", sql.VarChar, `img_${Math.random().toString(36).substr(2, 9)}`)
+        .input("productId", sql.VarChar, productId)
+        .input("imageUrl", sql.VarChar, productImage.url)
+        .input("publicId", sql.VarChar, productImage.publicId)
+        .input("isPrimary", sql.Bit, productImage.isPrimary)
+        .input("sortOrder", sql.Int, productImage.sortOrder)
+        .query(`
+          INSERT INTO ProductImages (
+            id, product_id, image_url, public_id, is_primary, sort_order
+          ) VALUES (
+            @id, @productId, @imageUrl, @publicId, @isPrimary, @sortOrder
+          )
+        `);
+    }
 
     // 4. Chèn vào bảng ProductVariants làm Variant mặc định để map lên giao diện
     await reqTx()
       .input("id", sql.VarChar, variantId)
       .input("productId", sql.VarChar, productId)
-      .input("sku", sql.VarChar, `SKU-${slug.toUpperCase()}`)
+      .input("sku", sql.VarChar, defaultSku)
       .input("price", sql.Decimal(18, 2), basePrice)
       .input("stockQty", sql.Int, stockQty)
+      .input("lowStockThreshold", sql.Int, lowStockThreshold)
       .input("imageUrl", sql.VarChar, defaultImage)
       .query(`
-        INSERT INTO ProductVariants (id, product_id, sku, price, stock_qty, image_url)
-        VALUES (@id, @productId, @sku, @price, @stockQty, @imageUrl)
+        INSERT INTO ProductVariants (
+          id, product_id, sku, price, stock_qty, low_stock_threshold,
+          image_url, is_active, is_default
+        )
+        VALUES (
+          @id, @productId, @sku, @price, @stockQty, @lowStockThreshold,
+          @imageUrl, 1, 1
+        )
       `);
 
+    if (stockQty > 0) {
+      await recordInventoryLog(transaction, {
+        variantId,
+        oldQuantity: 0,
+        changeQuantity: stockQty,
+        newQuantity: stockQty,
+        type: INVENTORY_TYPES.RESTOCK,
+        referenceId: productId,
+        reason: "Tồn kho ban đầu khi tạo sản phẩm.",
+        createdBy: req.user.id
+      });
+    }
+
     await transaction.commit();
+    transactionStarted = false;
 
     res.status(201).json({
       status: "success",
@@ -270,15 +429,26 @@ export const createSellerProduct = async (req, res, next) => {
           description,
           category: categoryId,
           image: defaultImage,
-          stock: stockQty
+          images: productImages,
+          stock: stockQty,
+          variantId,
+          sku: defaultSku,
+          lowStockThreshold
         }
       }
     });
 
   } catch (err) {
-    await transaction.rollback();
-    res.status(400).json({
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (_) {
+        // Preserve the original product error.
+      }
+    }
+    res.status(err.statusCode || 400).json({
       status: "fail",
+      ...(err.code && { code: err.code }),
       message: err.message
     });
   }
@@ -287,6 +457,7 @@ export const createSellerProduct = async (req, res, next) => {
 // Cập nhật sản phẩm của Seller
 export const updateSellerProduct = async (req, res, next) => {
   const transaction = new sql.Transaction(pool);
+  let transactionStarted = false;
   try {
     const seller = await sellerService.getSellerByUserId(req.user.id);
     if (!seller) {
@@ -311,9 +482,40 @@ export const updateSellerProduct = async (req, res, next) => {
       });
     }
 
-    const { name, price, description, categoryId, image, stock, isActive } = req.body;
+    const {
+      name,
+      price,
+      description,
+      categoryId,
+      stock,
+      sku,
+      isActive,
+      lowStockThreshold,
+      stockReason
+    } = req.body;
+
+    const validationError = validateProductNumbers({ price, stock });
+    if (validationError) {
+      return res.status(400).json({ status: "fail", message: validationError });
+    }
+    if (
+      lowStockThreshold !== undefined
+      && (!Number.isInteger(lowStockThreshold) || lowStockThreshold < 0 || lowStockThreshold > 1000000)
+    ) {
+      return res.status(400).json({
+        status: "fail",
+        code: "INVALID_LOW_STOCK_THRESHOLD",
+        message: "lowStockThreshold phai la so nguyen tu 0 den 1000000."
+      });
+    }
+    const productImages = normalizeProductImages(req.body, req.user.id);
+    const hasImageUpdate = productImages !== null;
+    const primaryImage = hasImageUpdate
+      ? productImages.find((item) => item.isPrimary)
+      : null;
 
     await transaction.begin();
+    transactionStarted = true;
     const reqTx = () => transaction.request();
 
     // 1. Cập nhật bảng Products
@@ -331,7 +533,7 @@ export const updateSellerProduct = async (req, res, next) => {
       }
       if (price !== undefined) {
         query += ", base_price = @price";
-        request.input("price", sql.Decimal(18, 2), parseFloat(price));
+        request.input("price", sql.Decimal(18, 2), price);
       }
       if (isActive !== undefined) {
         query += ", is_active = @isActive";
@@ -354,46 +556,106 @@ export const updateSellerProduct = async (req, res, next) => {
     }
 
     // 3. Cập nhật ProductImages (chỉ cập nhật ảnh primary hiện có)
-    if (image) {
+    if (hasImageUpdate) {
       await reqTx()
         .input("productId", sql.VarChar, productId)
-        .input("imageUrl", sql.VarChar, image)
-        .query(`
-          UPDATE ProductImages SET image_url = @imageUrl WHERE product_id = @productId AND is_primary = 1
-        `);
+        .query("DELETE FROM ProductImages WHERE product_id = @productId");
+      for (const productImage of productImages) {
+        await reqTx()
+          .input("id", sql.VarChar, `img_${Math.random().toString(36).substr(2, 9)}`)
+          .input("productId", sql.VarChar, productId)
+          .input("imageUrl", sql.VarChar, productImage.url)
+          .input("publicId", sql.VarChar, productImage.publicId)
+          .input("isPrimary", sql.Bit, productImage.isPrimary)
+          .input("sortOrder", sql.Int, productImage.sortOrder)
+          .query(`
+            INSERT INTO ProductImages (
+              id, product_id, image_url, public_id, is_primary, sort_order
+            ) VALUES (
+              @id, @productId, @imageUrl, @publicId, @isPrimary, @sortOrder
+            )
+          `);
+      }
     }
 
     // 4. Cập nhật ProductVariants
-    if (price !== undefined || stock !== undefined || image) {
+    if (
+      price !== undefined || stock !== undefined || hasImageUpdate
+      || sku !== undefined || lowStockThreshold !== undefined
+    ) {
       // Tìm variant đầu tiên
-      const variantRes = await pool.request()
+      const variantRes = await reqTx()
         .input("productId", sql.VarChar, productId)
-        .query("SELECT TOP 1 id FROM ProductVariants WHERE product_id = @productId");
+        .query(`
+          SELECT TOP 1 id, stock_qty
+          FROM ProductVariants WITH (UPDLOCK, HOLDLOCK)
+          WHERE product_id = @productId AND is_default = 1
+          ORDER BY id ASC
+        `);
       
       const variant = variantRes.recordset[0];
+      if (!variant && stock !== undefined) {
+        const error = new Error("Không tìm thấy phiên bản sản phẩm để cập nhật tồn kho.");
+        error.code = "VARIANT_NOT_FOUND";
+        error.statusCode = 404;
+        throw error;
+      }
       if (variant) {
-        let query = "UPDATE ProductVariants SET id = id";
+        const oldQuantity = Number(variant.stock_qty);
+        const stockChanged = stock !== undefined && Number(stock) !== oldQuantity;
+        const normalizedStockReason = stockChanged
+          ? validateInventoryReason(stockReason)
+          : null;
+        let query = "UPDATE ProductVariants SET updated_at = GETDATE()";
         const request = reqTx().input("variantId", sql.VarChar, variant.id);
 
         if (price !== undefined) {
           query += ", price = @price";
-          request.input("price", sql.Decimal(18, 2), parseFloat(price));
+          request.input("price", sql.Decimal(18, 2), price);
+        }
+        if (sku !== undefined) {
+          const normalizedSku = String(sku).trim().toUpperCase();
+          if (!/^[A-Z0-9._-]{3,100}$/.test(normalizedSku)) {
+            const error = new Error("SKU phải có 3-100 ký tự hợp lệ.");
+            error.code = "INVALID_SKU";
+            throw error;
+          }
+          query += ", sku = @sku";
+          request.input("sku", sql.VarChar, normalizedSku);
         }
         if (stock !== undefined) {
           query += ", stock_qty = @stock";
-          request.input("stock", sql.Int, parseInt(stock));
+          request.input("stock", sql.Int, stock);
         }
-        if (image) {
+        if (lowStockThreshold !== undefined) {
+          query += ", low_stock_threshold = @lowStockThreshold";
+          request.input("lowStockThreshold", sql.Int, lowStockThreshold);
+        }
+        if (hasImageUpdate) {
           query += ", image_url = @image";
-          request.input("image", sql.VarChar, image);
+          request.input("image", sql.VarChar, primaryImage.url);
         }
 
         query += " WHERE id = @variantId";
         await request.query(query);
+
+        if (stockChanged) {
+          await recordInventoryLog(transaction, {
+            variantId: variant.id,
+            oldQuantity,
+            changeQuantity: Number(stock) - oldQuantity,
+            newQuantity: Number(stock),
+            type: INVENTORY_TYPES.MANUAL_ADJUSTMENT,
+            referenceId: productId,
+            reason: normalizedStockReason,
+            createdBy: req.user.id
+          });
+        }
       }
     }
 
     await transaction.commit();
+    transactionStarted = false;
 
     res.status(200).json({
       status: "success",
@@ -401,9 +663,16 @@ export const updateSellerProduct = async (req, res, next) => {
     });
 
   } catch (err) {
-    await transaction.rollback();
-    res.status(400).json({
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (_) {
+        // Preserve the original product error.
+      }
+    }
+    res.status(err.statusCode || 400).json({
       status: "fail",
+      ...(err.code && { code: err.code }),
       message: err.message
     });
   }
@@ -462,14 +731,39 @@ export const getSellerOrders = async (req, res, next) => {
       });
     }
 
-    const orders = await sellerService.getSellerOrders(seller.id);
+    const data = await sellerService.getSellerOrders(seller.id, req.query);
     res.status(200).json({
       status: "success",
-      results: orders.length,
-      data: { orders }
+      results: data.orders.length,
+      data
     });
   } catch (err) {
     next(err);
+  }
+};
+
+export const getSellerOrderTimeline = async (req, res, next) => {
+  try {
+    const seller = await sellerService.getSellerByUserId(req.user.id);
+    if (!seller) {
+      return res.status(404).json({
+        status: "fail",
+        code: "SELLER_NOT_FOUND",
+        message: "Không tìm thấy thông tin cửa hàng."
+      });
+    }
+
+    const timeline = await loadSellerOrderTimeline(seller.id, req.params.orderId);
+    return res.status(200).json({ status: "success", data: timeline });
+  } catch (error) {
+    if (error.code) {
+      return res.status(error.statusCode || 400).json({
+        status: "fail",
+        code: error.code,
+        message: error.message
+      });
+    }
+    next(error);
   }
 };
 
@@ -484,14 +778,23 @@ export const updateSellerOrderItem = async (req, res, next) => {
       });
     }
 
-    await sellerService.updateSellerOrderItem(seller.id, req.params.itemId, req.body);
-    res.status(200).json({
+    const orderItem = await sellerService.updateSellerOrderItem(
+      seller.id,
+      req.user.id,
+      req.params.itemId,
+      req.body
+    );
+    return res.status(200).json({
       status: "success",
-      message: "Cập nhật đơn hàng thành công."
+      message: orderItem.changed
+        ? "Cập nhật trạng thái đơn hàng thành công."
+        : "Trạng thái đơn hàng không thay đổi.",
+      data: { orderItem }
     });
   } catch (err) {
-    res.status(400).json({
+    return res.status(err.statusCode || 400).json({
       status: "fail",
+      ...(err.code ? { code: err.code } : {}),
       message: err.message
     });
   }
@@ -519,10 +822,10 @@ export const getSellerCoupons = async (req, res, next) => {
       });
     }
 
-    const coupons = await sellerService.getSellerCoupons(seller.id);
+    const data = await sellerService.getSellerCoupons(seller.id, req.query);
     res.status(200).json({
       status: "success",
-      data: { coupons }
+      data
     });
   } catch (err) {
     next(err);

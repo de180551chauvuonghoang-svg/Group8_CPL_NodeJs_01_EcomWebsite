@@ -18,6 +18,10 @@ import paymentRoutes from "./routes/payment.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import sellerRoutes from "./routes/seller.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+import shopFollowRoutes from "./routes/shopFollow.routes.js";
 
 // Middlewares imports
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -91,6 +95,11 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api", reviewRoutes);
+app.use("/api/uploads", uploadRoutes);
+app.use("/api/seller/uploads", uploadRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/shops", shopFollowRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/chat", chatRoutes);
 

@@ -1,22 +1,47 @@
 import { sql, pool } from "../config/db.js";
+import { randomUUID } from "node:crypto";
+import { createNotification } from "./notificationService.js";
 
 export const messageService = {
   saveMessage: async ({ senderId, receiverId, messageText }) => {
-    const id = `msg_${Math.random().toString(36).substr(2, 9)}`;
-    await pool.request()
-      .input("id", sql.VarChar, id)
-      .input("sender_id", sql.VarChar, senderId)
-      .input("receiver_id", sql.VarChar, receiverId)
-      .input("message_text", sql.NVarChar, messageText)
-      .query(`
-        INSERT INTO Messages (id, sender_id, receiver_id, message_text, is_read, created_at)
-        VALUES (@id, @sender_id, @receiver_id, @message_text, 0, GETDATE())
-      `);
+    const id = `msg_${randomUUID()}`;
+    const transaction = new sql.Transaction(pool);
+    let started = false;
+    try {
+      await transaction.begin();
+      started = true;
+      await transaction.request()
+        .input("id", sql.VarChar, id)
+        .input("sender_id", sql.VarChar, senderId)
+        .input("receiver_id", sql.VarChar, receiverId)
+        .input("message_text", sql.NVarChar, messageText)
+        .query(`
+          INSERT INTO Messages (id, sender_id, receiver_id, message_text, is_read, created_at)
+          VALUES (@id, @sender_id, @receiver_id, @message_text, 0, GETDATE())
+        `);
 
-    const selectResult = await pool.request()
-      .input("id", sql.VarChar, id)
-      .query("SELECT * FROM Messages WHERE id = @id");
-    return selectResult.recordset[0];
+      const selectResult = await transaction.request()
+        .input("id", sql.VarChar, id)
+        .query("SELECT * FROM Messages WHERE id = @id");
+      await createNotification(transaction, {
+        userId: receiverId,
+        type: "chat_message",
+        title: "Tin nh\u1eafn m\u1edbi",
+        message: String(messageText).slice(0, 300),
+        entityType: "chat",
+        entityId: senderId,
+        data: { partnerId: senderId, messageId: id },
+        dedupeKey: `chat-message:${id}`
+      });
+      await transaction.commit();
+      started = false;
+      return selectResult.recordset[0];
+    } catch (error) {
+      if (started) {
+        try { await transaction.rollback(); } catch (_) { /* preserve original error */ }
+      }
+      throw error;
+    }
   },
 
   getChatHistory: async (user1, user2) => {

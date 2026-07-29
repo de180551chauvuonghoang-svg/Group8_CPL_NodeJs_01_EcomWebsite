@@ -4,8 +4,8 @@ const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 });
 
 // Request interceptor to add authorization token
@@ -19,7 +19,7 @@ API.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor to handle errors
@@ -28,14 +28,14 @@ API.interceptors.response.use(
   (error) => {
     const message = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau.';
     console.error('[API Error Interceptor]', error.response || error);
-    
+
     // Return standard error shape so front-end has clean message handling
     return Promise.reject({
       message,
       status: error.response?.status,
-      data: error.response?.data
+      data: error.response?.data,
     });
-  }
+  },
 );
 
 export default API;

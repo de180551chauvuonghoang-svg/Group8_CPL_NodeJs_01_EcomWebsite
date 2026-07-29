@@ -1,9 +1,26 @@
 import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BadgeCheck, Banknote, Image, Store, Phone, MapPin, FileText, Sparkles, ArrowRight, ShoppingBag } from 'lucide-react';
+import {
+  BadgeCheck,
+  Banknote,
+  Store,
+  Phone,
+  MapPin,
+  FileText,
+  Sparkles,
+  ArrowRight,
+  ShoppingBag,
+} from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { sellerService } from '../services/sellerService';
+import ImageUploadField from '../components/common/ImageUploadField';
+import type { ProductImage } from '../types';
+import {
+  isValidOptionalBankAccount,
+  isValidOptionalIdentityNumber,
+  isValidShopPhone,
+} from '../utils/sellerValidation';
 
 export default function BecomeSeller() {
   const navigate = useNavigate();
@@ -17,16 +34,18 @@ export default function BecomeSeller() {
     pickupAddress: '',
     description: '',
     logoUrl: '',
+    logoPublicId: '',
     coverUrl: '',
+    coverPublicId: '',
     identityName: '',
     identityNumber: '',
     bankName: '',
     bankAccountNo: '',
-    bankAccountHolder: ''
+    bankAccountHolder: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setError('');
   };
 
@@ -34,6 +53,19 @@ export default function BecomeSeller() {
     e.preventDefault();
     if (!form.shopName.trim() || !form.shopPhone.trim() || !form.shopAddress.trim()) {
       setError('Vui lòng điền đầy đủ tên, số điện thoại và địa chỉ cửa hàng!');
+      return;
+    }
+
+    if (!isValidShopPhone(form.shopPhone)) {
+      setError('Số điện thoại shop phải gồm 10 chữ số và bắt đầu bằng số 0.');
+      return;
+    }
+    if (!isValidOptionalIdentityNumber(form.identityNumber)) {
+      setError('Số CCCD phải gồm đúng 12 chữ số.');
+      return;
+    }
+    if (!isValidOptionalBankAccount(form.bankAccountNo)) {
+      setError('Số tài khoản phải gồm từ 6 đến 20 chữ số.');
       return;
     }
 
@@ -47,13 +79,15 @@ export default function BecomeSeller() {
         {
           pickupAddress: form.pickupAddress,
           logoUrl: form.logoUrl,
+          logoPublicId: form.logoPublicId,
           coverUrl: form.coverUrl,
+          coverPublicId: form.coverPublicId,
           identityName: form.identityName,
           identityNumber: form.identityNumber,
           bankName: form.bankName,
           bankAccountNo: form.bankAccountNo,
-          bankAccountHolder: form.bankAccountHolder
-        }
+          bankAccountHolder: form.bankAccountHolder,
+        },
       );
       // Cập nhật user trong AuthContext với role mới và token mới
       if (authCtx && data.user) {
@@ -61,7 +95,8 @@ export default function BecomeSeller() {
       }
       navigate('/seller/dashboard');
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
+      const msg =
+        err?.response?.data?.message || err?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
       setError(msg);
     } finally {
       setLoading(false);
@@ -94,7 +129,9 @@ export default function BecomeSeller() {
             <Store size={36} className="text-white" />
           </motion.div>
           <h1 className="text-3xl font-black text-on-surface mb-2">Mở Cửa Hàng</h1>
-          <p className="text-on-surface-variant">Bắt đầu hành trình kinh doanh online của bạn trên E-Com FPT</p>
+          <p className="text-on-surface-variant">
+            Bắt đầu hành trình kinh doanh online của bạn trên E-Com FPT
+          </p>
         </div>
 
         {/* Form Card */}
@@ -133,6 +170,8 @@ export default function BecomeSeller() {
                 value={form.shopPhone}
                 onChange={handleChange}
                 placeholder="Vd: 0901234567"
+                inputMode="numeric"
+                maxLength={10}
                 disabled={loading}
                 className="w-full bg-surface-container rounded-2xl px-5 py-4 text-on-surface placeholder:text-on-surface-variant/50 border-2 border-outline-variant/50 focus:border-primary/50 focus:outline-none transition-all text-sm font-medium"
               />
@@ -160,7 +199,9 @@ export default function BecomeSeller() {
               <label className="flex items-center gap-2 text-sm font-semibold text-on-surface">
                 <MapPin size={16} className="text-primary" />
                 Địa Chỉ Lấy Hàng
-                <span className="text-on-surface-variant text-xs font-normal">(có thể giống địa chỉ shop)</span>
+                <span className="text-on-surface-variant text-xs font-normal">
+                  (có thể giống địa chỉ shop)
+                </span>
               </label>
               <input
                 id="pickupAddress"
@@ -174,39 +215,47 @@ export default function BecomeSeller() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-on-surface">
-                  <Image size={16} className="text-primary" />
-                  Logo Shop
-                </label>
-                <input
-                  id="logoUrl"
-                  name="logoUrl"
-                  type="url"
-                  value={form.logoUrl}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  disabled={loading}
-                  className="w-full bg-surface-container rounded-2xl px-5 py-4 text-on-surface placeholder:text-on-surface-variant/50 border-2 border-outline-variant/50 focus:border-primary/50 focus:outline-none transition-all text-sm font-medium"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-semibold text-on-surface">
-                  <Image size={16} className="text-primary" />
-                  Ảnh Bìa Shop
-                </label>
-                <input
-                  id="coverUrl"
-                  name="coverUrl"
-                  type="url"
-                  value={form.coverUrl}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  disabled={loading}
-                  className="w-full bg-surface-container rounded-2xl px-5 py-4 text-on-surface placeholder:text-on-surface-variant/50 border-2 border-outline-variant/50 focus:border-primary/50 focus:outline-none transition-all text-sm font-medium"
-                />
-              </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <ImageUploadField
+                label="Logo shop"
+                purpose="shop_logo"
+                images={
+                  form.logoUrl
+                    ? [{ url: form.logoUrl, publicId: form.logoPublicId, isPrimary: true }]
+                    : []
+                }
+                onChange={(images: ProductImage[]) => {
+                  const image = images[0];
+                  setForm((current) => ({
+                    ...current,
+                    logoUrl: image?.url || '',
+                    logoPublicId: image?.publicId || '',
+                  }));
+                }}
+                maxImages={1}
+                aspect="square"
+                disabled={loading}
+              />
+              <ImageUploadField
+                label="Ảnh bìa shop"
+                purpose="shop_cover"
+                images={
+                  form.coverUrl
+                    ? [{ url: form.coverUrl, publicId: form.coverPublicId, isPrimary: true }]
+                    : []
+                }
+                onChange={(images: ProductImage[]) => {
+                  const image = images[0];
+                  setForm((current) => ({
+                    ...current,
+                    coverUrl: image?.url || '',
+                    coverPublicId: image?.publicId || '',
+                  }));
+                }}
+                maxImages={1}
+                aspect="cover"
+                disabled={loading}
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -324,7 +373,9 @@ export default function BecomeSeller() {
             <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-2xl px-4 py-3">
               <ShoppingBag size={18} className="text-primary shrink-0" />
               <p className="text-xs text-on-surface-variant">
-                Tất cả sản phẩm của bạn sẽ được mặc định <span className="font-bold text-primary">miễn phí vận chuyển</span> để tối ưu trải nghiệm khách hàng.
+                Tất cả sản phẩm của bạn sẽ được mặc định{' '}
+                <span className="font-bold text-primary">miễn phí vận chuyển</span> để tối ưu trải
+                nghiệm khách hàng.
               </p>
             </div>
 

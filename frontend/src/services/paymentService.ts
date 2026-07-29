@@ -1,5 +1,7 @@
 import API from './api';
-import { CartItem } from '../context/CartContext';
+import { OrderStatusData, OrderTimelineData, UserOrder } from '../types';
+
+export type { OrderStatusData, UserOrder } from '../types';
 
 export interface ShippingInfo {
   name: string;
@@ -9,52 +11,54 @@ export interface ShippingInfo {
   note?: string;
 }
 
-export interface CheckoutPayload {
-  cartItems: CartItem[];
-  shippingInfo: ShippingInfo;
-  couponCode?: string;
+export interface CheckoutPricing {
   subtotal: number;
+  vat: number;
   discount: number;
   shippingFee: number;
   total: number;
 }
 
-export interface OrderStatusData {
-  id: string;
-  order_status: string;
-  payment_status: string;
-  method: string;
-  total: number;
-  shipping_name: string;
-  shipping_address: string;
-  transaction_ref: string | null;
-  created_at: string;
-}
-
-export interface UserOrder {
-  id: string;
-  status: string;
-  total: number;
-  payment_method: string;
-  payment_status: string;
-  shipping_name: string;
-  shipping_address: string;
-  created_at: string;
+export interface CheckoutResult {
+  success?: boolean;
+  status?: string;
+  message?: string;
+  orderId: string;
+  qrUrl?: string;
+  pricing?: CheckoutPricing;
+  items?: Array<{
+    orderItemId: string;
+    productId: string;
+    variantId: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
 }
 
 export const paymentService = {
   placeOrder: async (payload: {
-    items: any[];
-    shippingAddress: string;
+    cartItems: any[];
+    shippingInfo: ShippingInfo;
     paymentMethod: 'cod' | 'qr';
-    totalAmount: number;
-  }): Promise<{ success: boolean; message: string; orderId: string; qrUrl?: string }> => {
-    const response: any = await API.post('/orders/checkout', payload);
-    return response;
-  },
-
-  createCODOrder: async (payload: CheckoutPayload): Promise<{ orderId: string }> => {
-    const response: any = await API.post('/payments/cod/create', payload);
+    couponCodes: Array<{ sellerId: string; code: string }>;
+    total: number;
+  }): Promise<CheckoutResult> => {
+    const response: any =
+      payload.paymentMethod === 'cod'
+        ? await API.post('/payments/cod/create', {
+            cartItems: payload.cartItems,
+            shippingInfo: payload.shippingInfo,
+            couponCodes: payload.couponCodes,
+            total: payload.total,
+          })
+        : await API.post('/orders/checkout', {
+            items: payload.cartItems,
+            shippingAddress: `${payload.shippingInfo.name} | ${payload.shippingInfo.phone}\n${payload.shippingInfo.address}`,
+            paymentMethod: payload.paymentMethod,
+            couponCodes: payload.couponCodes,
+            totalAmount: payload.total,
+          });
     return response;
   },
 
@@ -70,5 +74,10 @@ export const paymentService = {
   getUserOrders: async (): Promise<UserOrder[]> => {
     const response: any = await API.get('/payments/orders');
     return response.data?.data || response.data || [];
+  },
+
+  getOrderTimeline: async (orderId: string): Promise<OrderTimelineData> => {
+    const response: any = await API.get(`/orders/${orderId}/timeline`);
+    return response.data?.data || response.data;
   },
 };

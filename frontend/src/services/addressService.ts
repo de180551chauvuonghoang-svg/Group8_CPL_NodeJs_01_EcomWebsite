@@ -34,5 +34,5 @@ export const addressService = {
   setDefault: async (id: string): Promise<boolean> => {
     await API.put(`/addresses/${id}/default`);
     return true;
-  }
+  },
 };
