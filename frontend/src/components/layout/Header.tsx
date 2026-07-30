@@ -256,10 +256,10 @@ export default function Header() {
                 <Link
                   to="/seller/dashboard"
                   title="Kênh người bán"
-                  className="hidden md:flex items-center gap-1.5 h-10 px-4 rounded-full border border-primary/20 hover:bg-primary/5 hover:border-primary/60 text-primary font-bold text-sm transition-all duration-200"
+                  className="hidden h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/20 px-3 text-sm font-bold text-primary transition-all duration-200 hover:border-primary/60 hover:bg-primary/5 active:scale-[0.98] md:flex xl:px-4"
                 >
                   <span className="material-symbols-outlined text-[18px]">storefront</span>
-                  Kênh người bán
+                  <span className="hidden xl:inline">Kênh người bán</span>
                 </Link>
               ) : user.role !== 'admin' ? (
                 <Link

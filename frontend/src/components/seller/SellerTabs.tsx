@@ -24,7 +24,7 @@ export default function SellerTabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-lg border border-outline-variant/40 bg-surface-container p-1"
+      className="mb-5 flex max-w-full gap-5 overflow-x-auto border-b border-outline-variant/40"
     >
       {tabs.map((tab) => {
         const Icon = tab.icon;
@@ -36,9 +36,9 @@ export default function SellerTabs<T extends string>({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.value)}
-            className={`flex shrink-0 items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+            className={`relative flex shrink-0 items-center gap-2 px-1 pb-3 pt-1 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 ${
               isActive
-                ? 'bg-surface-container-lowest text-primary shadow-sm'
+                ? 'text-primary after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-t-full after:bg-primary'
                 : 'text-on-surface-variant hover:text-on-surface'
             }`}
           >
@@ -46,7 +46,7 @@ export default function SellerTabs<T extends string>({
             {tab.label}
             {typeof tab.count === 'number' && tab.count > 0 && (
               <span
-                className={`min-w-5 rounded-md px-1.5 py-0.5 text-center text-xs ${
+                className={`min-w-5 rounded px-1.5 py-0.5 text-center text-[11px] ${
                   isActive ? 'bg-primary/10 text-primary' : 'bg-outline-variant/20'
                 }`}
               >

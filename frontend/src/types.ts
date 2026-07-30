@@ -56,6 +56,17 @@ export interface AuthContextType {
   register: (name: string, email: string, password: string, phone: string) => Promise<any>;
   logout: () => void;
   updateUser: (updatedUser: User) => void;
+  refreshUser: () => Promise<User>;
+}
+
+export type SellerApplicationStatus = 'pending' | 'active' | 'rejected' | 'suspended';
+
+export interface SellerApplication {
+  sellerId: string;
+  shopName?: string;
+  status: SellerApplicationStatus;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Seller {

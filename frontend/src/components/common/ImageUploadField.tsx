@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, Loader2, Star, Trash2, Upload } from 'lucide-react';
 import type { ProductImage } from '../../types';
-import { uploadService, type UploadPurpose } from '../../services/uploadService';
+import { uploadService, type UploadPurpose, type UploadScope } from '../../services/uploadService';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -14,6 +14,7 @@ interface ImageUploadFieldProps {
   maxImages?: number;
   disabled?: boolean;
   aspect?: 'square' | 'cover' | 'product';
+  uploadScope?: UploadScope;
 }
 
 export default function ImageUploadField({
@@ -24,10 +25,12 @@ export default function ImageUploadField({
   maxImages = 1,
   disabled = false,
   aspect = 'product',
+  uploadScope = 'seller',
 }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [deletingPublicId, setDeletingPublicId] = useState<string | null>(null);
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -53,7 +56,11 @@ export default function ImageUploadField({
     setError('');
     try {
       const uploads = await Promise.all(
-        selectedFiles.map((file) => uploadService.uploadImage(file, purpose)),
+        selectedFiles.map((file) =>
+          uploadScope === 'application' && purpose !== 'product'
+            ? uploadService.uploadApplicationImage(file, purpose)
+            : uploadService.uploadImage(file, purpose),
+        ),
       );
       const uploadedImages = uploads.map<ProductImage>((upload, index) => ({
         url: upload.url,
@@ -75,7 +82,23 @@ export default function ImageUploadField({
     }
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const imageToRemove = images[index];
+    if (uploadScope === 'application' && imageToRemove?.publicId) {
+      setDeletingPublicId(imageToRemove.publicId);
+      setError('');
+      try {
+        await uploadService.deleteApplicationImage(imageToRemove.publicId);
+      } catch (requestError: any) {
+        setError(
+          requestError?.data?.message || requestError?.message || 'Không thể xóa ảnh đã tải lên.',
+        );
+        setDeletingPublicId(null);
+        return;
+      }
+      setDeletingPublicId(null);
+    }
+
     const next = images.filter((_, imageIndex) => imageIndex !== index);
     if (next.length && !next.some((image) => image.isPrimary)) {
       next[0] = { ...next[0], isPrimary: true };
@@ -155,12 +178,17 @@ export default function ImageUploadField({
                 )}
                 <button
                   type="button"
-                  onClick={() => removeImage(index)}
+                  onClick={() => void removeImage(index)}
+                  disabled={deletingPublicId === image.publicId}
                   className="flex h-8 w-8 items-center justify-center rounded-md bg-error text-white"
                   title="Bỏ ảnh"
                   aria-label="Bỏ ảnh"
                 >
-                  <Trash2 size={15} />
+                  {deletingPublicId === image.publicId ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={15} />
+                  )}
                 </button>
               </div>
               {image.isPrimary && maxImages > 1 && (

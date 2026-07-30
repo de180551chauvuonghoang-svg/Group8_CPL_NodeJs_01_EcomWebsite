@@ -27,6 +27,7 @@ import { Link } from 'react-router-dom';
 import AnalyticsPeriodFilter from '../components/analytics/AnalyticsPeriodFilter';
 import RevenueOrdersChart from '../components/analytics/RevenueOrdersChart';
 import StatusStackedChart from '../components/analytics/StatusStackedChart';
+import CountUpNumber from '../components/common/CountUpNumber';
 import SellerPageHeader from '../components/seller/SellerPageHeader';
 import { AuthContext } from '../context/AuthContext';
 import { sellerService } from '../services/sellerService';
@@ -113,25 +114,33 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  formatter,
   iconClass,
   to,
 }: {
   icon: LucideIcon;
   label: string;
-  value: string | number;
+  value: number;
+  formatter?: (value: number) => string;
   iconClass: string;
   to?: string;
 }) {
   const content = (
-    <div className="flex h-full items-center gap-4 rounded-lg border border-outline-variant/40 bg-surface-container-lowest p-5 transition hover:border-primary/35 hover:shadow-md">
+    <div className="group flex h-full items-center gap-4 rounded-lg border border-outline-variant/35 bg-surface-container-lowest p-5 transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_28px_rgba(15,23,42,0.07)]">
       <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${iconClass}`}
       >
         <Icon size={21} />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-bold uppercase text-on-surface-variant">{label}</p>
-        <p className="mt-1 truncate text-xl font-black text-on-surface">{value}</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+          {label}
+        </p>
+        <CountUpNumber
+          value={value}
+          formatter={formatter}
+          className="mt-1 block truncate text-xl font-extrabold tabular-nums text-on-surface"
+        />
       </div>
     </div>
   );
@@ -157,7 +166,7 @@ function ActionCard({
   return (
     <Link
       to={to}
-      className="group flex min-h-28 items-start gap-3 border-b border-outline-variant/35 p-4 transition hover:bg-surface-container/70 sm:border-r lg:[&:nth-child(3n)]:border-r-0"
+      className="group relative flex min-h-28 items-start gap-3 border-b border-outline-variant/35 p-4 transition duration-200 hover:bg-surface-container-low sm:border-r lg:[&:nth-child(3n)]:border-r-0"
     >
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${tone}`}>
         <Icon size={18} />
@@ -165,7 +174,10 @@ function ActionCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-bold text-on-surface">{label}</p>
-          <strong className="text-xl font-black tabular-nums text-on-surface">{value}</strong>
+          <CountUpNumber
+            value={value}
+            className="text-xl font-extrabold tabular-nums text-on-surface"
+          />
         </div>
         <p className="mt-1 text-xs leading-5 text-on-surface-variant">{description}</p>
       </div>
@@ -178,31 +190,40 @@ function ActionCard({
 }
 
 function AnalyticsKpis({ analytics }: { analytics: SellerDashboardAnalytics }) {
-  const kpis = [
+  const kpis: Array<{
+    label: string;
+    value: number;
+    formatter?: (value: number) => string;
+    helper: string;
+    icon: LucideIcon;
+    color: string;
+  }> = [
     {
       label: 'Doanh thu đã giao',
-      value: formatCurrency(analytics.summary.gross_revenue),
+      value: analytics.summary.gross_revenue,
+      formatter: formatCurrency,
       helper: `${analytics.summary.delivered_orders} đơn giao thành công`,
       icon: CircleDollarSign,
       color: 'text-green-700 bg-green-500/10',
     },
     {
       label: 'Đơn phát sinh',
-      value: analytics.summary.orders_created.toLocaleString('vi-VN'),
+      value: analytics.summary.orders_created,
       helper: `${analytics.summary.units_ordered} sản phẩm được đặt`,
       icon: ShoppingCart,
       color: 'text-blue-700 bg-blue-500/10',
     },
     {
       label: 'Sản phẩm đã bán',
-      value: analytics.summary.units_sold.toLocaleString('vi-VN'),
+      value: analytics.summary.units_sold,
       helper: 'Chỉ tính sản phẩm đã giao',
       icon: Boxes,
       color: 'text-cyan-700 bg-cyan-500/10',
     },
     {
       label: 'Giá trị đơn trung bình',
-      value: formatCurrency(analytics.summary.average_delivered_order_value),
+      value: analytics.summary.average_delivered_order_value,
+      formatter: formatCurrency,
       helper: 'Theo đơn đã giao thành công',
       icon: TrendingUp,
       color: 'text-amber-700 bg-amber-500/10',
@@ -211,7 +232,7 @@ function AnalyticsKpis({ analytics }: { analytics: SellerDashboardAnalytics }) {
 
   return (
     <div className="grid border-b border-outline-variant/40 sm:grid-cols-2 xl:grid-cols-4">
-      {kpis.map(({ label, value, helper, icon: Icon, color }, index) => (
+      {kpis.map(({ label, value, formatter, helper, icon: Icon, color }, index) => (
         <div
           key={label}
           className={`flex gap-3 px-5 py-4 ${index > 0 ? 'xl:border-l xl:border-outline-variant/40' : ''}`}
@@ -220,8 +241,14 @@ function AnalyticsKpis({ analytics }: { analytics: SellerDashboardAnalytics }) {
             <Icon size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase text-on-surface-variant">{label}</p>
-            <p className="mt-1 truncate text-lg font-black text-on-surface">{value}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-on-surface-variant">
+              {label}
+            </p>
+            <CountUpNumber
+              value={value}
+              formatter={formatter}
+              className="mt-1 block truncate text-lg font-extrabold tabular-nums text-on-surface"
+            />
             <p className="mt-0.5 text-xs text-on-surface-variant">{helper}</p>
           </div>
         </div>
@@ -334,8 +361,8 @@ export default function SellerDashboard() {
   }, [analytics]);
 
   return (
-    <div className="min-h-screen bg-surface p-5 lg:p-8">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen bg-surface px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <div className="mx-auto max-w-[1420px]">
         <SellerPageHeader
           icon={Store}
           eyebrow="Tổng quan"
@@ -343,8 +370,8 @@ export default function SellerDashboard() {
           description={`Chào ${user?.name || 'seller'}, ưu tiên các việc cần xử lý trước khi xem báo cáo kinh doanh.`}
           actions={
             analytics ? (
-              <div className="rounded-md border border-outline-variant/40 bg-surface-container-lowest px-3 py-2 text-right">
-                <p className="text-xs font-bold uppercase text-on-surface-variant">
+              <div className="rounded-md bg-surface-container-low px-3 py-2 text-right ring-1 ring-outline-variant/35">
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-on-surface-variant">
                   Khoảng đang xem
                 </p>
                 <p className="mt-0.5 text-sm font-bold text-on-surface">{periodLabel}</p>
@@ -353,10 +380,10 @@ export default function SellerDashboard() {
           }
         />
 
-        <section className="mb-7 overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest">
+        <section className="mb-6 overflow-hidden rounded-lg border border-outline-variant/35 bg-surface-container-lowest shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
           <div className="flex items-center justify-between gap-3 border-b border-outline-variant/40 px-5 py-4">
             <div>
-              <h2 className="font-black text-on-surface">Việc cần làm</h2>
+              <h2 className="font-extrabold text-on-surface">Việc cần làm</h2>
               <p className="mt-1 text-sm text-on-surface-variant">
                 Các tác vụ đang ảnh hưởng trực tiếp đến vận hành shop.
               </p>
@@ -444,7 +471,7 @@ export default function SellerDashboard() {
             <Loader2 size={28} className="animate-spin text-primary" />
           </div>
         ) : (
-          <div className="mb-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <StatCard
               icon={Package}
               label="Sản phẩm"
@@ -462,7 +489,8 @@ export default function SellerDashboard() {
             <StatCard
               icon={DollarSign}
               label="Doanh thu"
-              value={formatCurrency(stats.totalRevenue)}
+              value={stats.totalRevenue}
+              formatter={formatCurrency}
               iconClass="bg-green-500/10 text-green-700"
             />
           </div>
@@ -471,11 +499,11 @@ export default function SellerDashboard() {
         <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest"
+          className="overflow-hidden rounded-lg border border-outline-variant/35 bg-surface-container-lowest shadow-[0_10px_30px_rgba(15,23,42,0.035)]"
         >
           <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
             <div>
-              <h2 className="text-lg font-black text-on-surface">Phân tích kinh doanh</h2>
+              <h2 className="text-lg font-extrabold text-on-surface">Phân tích kinh doanh</h2>
               <p className="mt-1 text-sm text-on-surface-variant">
                 Số liệu được tổng hợp theo múi giờ Việt Nam và giá trị thực từ backend.
               </p>
@@ -537,9 +565,10 @@ export default function SellerDashboard() {
                       <span className="flex items-center gap-2 text-sm font-semibold text-on-surface-variant">
                         <Icon size={16} className={color} /> {label}
                       </span>
-                      <strong className="text-on-surface">
-                        {analytics.summary.current_status[key]}
-                      </strong>
+                      <CountUpNumber
+                        value={analytics.summary.current_status[key]}
+                        className="font-extrabold tabular-nums text-on-surface"
+                      />
                     </div>
                   ))}
                 </div>

@@ -1,4 +1,5 @@
-import { useState, useContext } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -11,11 +12,14 @@ import {
   Sparkles,
   ArrowRight,
   ShoppingBag,
+  Clock3,
+  RefreshCw,
+  ShieldAlert,
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { sellerService } from '../services/sellerService';
 import ImageUploadField from '../components/common/ImageUploadField';
-import type { ProductImage } from '../types';
+import type { ProductImage, SellerApplication } from '../types';
 import {
   isValidOptionalBankAccount,
   isValidOptionalIdentityNumber,
@@ -26,6 +30,9 @@ export default function BecomeSeller() {
   const navigate = useNavigate();
   const authCtx = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [checkingApplication, setCheckingApplication] = useState(true);
+  const [applicationError, setApplicationError] = useState('');
+  const [application, setApplication] = useState<SellerApplication | null>(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
     shopName: '',
@@ -43,6 +50,43 @@ export default function BecomeSeller() {
     bankAccountNo: '',
     bankAccountHolder: '',
   });
+
+  const loadApplication = useCallback(
+    async (silent = false) => {
+      if (!silent) setCheckingApplication(true);
+      setApplicationError('');
+      try {
+        const nextApplication = await sellerService.getSellerApplication();
+        setApplication(nextApplication);
+
+        if (nextApplication?.status === 'active') {
+          await authCtx?.refreshUser();
+          navigate('/seller/dashboard', { replace: true });
+        }
+      } catch (requestError: any) {
+        setApplicationError(
+          requestError?.data?.message ||
+            requestError?.message ||
+            'Không thể kiểm tra trạng thái đăng ký người bán.',
+        );
+      } finally {
+        if (!silent) setCheckingApplication(false);
+      }
+    },
+    [authCtx, navigate],
+  );
+
+  useEffect(() => {
+    void loadApplication();
+  }, [loadApplication]);
+
+  useEffect(() => {
+    if (application?.status !== 'pending') return undefined;
+
+    const refreshOnFocus = () => void loadApplication(true);
+    window.addEventListener('focus', refreshOnFocus);
+    return () => window.removeEventListener('focus', refreshOnFocus);
+  }, [application?.status, loadApplication]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -71,7 +115,7 @@ export default function BecomeSeller() {
 
     setLoading(true);
     try {
-      const data = await sellerService.registerSeller(
+      await sellerService.registerSeller(
         form.shopName,
         form.shopPhone,
         form.shopAddress,
@@ -89,19 +133,76 @@ export default function BecomeSeller() {
           bankAccountHolder: form.bankAccountHolder,
         },
       );
-      // Cập nhật user trong AuthContext với role mới và token mới
-      if (authCtx && data.user) {
-        authCtx.updateUser(data.user);
-      }
-      navigate('/seller/dashboard');
+      await loadApplication();
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message || err?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
+      const code = err?.data?.code;
+      if (
+        code === 'SELLER_APPLICATION_PENDING' ||
+        code === 'SELLER_ALREADY_ACTIVE' ||
+        code === 'SELLER_SUSPENDED'
+      ) {
+        await loadApplication();
+        return;
+      }
+      const msg = err?.data?.message || err?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
+
+  if (checkingApplication) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface text-primary">
+        <RefreshCw size={30} className="animate-spin" />
+        <span className="ml-3 font-semibold">Đang kiểm tra hồ sơ người bán...</span>
+      </div>
+    );
+  }
+
+  if (applicationError) {
+    return (
+      <ApplicationStateCard
+        icon={<ShieldAlert size={34} />}
+        title="Chưa thể kiểm tra hồ sơ"
+        description={applicationError}
+        actionLabel="Thử lại"
+        onAction={() => void loadApplication()}
+        onBack={() => navigate('/')}
+      />
+    );
+  }
+
+  if (application?.status === 'pending') {
+    return (
+      <ApplicationStateCard
+        icon={<Clock3 size={34} />}
+        title="Hồ sơ đang chờ duyệt"
+        description={`Yêu cầu mở ${application.shopName || 'cửa hàng'} đã được gửi. Bạn vẫn dùng tài khoản customer cho đến khi Admin phê duyệt.`}
+        meta={
+          application.updatedAt
+            ? `Cập nhật: ${formatApplicationDate(application.updatedAt)}`
+            : undefined
+        }
+        actionLabel="Kiểm tra trạng thái"
+        onAction={() => void loadApplication()}
+        onBack={() => navigate('/')}
+      />
+    );
+  }
+
+  if (application?.status === 'suspended') {
+    return (
+      <ApplicationStateCard
+        icon={<ShieldAlert size={34} />}
+        title="Cửa hàng đang bị tạm ngưng"
+        description="Bạn chưa thể truy cập Kênh người bán hoặc gửi lại hồ sơ. Vui lòng liên hệ bộ phận hỗ trợ để được kiểm tra."
+        actionLabel="Kiểm tra lại"
+        onAction={() => void loadApplication()}
+        onBack={() => navigate('/')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-4 relative overflow-hidden">
@@ -136,6 +237,11 @@ export default function BecomeSeller() {
 
         {/* Form Card */}
         <div className="bg-surface-container-lowest/80 backdrop-blur-xl rounded-3xl border border-outline-variant/30 shadow-2xl p-8">
+          {application?.status === 'rejected' && (
+            <div className="mb-5 rounded-md border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
+              Hồ sơ trước chưa được duyệt. Hãy kiểm tra lại thông tin và gửi lại yêu cầu.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Shop Name */}
             <div className="space-y-2">
@@ -234,6 +340,7 @@ export default function BecomeSeller() {
                 }}
                 maxImages={1}
                 aspect="square"
+                uploadScope="application"
                 disabled={loading}
               />
               <ImageUploadField
@@ -254,6 +361,7 @@ export default function BecomeSeller() {
                 }}
                 maxImages={1}
                 aspect="cover"
+                uploadScope="application"
                 disabled={loading}
               />
             </div>
@@ -390,12 +498,12 @@ export default function BecomeSeller() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Đang tạo cửa hàng...</span>
+                  <span>Đang gửi yêu cầu...</span>
                 </>
               ) : (
                 <>
                   <Sparkles size={20} />
-                  <span>Mở Cửa Hàng Ngay</span>
+                  <span>Gửi Yêu Cầu Mở Cửa Hàng</span>
                   <ArrowRight size={18} />
                 </>
               )}
@@ -410,5 +518,62 @@ export default function BecomeSeller() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+function formatApplicationDate(value: string) {
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+interface ApplicationStateCardProps {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  meta?: string;
+  actionLabel: string;
+  onAction: () => void;
+  onBack: () => void;
+}
+
+function ApplicationStateCard({
+  icon,
+  title,
+  description,
+  meta,
+  actionLabel,
+  onAction,
+  onBack,
+}: ApplicationStateCardProps) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-surface p-4">
+      <section className="w-full max-w-lg rounded-md border border-outline-variant bg-surface-container-lowest p-8 text-center shadow-xl">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-md bg-primary/10 text-primary">
+          {icon}
+        </div>
+        <h1 className="text-2xl font-black text-on-surface">{title}</h1>
+        <p className="mt-3 text-sm leading-6 text-on-surface-variant">{description}</p>
+        {meta && <p className="mt-2 text-xs font-semibold text-on-surface-variant">{meta}</p>}
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="h-11 rounded-md border border-outline-variant font-bold text-on-surface"
+          >
+            Về trang chủ
+          </button>
+          <button
+            type="button"
+            onClick={onAction}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary font-bold text-white"
+          >
+            <RefreshCw size={17} />
+            {actionLabel}
+          </button>
+        </div>
+      </section>
+    </main>
   );
 }

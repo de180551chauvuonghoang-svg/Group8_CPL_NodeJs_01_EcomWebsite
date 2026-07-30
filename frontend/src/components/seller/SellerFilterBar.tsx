@@ -20,7 +20,7 @@ export default function SellerFilterBar({
         onSubmit?.(event);
       }}
       aria-label={ariaLabel}
-      className={`grid gap-3 border-b border-outline-variant/40 bg-surface-container-lowest p-5 ${className}`}
+      className={`grid gap-3 border-b border-outline-variant/35 bg-surface-container-low/55 p-4 sm:p-5 ${className}`}
     >
       {children}
     </form>

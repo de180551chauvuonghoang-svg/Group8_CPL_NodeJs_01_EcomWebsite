@@ -30,7 +30,7 @@ const getTarget = (notification: AppNotification, role?: User['role']) => {
 
 interface NotificationBellProps {
   user: User;
-  panelAlign?: 'left' | 'right';
+  panelAlign?: 'left' | 'right' | 'sidebar';
 }
 
 export default function NotificationBell({ user, panelAlign = 'right' }: NotificationBellProps) {
@@ -100,6 +100,13 @@ export default function NotificationBell({ user, panelAlign = 'right' }: Notific
     }
   };
 
+  const panelPosition =
+    panelAlign === 'sidebar'
+      ? 'lg:fixed lg:inset-x-auto lg:left-4 lg:top-[4.5rem] lg:w-64 lg:max-w-none'
+      : `sm:absolute sm:inset-x-auto sm:top-12 sm:w-[380px] sm:max-w-[calc(100vw-2rem)] ${
+          panelAlign === 'left' ? 'sm:left-0' : 'sm:right-0'
+        }`;
+
   return (
     <div ref={rootRef} className="relative">
       <button
@@ -120,7 +127,7 @@ export default function NotificationBell({ user, panelAlign = 'right' }: Notific
 
       {open && (
         <section
-          className={`fixed inset-x-3 top-20 z-[120] overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest shadow-2xl sm:absolute sm:inset-x-auto sm:top-12 sm:w-[380px] sm:max-w-[calc(100vw-2rem)] ${panelAlign === 'left' ? 'sm:left-0' : 'sm:right-0'}`}
+          className={`fixed inset-x-3 top-20 z-[120] max-h-[calc(100dvh-6rem)] overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest shadow-xl shadow-on-surface/10 ${panelPosition}`}
         >
           <header className="flex items-center justify-between gap-3 border-b border-outline-variant/40 px-4 py-3">
             <div>
@@ -138,7 +145,7 @@ export default function NotificationBell({ user, panelAlign = 'right' }: Notific
             )}
           </header>
 
-          <div className="max-h-[min(65vh,520px)] overflow-y-auto">
+          <div className="max-h-[min(62vh,440px)] overflow-y-auto overscroll-contain">
             {loading ? (
               <div className="flex h-32 items-center justify-center">
                 <Loader2 className="animate-spin text-primary" size={22} />
@@ -161,7 +168,7 @@ export default function NotificationBell({ user, panelAlign = 'right' }: Notific
                       className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.is_read ? 'bg-transparent' : 'bg-primary'}`}
                     />
                     <span className="min-w-0">
-                      <span className="block text-sm font-black text-on-surface">
+                      <span className="line-clamp-2 block text-sm font-extrabold leading-5 text-on-surface">
                         {notification.title}
                       </span>
                       <span className="mt-1 line-clamp-2 block text-xs leading-5 text-on-surface-variant">

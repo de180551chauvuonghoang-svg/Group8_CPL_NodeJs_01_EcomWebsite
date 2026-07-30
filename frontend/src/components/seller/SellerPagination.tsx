@@ -22,7 +22,7 @@ export default function SellerPagination({
   return (
     <nav
       aria-label="Phân trang"
-      className="flex flex-col gap-3 border-t border-outline-variant/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 border-t border-outline-variant/35 bg-surface-container-low/35 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <p className="text-xs text-on-surface-variant">
         Trang {page}/{totalPages} · {total.toLocaleString('vi-VN')} {label}
@@ -34,7 +34,7 @@ export default function SellerPagination({
           disabled={page <= 1 || loading}
           aria-label="Trang trước"
           title="Trang trước"
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-outline-variant text-on-surface-variant transition hover:border-primary/40 hover:text-primary disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-outline-variant/70 bg-surface-container-lowest text-on-surface-variant transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronLeft size={17} />
         </button>
@@ -44,7 +44,7 @@ export default function SellerPagination({
           disabled={page >= totalPages || loading}
           aria-label="Trang sau"
           title="Trang sau"
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-outline-variant text-on-surface-variant transition hover:border-primary/40 hover:text-primary disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-md border border-outline-variant/70 bg-surface-container-lowest text-on-surface-variant transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronRight size={17} />
         </button>

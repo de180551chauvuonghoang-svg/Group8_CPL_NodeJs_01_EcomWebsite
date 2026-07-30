@@ -10,6 +10,7 @@ import {
   ProductImage,
   SellerCoupon,
   SellerDashboardTasks,
+  SellerApplication,
   SellerListQuery,
   SellerOrder,
   SellerProduct,
@@ -57,11 +58,12 @@ export const sellerService = {
     const data = response.data || response;
     const actualData = data.data || data;
 
-    if (actualData.accessToken) {
-      localStorage.setItem('ecom_token', actualData.accessToken);
-      localStorage.setItem('ecom_user', JSON.stringify(actualData.user));
-    }
-    return actualData;
+    return actualData.application as SellerApplication;
+  },
+
+  getSellerApplication: async (): Promise<SellerApplication | null> => {
+    const response: any = await API.get('/seller/application');
+    return response.data?.application ?? response.application ?? null;
   },
 
   getSellerProfile: async () => {

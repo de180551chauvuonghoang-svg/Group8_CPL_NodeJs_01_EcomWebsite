@@ -97,6 +97,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(updatedUser);
   };
 
+  const refreshUser = async (): Promise<User> => {
+    const freshUser = await authService.getProfile();
+    setUser(freshUser);
+    return freshUser;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -108,6 +114,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         register,
         logout,
         updateUser,
+        refreshUser,
       }}
     >
       {children}
