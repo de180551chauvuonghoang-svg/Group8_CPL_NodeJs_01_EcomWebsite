@@ -62,6 +62,7 @@ try {
     SELECT TOP 1 users.id, users.email, users.role, seller.id AS seller_id
     FROM Users users
     INNER JOIN Sellers seller ON seller.user_id = users.id
+    WHERE users.role = 'seller' AND seller.status = 'active'
     ORDER BY seller.id
   `)).recordset[0];
   const customer = (await pool.request().query(`

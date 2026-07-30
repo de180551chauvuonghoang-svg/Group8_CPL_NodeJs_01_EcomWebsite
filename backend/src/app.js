@@ -20,6 +20,7 @@ import sellerRoutes from "./routes/seller.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
+import sellerApplicationUploadRoutes from "./routes/sellerApplicationUpload.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import shopFollowRoutes from "./routes/shopFollow.routes.js";
 
@@ -98,6 +99,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api", reviewRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/seller/uploads", uploadRoutes);
+app.use("/api/seller/application/uploads", sellerApplicationUploadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/shops", shopFollowRoutes);
 app.use("/api/seller", sellerRoutes);

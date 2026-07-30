@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, restrictTo } from "../middlewares/auth.middleware.js";
+import { requireActiveSeller } from "../middlewares/seller.middleware.js";
 import {
   createProductReview,
   deleteProductReview,
@@ -186,6 +187,7 @@ router.delete("/reviews/:reviewId", protect, deleteProductReview);
 router.get(
   "/seller/reviews",
   protect,
+  requireActiveSeller,
   restrictTo("seller"),
   getSellerReviews
 );
@@ -219,6 +221,7 @@ router.get(
 router.put(
   "/seller/reviews/:reviewId/reply",
   protect,
+  requireActiveSeller,
   restrictTo("seller"),
   replyToProductReview
 );

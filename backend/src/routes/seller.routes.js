@@ -1,7 +1,9 @@
 import express from "express";
 import { protect, restrictTo } from "../middlewares/auth.middleware.js";
+import { requireActiveSeller } from "../middlewares/seller.middleware.js";
 import {
   registerSeller,
+  getSellerApplication,
   getPublicShop,
   getSellerProfile,
   updateSellerProfile,
@@ -50,10 +52,56 @@ import {
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/seller/register:
+ *   post:
+ *     summary: Gửi yêu cầu mở cửa hàng để Admin duyệt
+ *     description: Không đổi role và không cấp seller JWT. Đơn rejected được phép gửi lại.
+ *     tags: [Seller Application]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [shopName, shopPhone, shopAddress]
+ *             properties:
+ *               shopName: { type: string, example: Volitify Store }
+ *               shopPhone: { type: string, pattern: '^0\\d{9}$', example: '0987654321' }
+ *               shopAddress: { type: string, example: 123 Nguyen Van Linh, Da Nang }
+ *               pickupAddress: { type: string, nullable: true }
+ *               description: { type: string, nullable: true }
+ *               identityName: { type: string, nullable: true }
+ *               identityNumber: { type: string, pattern: '^\\d{12}$', nullable: true }
+ *               bankName: { type: string, nullable: true }
+ *               bankAccountNo: { type: string, pattern: '^\\d{6,20}$', nullable: true }
+ *               bankAccountHolder: { type: string, nullable: true }
+ *     responses:
+ *       200:
+ *         description: Đơn được lưu ở trạng thái pending; response không có accessToken
+ *       400: { description: Dữ liệu đăng ký không hợp lệ }
+ *       403: { description: SELLER_SUSPENDED }
+ *       409: { description: SELLER_APPLICATION_PENDING, SELLER_ALREADY_ACTIVE hoặc SHOP_NAME_TAKEN }
+ *
+ * /api/seller/application:
+ *   get:
+ *     summary: Lấy trạng thái đơn mở cửa hàng của tài khoản hiện tại
+ *     description: data.application là null nếu chưa đăng ký; không trả CCCD hoặc thông tin ngân hàng.
+ *     tags: [Seller Application]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Trạng thái pending, active, rejected, suspended hoặc null
+ */
 router.post("/register", protect, registerSeller);
+router.get("/application", protect, getSellerApplication);
 router.get("/shops/:id", getPublicShop);
 
 router.use(protect);
+// Status is checked first so pending/rejected/suspended applications receive a stable error code.
+router.use(requireActiveSeller);
 router.use(restrictTo("seller"));
 
 router.route("/profile")

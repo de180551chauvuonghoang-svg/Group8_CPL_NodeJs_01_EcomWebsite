@@ -67,7 +67,7 @@ const resolveCartItems = async (db, cartItems, userId) => {
           fs.sale_price
         FROM Products p WITH (UPDLOCK, HOLDLOCK)
         INNER JOIN Sellers s
-          ON s.id = p.seller_id
+          ON s.id = p.seller_id AND s.status = 'active'
         INNER JOIN ProductVariants pv WITH (UPDLOCK, HOLDLOCK)
           ON pv.product_id = p.id AND pv.is_default = 1 AND pv.is_active = 1
         OUTER APPLY (

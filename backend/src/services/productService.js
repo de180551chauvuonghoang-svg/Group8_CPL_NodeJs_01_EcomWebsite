@@ -27,7 +27,7 @@ export const productService = {
         FROM Products p
         LEFT JOIN ProductVariants pv ON p.id = pv.product_id AND pv.is_default = 1
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        LEFT JOIN Sellers s ON p.seller_id = s.id
+        INNER JOIN Sellers s ON p.seller_id = s.id AND s.status = 'active'
         LEFT JOIN ProductCategories pc ON p.id = pc.product_id
         LEFT JOIN Categories c ON pc.category_id = c.id
         OUTER APPLY (
@@ -126,7 +126,7 @@ export const productService = {
         FROM Products p
         LEFT JOIN ProductVariants pv ON p.id = pv.product_id AND pv.is_default = 1
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        LEFT JOIN Sellers s ON p.seller_id = s.id
+        INNER JOIN Sellers s ON p.seller_id = s.id AND s.status = 'active'
         LEFT JOIN ProductCategories pc ON p.id = pc.product_id
         LEFT JOIN Categories c ON pc.category_id = c.id
         OUTER APPLY (

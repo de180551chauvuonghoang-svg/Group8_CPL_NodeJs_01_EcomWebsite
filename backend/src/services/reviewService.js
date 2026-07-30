@@ -127,7 +127,13 @@ export const reviewService = {
 
     const productResult = await pool.request()
       .input("productId", sql.VarChar, productId)
-      .query("SELECT id FROM Products WHERE id = @productId AND ISNULL(is_active, 1) = 1");
+      .query(`
+        SELECT product.id
+        FROM Products product
+        INNER JOIN Sellers seller
+          ON seller.id = product.seller_id AND seller.status = 'active'
+        WHERE product.id = @productId AND ISNULL(product.is_active, 1) = 1
+      `);
     if (!productResult.recordset[0]) {
       throw reviewError("PRODUCT_NOT_FOUND", "Không tìm thấy sản phẩm.", 404);
     }

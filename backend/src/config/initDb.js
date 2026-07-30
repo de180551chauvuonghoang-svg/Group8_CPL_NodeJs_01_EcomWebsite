@@ -208,7 +208,7 @@ const createSellersTable = async (pool) => {
         bank_name     NVARCHAR(100)   NULL,
         bank_account_no VARCHAR(50)   NULL,
         bank_account_holder NVARCHAR(150) NULL,
-        status        VARCHAR(30)    NOT NULL DEFAULT 'active',
+        status        VARCHAR(30)    NOT NULL DEFAULT 'pending',
         created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
         updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
       );
@@ -261,6 +261,53 @@ const createSellersTable = async (pool) => {
         PRINT '[✓] Column bank_account_holder added to Sellers';
       END
     END
+
+    DECLARE @sellerStatusDefault SYSNAME;
+    SELECT @sellerStatusDefault = default_constraint.name
+    FROM sys.default_constraints default_constraint
+    INNER JOIN sys.columns column_info
+      ON column_info.object_id = default_constraint.parent_object_id
+      AND column_info.column_id = default_constraint.parent_column_id
+    WHERE default_constraint.parent_object_id = OBJECT_ID('Sellers')
+      AND column_info.name = 'status'
+      AND default_constraint.definition NOT LIKE '%pending%';
+
+    IF @sellerStatusDefault IS NOT NULL
+    BEGIN
+      DECLARE @dropSellerStatusDefaultSql NVARCHAR(500);
+      SET @dropSellerStatusDefaultSql =
+        N'ALTER TABLE Sellers DROP CONSTRAINT ' + QUOTENAME(@sellerStatusDefault);
+      EXEC sys.sp_executesql @dropSellerStatusDefaultSql;
+    END
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM sys.default_constraints default_constraint
+      INNER JOIN sys.columns column_info
+        ON column_info.object_id = default_constraint.parent_object_id
+        AND column_info.column_id = default_constraint.parent_column_id
+      WHERE default_constraint.parent_object_id = OBJECT_ID('Sellers')
+        AND column_info.name = 'status'
+    )
+      ALTER TABLE Sellers
+        ADD CONSTRAINT DF_Sellers_status_pending DEFAULT 'pending' FOR status;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.check_constraints
+      WHERE parent_object_id = OBJECT_ID('Sellers')
+        AND name = 'CK_Sellers_status_allowed'
+    )
+      ALTER TABLE Sellers WITH CHECK
+        ADD CONSTRAINT CK_Sellers_status_allowed
+        CHECK (status IN ('pending', 'active', 'rejected', 'suspended'));
+
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE object_id = OBJECT_ID('Sellers')
+        AND name = 'IX_Sellers_status_created_at'
+    )
+      CREATE INDEX IX_Sellers_status_created_at
+        ON Sellers(status, created_at DESC);
   `);
 };
 

@@ -2,7 +2,6 @@ import { sellerService } from "../services/sellerService.js";
 import { messageService } from "../services/messageService.js";
 import { getSellerOrderTimeline as loadSellerOrderTimeline } from "../services/orderTimelineService.js";
 import { sql, pool } from "../config/db.js";
-import jwt from "jsonwebtoken";
 import {
   normalizeSellerContact,
   validateProductNumbers,
@@ -14,7 +13,6 @@ import {
   validateInventoryReason
 } from "../services/inventoryService.js";
 
-const ACCESS_TOKEN_TTL = "30m";
 const DEFAULT_PRODUCT_IMAGE = "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80";
 
 const normalizeProductImages = (body, userId, { useDefault = false } = {}) => {
@@ -83,8 +81,10 @@ export const registerSeller = async (req, res, next) => {
       bankAccountHolder
     } = req.body;
     const userId = req.user.id;
+    const normalizedShopName = typeof shopName === "string" ? shopName.trim() : "";
+    const normalizedShopAddress = typeof shopAddress === "string" ? shopAddress.trim() : "";
 
-    if (!shopName || !shopPhone || !shopAddress) {
+    if (!normalizedShopName || !shopPhone || !normalizedShopAddress) {
       return res.status(400).json({
         status: "fail",
         message: "Vui lòng cung cấp đầy đủ tên, số điện thoại và địa chỉ cửa hàng!"
@@ -107,9 +107,9 @@ export const registerSeller = async (req, res, next) => {
 
     const result = await sellerService.registerSeller({
       userId,
-      shopName,
+      shopName: normalizedShopName,
       shopPhone: normalizedContact.shopPhone,
-      shopAddress,
+      shopAddress: normalizedShopAddress,
       description,
       logoUrl,
       logoPublicId,
@@ -123,29 +123,14 @@ export const registerSeller = async (req, res, next) => {
       bankAccountHolder
     });
 
-    // Ký lại Access Token mới chứa role 'seller'
-    if (!process.env.ACCESS_TOKEN_SECRET) {
-      throw new Error("ACCESS_TOKEN_SECRET is not configured in environment variables.");
-    }
-    const accessToken = jwt.sign(
-      { userID: result.user.id, email: result.user.email, role: "seller" },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: ACCESS_TOKEN_TTL }
-    );
-
     res.status(200).json({
       status: "success",
-      message: "Đăng ký Kênh Người Bán thành công!",
+      message: "Yêu cầu mở cửa hàng đã được gửi và đang chờ duyệt.",
       data: {
-        user: {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          avatar_url: result.user.avatar_url,
-          role: "seller",
-          sellerId: result.sellerId
-        },
-        accessToken
+        application: {
+          sellerId: result.sellerId,
+          status: result.status
+        }
       }
     });
 
@@ -155,6 +140,18 @@ export const registerSeller = async (req, res, next) => {
       ...(err.code && { code: err.code }),
       message: err.message
     });
+  }
+};
+
+export const getSellerApplication = async (req, res, next) => {
+  try {
+    const application = await sellerService.getSellerApplicationByUserId(req.user.id);
+    return res.status(200).json({
+      status: "success",
+      data: { application }
+    });
+  } catch (error) {
+    return next(error);
   }
 };
 
@@ -339,6 +336,10 @@ export const createSellerProduct = async (req, res, next) => {
     await transaction.begin();
     transactionStarted = true;
     const reqTx = () => transaction.request();
+    const activeCategoryId = await sellerService.assertSellerCategoryAvailable(
+      categoryId,
+      transaction
+    );
 
     // 1. Chèn vào bảng Products
     await reqTx()
@@ -357,7 +358,7 @@ export const createSellerProduct = async (req, res, next) => {
     // 2. Chèn vào bảng ProductCategories
     await reqTx()
       .input("productId", sql.VarChar, productId)
-      .input("categoryId", sql.VarChar, categoryId)
+      .input("categoryId", sql.VarChar, activeCategoryId)
       .query(`
         INSERT INTO ProductCategories (product_id, category_id)
         VALUES (@productId, @categoryId)
@@ -517,6 +518,9 @@ export const updateSellerProduct = async (req, res, next) => {
     await transaction.begin();
     transactionStarted = true;
     const reqTx = () => transaction.request();
+    const activeCategoryId = categoryId
+      ? await sellerService.assertSellerCategoryAvailable(categoryId, transaction)
+      : null;
 
     // 1. Cập nhật bảng Products
     if (name || description || price !== undefined || isActive !== undefined) {
@@ -545,10 +549,10 @@ export const updateSellerProduct = async (req, res, next) => {
     }
 
     // 2. Cập nhật Category
-    if (categoryId) {
+    if (activeCategoryId) {
       await reqTx()
         .input("productId", sql.VarChar, productId)
-        .input("categoryId", sql.VarChar, categoryId)
+        .input("categoryId", sql.VarChar, activeCategoryId)
         .query(`
           DELETE FROM ProductCategories WHERE product_id = @productId;
           INSERT INTO ProductCategories (product_id, category_id) VALUES (@productId, @categoryId);

@@ -89,10 +89,14 @@ BEGIN
     bank_name     NVARCHAR(100)  NULL,
     bank_account_no VARCHAR(50)  NULL,
     bank_account_holder NVARCHAR(150) NULL,
-    status        VARCHAR(30)    NOT NULL DEFAULT 'active',
+    status        VARCHAR(30)    NOT NULL DEFAULT 'pending',
     created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
-    updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+    updated_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT CK_Sellers_status_allowed
+      CHECK (status IN ('pending', 'active', 'rejected', 'suspended'))
   );
+  CREATE INDEX IX_Sellers_status_created_at
+    ON Sellers(status, created_at DESC);
   PRINT '[✓] Table Sellers created';
 END
 GO

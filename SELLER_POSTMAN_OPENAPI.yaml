@@ -1,0 +1,1530 @@
+openapi: '3.0.0'
+info:
+  title: Ecom Seller API
+  version: '2.1.0'
+  description: >-
+    API dành cho luồng đăng ký chờ duyệt và các chức năng quản trị Seller.
+    Trừ register, application, application uploads và public shop, mọi endpoint
+    /seller đều yêu cầu Users.role=seller và Sellers.status=active; nếu không BE trả
+    403 với code SELLER_NOT_ACTIVE.
+  contact:
+    name: BacktoBach
+servers:
+  - url: http://localhost:5000/api
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Seller Application
+  - name: Seller Profile
+  - name: Seller Dashboard
+  - name: Seller Products
+  - name: Seller Inventory
+  - name: Seller Orders
+  - name: Seller Coupons
+  - name: Seller Flash Sales
+  - name: Seller Reviews
+  - name: Seller Returns
+  - name: Seller Finance
+  - name: Seller Uploads
+  - name: Notifications
+  - name: Chat
+  - name: Shop Follow
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập Seller/User
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Đăng nhập thành công, trả accessToken trong data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /seller/register:
+    post:
+      tags: [Seller Application]
+      summary: Gửi yêu cầu mở cửa hàng để Admin duyệt
+      description: >-
+        Tạo đơn ở trạng thái pending. API không đổi Users.role, không cấp seller JWT
+        và cũng không trả accessToken mới. Đơn rejected được phép cập nhật và gửi lại.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerProfileInput'
+      responses:
+        '200':
+          description: Đã tạo hoặc gửi lại đơn; tài khoản hiện tại vẫn giữ role customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationSubmitResponse'
+              example:
+                status: success
+                message: Yêu cầu mở cửa hàng đã được gửi và đang chờ duyệt.
+                data:
+                  application:
+                    sellerId: sel_abc123
+                    status: pending
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Cửa hàng đang suspended, không được gửi lại đơn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: fail
+                code: SELLER_SUSPENDED
+                message: Cửa hàng đang bị tạm ngừng và không thể gửi lại đơn.
+        '409':
+          description: Đơn đang pending, shop đã active hoặc tên shop đã được dùng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                pending:
+                  value:
+                    status: fail
+                    code: SELLER_APPLICATION_PENDING
+                    message: Yêu cầu mở cửa hàng đang chờ duyệt.
+                active:
+                  value:
+                    status: fail
+                    code: SELLER_ALREADY_ACTIVE
+                    message: Cửa hàng đã được kích hoạt.
+                duplicateShopName:
+                  value:
+                    status: fail
+                    code: SHOP_NAME_TAKEN
+                    message: Tên cửa hàng đã được sử dụng. Vui lòng chọn tên khác.
+
+  /seller/application:
+    get:
+      tags: [Seller Application]
+      summary: Lấy trạng thái đơn mở cửa hàng của tài khoản hiện tại
+      description: >-
+        Customer gọi endpoint này sau khi gửi đơn hoặc khi mở lại trang Become Seller.
+        API không trả CCCD và thông tin ngân hàng. data.application là null nếu chưa từng gửi đơn.
+      responses:
+        '200':
+          description: Trạng thái đơn hiện tại hoặc null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationStatusResponse'
+              examples:
+                hasApplication:
+                  value:
+                    status: success
+                    data:
+                      application:
+                        sellerId: sel_abc123
+                        shopName: Volitify Store
+                        status: pending
+                        createdAt: '2026-07-30T08:00:00.000Z'
+                        updatedAt: '2026-07-30T08:00:00.000Z'
+                noApplication:
+                  value:
+                    status: success
+                    data:
+                      application: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /seller/application/uploads/images:
+    post:
+      tags: [Seller Application]
+      summary: Upload logo hoặc ảnh bìa trước khi gửi đơn mở cửa hàng
+      description: >-
+        Chỉ dùng cho tài khoản chưa có đơn hoặc đơn rejected. Đơn pending, shop active
+        và shop suspended không được sửa ảnh hồ sơ qua endpoint này.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                purpose:
+                  type: string
+                  enum: [shop_logo, shop_cover]
+      responses:
+        '201':
+          description: Trả data.url, data.publicId và metadata ảnh
+        '400':
+          description: Thiếu file, sai MIME/nội dung, purpose không hợp lệ hoặc ảnh lớn hơn 5 MB
+        '403':
+          description: SELLER_SUSPENDED hoặc tài khoản không phải customer/seller
+        '409':
+          description: SELLER_APPLICATION_PENDING hoặc SELLER_ALREADY_ACTIVE
+    delete:
+      tags: [Seller Application]
+      summary: Xóa ảnh hồ sơ đăng ký thuộc tài khoản hiện tại
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicId]
+              properties:
+                publicId:
+                  type: string
+      responses:
+        '200':
+          description: Ảnh đã xóa hoặc đã không còn tồn tại
+        '403':
+          description: Ảnh không thuộc tài khoản hoặc hồ sơ không được phép sửa
+
+  /seller/profile:
+    get:
+      tags: [Seller Profile]
+      summary: Lấy hồ sơ shop hiện tại
+      responses:
+        '200':
+          description: Hồ sơ shop
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Seller Profile]
+      summary: Cập nhật hồ sơ shop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerProfileInput'
+      responses:
+        '200':
+          description: Cập nhật hồ sơ thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /seller/shops/{shopId}:
+    get:
+      tags: [Seller Profile]
+      summary: Xem thông tin shop công khai
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ShopId'
+      responses:
+        '200':
+          description: Shop, sản phẩm và thống kê công khai
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /seller/dashboard-stats:
+    get:
+      tags: [Seller Dashboard]
+      summary: Lấy KPI tổng quan của Seller
+      responses:
+        '200':
+          description: Tổng sản phẩm, đơn hàng, doanh thu và KPI shop
+
+  /seller/dashboard-tasks:
+    get:
+      tags: [Seller Dashboard]
+      summary: Lấy các việc Seller cần xử lý
+      responses:
+        '200':
+          description: Các bộ đếm công việc theo shop hiện tại
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/DashboardTasks'
+
+  /seller/dashboard-analytics:
+    get:
+      tags: [Seller Dashboard]
+      summary: Lấy dữ liệu biểu đồ theo ngày, tháng hoặc năm
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [day, month, year]
+            default: day
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Summary, series và top products
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /seller/categories:
+    get:
+      tags: [Seller Products]
+      summary: Lấy danh mục để tạo hoặc lọc sản phẩm
+      responses:
+        '200':
+          description: Danh sách danh mục
+
+  /seller/products:
+    get:
+      tags: [Seller Products]
+      summary: Lấy sản phẩm thuộc shop hiện tại
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, active, inactive, low_stock, out_of_stock]
+            default: all
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, name, price, stock]
+            default: created_at
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: data.products và data.pagination
+    post:
+      tags: [Seller Products]
+      summary: Tạo sản phẩm với một default variant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateInput'
+      responses:
+        '201':
+          description: Tạo sản phẩm thành công
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /seller/products/{productId}:
+    put:
+      tags: [Seller Products]
+      summary: Cập nhật sản phẩm thuộc shop
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateInput'
+      responses:
+        '200':
+          description: Cập nhật sản phẩm thành công
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Seller Products]
+      summary: Ẩn sản phẩm khỏi gian hàng
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Sản phẩm đã được ẩn
+
+  /seller/inventory/low-stock:
+    get:
+      tags: [Seller Inventory]
+      summary: Lấy sản phẩm sắp hết hoặc hết hàng
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: data.variants và data.pagination
+
+  /seller/inventory/logs:
+    get:
+      tags: [Seller Inventory]
+      summary: Lấy lịch sử thay đổi tồn kho
+      parameters:
+        - name: variantId
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [sale, order_cancelled, restock, manual_adjustment, return_refund]
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: data.logs và data.pagination
+
+  /seller/inventory/adjust:
+    post:
+      tags: [Seller Inventory]
+      summary: Nhập kho hoặc điều chỉnh tồn kho thủ công
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryAdjustInput'
+      responses:
+        '200':
+          description: Tồn kho và InventoryLog đã được cập nhật trong một transaction
+        '409':
+          description: Điều chỉnh làm tồn kho nhỏ hơn 0
+
+  /seller/products/{productId}/variants/{variantId}/stock-alert:
+    patch:
+      tags: [Seller Inventory]
+      summary: Cập nhật ngưỡng cảnh báo tồn kho
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/VariantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lowStockThreshold]
+              properties:
+                lowStockThreshold:
+                  type: integer
+                  minimum: 0
+                  maximum: 1000000
+                  example: 5
+      responses:
+        '200':
+          description: Cập nhật ngưỡng thành công
+
+  /seller/orders:
+    get:
+      tags: [Seller Orders]
+      summary: Lấy đơn hàng có sản phẩm thuộc shop
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, pending_fulfillment, ready_to_ship, shipping, delivered, cancelled]
+            default: all
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, total, status]
+            default: created_at
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: data.orders và data.pagination
+
+  /seller/orders/{orderId}/timeline:
+    get:
+      tags: [Seller Orders]
+      summary: Lấy timeline trạng thái đơn hàng thuộc shop
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Thông tin đơn, items và status history
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /seller/orders/items/{itemId}:
+    patch:
+      tags: [Seller Orders]
+      summary: Cập nhật trạng thái một dòng đơn hàng
+      description: 'Luồng hợp lệ: pending_fulfillment -> ready_to_ship -> shipping -> delivered. Có thể hủy trước shipping.'
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItemStatusInput'
+      responses:
+        '200':
+          description: Cập nhật thành công và gửi notification cho customer
+        '409':
+          description: Chuyển trạng thái không hợp lệ
+
+  /seller/coupons:
+    get:
+      tags: [Seller Coupons]
+      summary: Lấy voucher thuộc shop
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, active, scheduled, expired, disabled, exhausted]
+            default: all
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, code, starts_at, expires_at, used_count]
+            default: created_at
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: data.coupons và data.pagination
+    post:
+      tags: [Seller Coupons]
+      summary: Tạo voucher cho shop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouponCreateInput'
+      responses:
+        '201':
+          description: Voucher được tạo
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /seller/coupons/stats:
+    get:
+      tags: [Seller Coupons]
+      summary: Lấy thống kê sử dụng voucher
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, active, scheduled, expired, disabled, exhausted]
+            default: all
+        - name: couponId
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Search'
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, code, redemptions, attributed_order_value, discount_amount, usage_rate]
+            default: redemptions
+        - $ref: '#/components/parameters/SortOrder'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Summary và thống kê từng voucher
+
+  /seller/coupons/{couponId}:
+    patch:
+      tags: [Seller Coupons]
+      summary: Cập nhật thời gian hoặc trạng thái voucher
+      parameters:
+        - $ref: '#/components/parameters/CouponId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouponUpdateInput'
+      responses:
+        '200':
+          description: Voucher được cập nhật
+    delete:
+      tags: [Seller Coupons]
+      summary: Xóa mềm voucher và cho phép tạo lại code cũ
+      parameters:
+        - $ref: '#/components/parameters/CouponId'
+      responses:
+        '200':
+          description: Voucher được xóa mềm
+
+  /seller/flash-sales:
+    get:
+      tags: [Seller Flash Sales]
+      summary: Lấy flash sale của shop
+      responses:
+        '200':
+          description: data.flashSales
+    post:
+      tags: [Seller Flash Sales]
+      summary: Tạo flash sale
+      description: originalPrice phải gửi để tương thích validator hiện tại nhưng BE sẽ lấy lại giá gốc từ DB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlashSaleCreateInput'
+      responses:
+        '201':
+          description: Flash sale được tạo
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /seller/flash-sales/{flashSaleId}:
+    patch:
+      tags: [Seller Flash Sales]
+      summary: Cập nhật flash sale
+      parameters:
+        - $ref: '#/components/parameters/FlashSaleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlashSaleUpdateInput'
+      responses:
+        '200':
+          description: Flash sale được cập nhật
+    delete:
+      tags: [Seller Flash Sales]
+      summary: Ngừng flash sale bằng cách chuyển status thành inactive
+      parameters:
+        - $ref: '#/components/parameters/FlashSaleId'
+      responses:
+        '200':
+          description: Flash sale đã ngừng
+
+  /seller/reviews:
+    get:
+      tags: [Seller Reviews]
+      summary: Lấy review của các sản phẩm thuộc shop
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - name: rating
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, replied, unreplied]
+            default: all
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, rating, product_name]
+            default: created_at
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: data.reviews, summary và pagination
+
+  /seller/reviews/{reviewId}/reply:
+    put:
+      tags: [Seller Reviews]
+      summary: Tạo hoặc thay thế phản hồi của Seller
+      parameters:
+        - $ref: '#/components/parameters/ReviewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reply]
+              properties:
+                reply:
+                  type: string
+                  minLength: 2
+                  maxLength: 2000
+                  example: Cảm ơn bạn đã đánh giá sản phẩm của shop.
+      responses:
+        '200':
+          description: Phản hồi review thành công
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /seller/returns:
+    get:
+      tags: [Seller Returns]
+      summary: Lấy yêu cầu trả hàng thuộc shop
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - name: status
+          in: query
+          description: Status public dùng để lọc và hiển thị
+          schema:
+            type: string
+            enum: [all, requested, approved, rejected, received, refunded]
+            default: all
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [requested_at, status, product_name, customer_name]
+            default: requested_at
+        - $ref: '#/components/parameters/SortOrder'
+      responses:
+        '200':
+          description: data.returns và data.pagination
+
+  /seller/returns/{returnId}:
+    get:
+      tags: [Seller Returns]
+      summary: Lấy chi tiết và lịch sử yêu cầu trả hàng
+      parameters:
+        - $ref: '#/components/parameters/ReturnId'
+      responses:
+        '200':
+          description: data.return và data.history
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Seller Returns]
+      summary: Chấp nhận, từ chối hoặc xác nhận đã nhận lại hàng
+      description: Request dùng status nội bộ để tương thích FE; response trả status public approved hoặc received.
+      parameters:
+        - $ref: '#/components/parameters/ReturnId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnStatusInput'
+      responses:
+        '200':
+          description: Cập nhật thành công; item_returned hoàn kho và ghi InventoryLog
+        '409':
+          description: Transition không hợp lệ hoặc seller cố tự đặt refunded
+
+  /seller/finance/summary:
+    get:
+      tags: [Seller Finance]
+      summary: Lấy tổng quan tài chính read-only
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Doanh thu đã giao, voucher, return và giá trị chờ xử lý
+        '400':
+          description: Khoảng ngày sai hoặc FINANCE_FUTURE_DATE_NOT_ALLOWED
+
+  /seller/finance/transactions:
+    get:
+      tags: [Seller Finance]
+      summary: Lấy giao dịch tài chính read-only
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, sale, return]
+            default: all
+      responses:
+        '200':
+          description: data.transactions và data.pagination
+        '400':
+          description: Khoảng ngày sai hoặc FINANCE_FUTURE_DATE_NOT_ALLOWED
+
+  /seller/followers/stats:
+    get:
+      tags: [Shop Follow]
+      summary: Lấy số liệu follower của shop hiện tại
+      responses:
+        '200':
+          description: Tổng follower và follower mới
+
+  /seller/uploads/images:
+    post:
+      tags: [Seller Uploads]
+      summary: Upload một ảnh Seller lên Cloudinary
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                purpose:
+                  type: string
+                  enum: [product, shop_logo, shop_cover]
+      responses:
+        '201':
+          description: Trả data.url và data.publicId
+        '400':
+          description: Sai MIME, nội dung ảnh, purpose hoặc vượt quá 5 MB
+    delete:
+      tags: [Seller Uploads]
+      summary: Xóa ảnh Cloudinary thuộc tài khoản Seller hiện tại
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicId]
+              properties:
+                publicId:
+                  type: string
+                  example: volitify/user_123/product/image_abc
+      responses:
+        '200':
+          description: Ảnh đã xóa hoặc đã không còn tồn tại
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Lấy thông báo của tài khoản hiện tại
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: isRead
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: data.notifications, data.unread_count và pagination
+
+  /notifications/{notificationId}/read:
+    patch:
+      tags: [Notifications]
+      summary: Đánh dấu một thông báo đã đọc
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '200':
+          description: Notification đã cập nhật
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Đánh dấu tất cả thông báo đã đọc
+      responses:
+        '200':
+          description: data.updated là số notification vừa cập nhật
+    patch:
+      tags: [Notifications]
+      summary: Alias cũ của thao tác đánh dấu tất cả đã đọc
+      deprecated: true
+      responses:
+        '200':
+          description: data.updated là số notification vừa cập nhật
+
+  /chat/recent:
+    get:
+      tags: [Chat]
+      summary: Lấy danh sách hội thoại gần đây
+      responses:
+        '200':
+          description: Partner metadata, unread_count và last_message
+
+  /chat/history/{partnerId}:
+    get:
+      tags: [Chat]
+      summary: Lấy lịch sử chat với một user
+      parameters:
+        - $ref: '#/components/parameters/PartnerId'
+      responses:
+        '200':
+          description: Tin nhắn giữa current user và partnerId
+
+  /chat/read/{partnerId}:
+    post:
+      tags: [Chat]
+      summary: Đánh dấu tin nhắn từ partner đã đọc
+      parameters:
+        - $ref: '#/components/parameters/PartnerId'
+      responses:
+        '200':
+          description: Số tin nhắn đã cập nhật
+
+  /shops/{shopId}/follow:
+    post:
+      tags: [Shop Follow]
+      summary: Theo dõi một shop
+      parameters:
+        - $ref: '#/components/parameters/ShopId'
+      responses:
+        '200':
+          description: Follow status và follower count
+        '409':
+          description: Seller không thể follow shop của chính mình
+    delete:
+      tags: [Shop Follow]
+      summary: Bỏ theo dõi shop
+      parameters:
+        - $ref: '#/components/parameters/ShopId'
+      responses:
+        '200':
+          description: Follow status và follower count
+
+  /shops/{shopId}/follow-status:
+    get:
+      tags: [Shop Follow]
+      summary: Kiểm tra tài khoản hiện tại có follow shop hay không
+      parameters:
+        - $ref: '#/components/parameters/ShopId'
+      responses:
+        '200':
+          description: Follow status và follower count
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Dán accessToken, Postman tự thêm tiền tố Bearer
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+        maxLength: 100
+    SortOrder:
+      name: sortOrder
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+    FromDate:
+      name: from
+      in: query
+      description: Phải gửi cùng to, định dạng YYYY-MM-DD
+      schema:
+        type: string
+        format: date
+        example: '2026-07-01'
+    ToDate:
+      name: to
+      in: query
+      description: Phải gửi cùng from và không được là ngày tương lai
+      schema:
+        type: string
+        format: date
+        example: '2026-07-29'
+    ShopId:
+      name: shopId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: sel_001
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: prod_001
+    VariantId:
+      name: variantId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: var_001
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: order_001
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: oi_001
+    CouponId:
+      name: couponId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: coup_001
+    FlashSaleId:
+      name: flashSaleId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: fs_001
+    ReviewId:
+      name: reviewId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: rev_001
+    ReturnId:
+      name: returnId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: ret_001
+    NotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: noti_001
+    PartnerId:
+      name: partnerId
+      in: path
+      required: true
+      description: User ID của người chat đối diện, không phải seller_id
+      schema:
+        type: string
+      example: user_123
+
+  responses:
+    BadRequest:
+      description: Dữ liệu hoặc query không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Thiếu token hoặc thông tin đăng nhập không đúng
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Không có quyền với tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    SellerNotActive:
+      description: Shop chưa được duyệt, đã bị từ chối, bị đình chỉ hoặc không tồn tại
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: fail
+            code: SELLER_NOT_ACTIVE
+            message: Cửa hàng hiện không hoạt động.
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: fail
+        code:
+          type: string
+          nullable: true
+        message:
+          type: string
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: seller@ecom.com
+        password:
+          type: string
+          format: password
+          example: password123
+
+    SellerProfileInput:
+      type: object
+      required: [shopName, shopPhone, shopAddress]
+      properties:
+        shopName:
+          type: string
+          example: Volitify Store
+        shopPhone:
+          type: string
+          pattern: '^0\d{9}$'
+          example: '0987654321'
+        shopAddress:
+          type: string
+          example: 123 Nguyễn Văn Linh, Đà Nẵng
+        description:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+        logoPublicId:
+          type: string
+          nullable: true
+        coverUrl:
+          type: string
+          format: uri
+          nullable: true
+        coverPublicId:
+          type: string
+          nullable: true
+        pickupAddress:
+          type: string
+          nullable: true
+        identityName:
+          type: string
+          nullable: true
+        identityNumber:
+          type: string
+          pattern: '^\d{12}$'
+          nullable: true
+          example: '012345678901'
+        bankName:
+          type: string
+          nullable: true
+        bankAccountNo:
+          type: string
+          pattern: '^\d{6,20}$'
+          nullable: true
+          example: '1234567890'
+        bankAccountHolder:
+          type: string
+          nullable: true
+
+    SellerApplication:
+      type: object
+      required: [sellerId, shopName, status, createdAt, updatedAt]
+      properties:
+        sellerId:
+          type: string
+          example: sel_abc123
+        shopName:
+          type: string
+          example: Volitify Store
+        status:
+          type: string
+          enum: [pending, active, rejected, suspended]
+          example: pending
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SellerApplicationSubmitResponse:
+      type: object
+      required: [status, message, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: object
+          required: [application]
+          properties:
+            application:
+              type: object
+              required: [sellerId, status]
+              properties:
+                sellerId:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending]
+
+    SellerApplicationStatusResponse:
+      type: object
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          type: object
+          required: [application]
+          properties:
+            application:
+              allOf:
+                - $ref: '#/components/schemas/SellerApplication'
+              nullable: true
+
+    ProductImageInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+        publicId:
+          type: string
+          nullable: true
+        isPrimary:
+          type: boolean
+          default: false
+
+    ProductCreateInput:
+      type: object
+      required: [name, price, categoryId]
+      properties:
+        name:
+          type: string
+          example: Bàn phím cơ Volitify
+        price:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          example: 799000
+        description:
+          type: string
+          nullable: true
+        categoryId:
+          type: string
+          example: cat_001
+        stock:
+          type: integer
+          minimum: 0
+          default: 0
+        sku:
+          type: string
+          pattern: '^[A-Z0-9._-]{3,100}$'
+          example: KB-VOL-001
+        isActive:
+          type: boolean
+          default: true
+        lowStockThreshold:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 5
+        images:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/ProductImageInput'
+
+    ProductUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        description:
+          type: string
+          nullable: true
+        categoryId:
+          type: string
+        stock:
+          type: integer
+          minimum: 0
+        stockReason:
+          type: string
+          minLength: 3
+          maxLength: 255
+        sku:
+          type: string
+          pattern: '^[A-Z0-9._-]{3,100}$'
+        isActive:
+          type: boolean
+        lowStockThreshold:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        images:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/ProductImageInput'
+
+    InventoryAdjustInput:
+      type: object
+      required: [variantId, changeQuantity, reason]
+      properties:
+        variantId:
+          type: string
+          example: var_001
+        changeQuantity:
+          type: integer
+          example: 10
+        type:
+          type: string
+          enum: [restock, manual_adjustment]
+          default: manual_adjustment
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 255
+          example: Nhập thêm hàng từ nhà cung cấp
+
+    OrderItemStatusInput:
+      type: object
+      required: [fulfillmentStatus]
+      properties:
+        fulfillmentStatus:
+          type: string
+          enum: [pending_fulfillment, ready_to_ship, shipping, delivered, cancelled]
+          example: ready_to_ship
+        trackingCode:
+          type: string
+          maxLength: 100
+          nullable: true
+        shippingLabelUrl:
+          type: string
+          format: uri
+          nullable: true
+        cancelReason:
+          type: string
+          maxLength: 255
+          description: Bắt buộc khi chuyển sang cancelled
+
+    CouponCreateInput:
+      type: object
+      required: [code, discountType, discountValue, startsAt, expiresAt]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z0-9_-]{3,50}$'
+          example: SHOP10
+        description:
+          type: string
+          nullable: true
+        discountType:
+          type: string
+          enum: [percentage, fixed]
+        discountValue:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          example: 10
+        minOrderAmount:
+          type: number
+          minimum: 0
+          default: 0
+        maxDiscountAmt:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          nullable: true
+        usageLimit:
+          type: integer
+          minimum: 1
+          nullable: true
+        startsAt:
+          type: string
+          format: date-time
+          example: '2026-07-29T08:00:00+07:00'
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2026-08-15T23:59:59+07:00'
+
+    CouponUpdateInput:
+      type: object
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+
+    FlashSaleCreateInput:
+      type: object
+      required: [productId, originalPrice, salePrice, startsAt, endsAt]
+      properties:
+        productId:
+          type: string
+          example: prod_001
+        variantId:
+          type: string
+          nullable: true
+          example: var_001
+        originalPrice:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          description: Giá tham chiếu; BE vẫn truy vấn lại giá thật trong DB
+          example: 799000
+        salePrice:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          example: 699000
+        startsAt:
+          type: string
+          format: date-time
+          example: '2026-07-30T08:00:00+07:00'
+        endsAt:
+          type: string
+          format: date-time
+          example: '2026-08-02T23:59:59+07:00'
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+
+    FlashSaleUpdateInput:
+      type: object
+      properties:
+        productId:
+          type: string
+        variantId:
+          type: string
+          nullable: true
+        originalPrice:
+          type: number
+        salePrice:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, inactive]
+
+    ReturnStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted, rejected, item_returned]
+          example: accepted
+        sellerResponse:
+          type: string
+          maxLength: 1000
+          description: Khi rejected phải có ít nhất 3 ký tự
+          example: Shop đồng ý tiếp nhận sản phẩm trả lại.
+
+    DashboardTasks:
+      type: object
+      required:
+        - ordersToProcess
+        - overdueOrders
+        - unreadMessages
+        - outOfStockProducts
+        - lowStockProducts
+        - unrepliedReviews
+        - pendingReturns
+        - overdueAfterHours
+      properties:
+        ordersToProcess:
+          type: integer
+          example: 3
+        overdueOrders:
+          type: integer
+          example: 1
+        unreadMessages:
+          type: integer
+          example: 2
+        outOfStockProducts:
+          type: integer
+          example: 1
+        lowStockProducts:
+          type: integer
+          example: 4
+        unrepliedReviews:
+          type: integer
+          example: 6
+        pendingReturns:
+          type: integer
+          example: 2
+        overdueAfterHours:
+          type: integer
+          example: 24

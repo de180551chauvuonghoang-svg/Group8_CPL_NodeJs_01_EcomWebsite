@@ -114,8 +114,42 @@ const recycleDeletedCouponCode = async (code) => {
     `);
 };
 
+const SELLER_CATEGORY_IDS = Object.freeze([
+  "cat_electronics",
+  "cat_accessories",
+  "cat_kitchen",
+  "cat_wearables",
+  "cat_audio"
+]);
+const SELLER_CATEGORY_ID_SQL = SELLER_CATEGORY_IDS
+  .map((categoryId) => `'${categoryId}'`)
+  .join(", ");
+
+const sellerApplicationError = (code, message, statusCode) => {
+  const error = new Error(message);
+  error.code = code;
+  error.statusCode = statusCode;
+  error.status = "fail";
+  return error;
+};
+
+const assertOwnedApplicationImage = (userId, publicId, purpose) => {
+  if (!publicId) return null;
+  const normalizedPublicId = String(publicId).trim();
+  const safeUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const expectedPrefix = `volitify/${safeUserId}/${purpose}/`;
+  if (!normalizedPublicId.startsWith(expectedPrefix)) {
+    throw sellerApplicationError(
+      "APPLICATION_IMAGE_NOT_OWNED",
+      "Ảnh hồ sơ đăng ký không thuộc tài khoản hiện tại.",
+      403
+    );
+  }
+  return normalizedPublicId;
+};
+
 export const sellerService = {
-  // Đăng ký người bán và nâng cấp role user
+  // Gửi đơn Seller; chỉ Admin mới được đổi role sau khi duyệt.
   registerSeller: async ({
     userId,
     shopName,
@@ -133,80 +167,166 @@ export const sellerService = {
     bankAccountNo,
     bankAccountHolder
   }) => {
-    const sellerId = `sel_${Math.random().toString(36).substr(2, 9)}`;
+    const normalizedShopName = String(shopName).trim();
+    const normalizedShopAddress = String(shopAddress).trim();
+    const ownedLogoPublicId = assertOwnedApplicationImage(userId, logoPublicId, "shop_logo");
+    const ownedCoverPublicId = assertOwnedApplicationImage(userId, coverPublicId, "shop_cover");
+    const sellerId = `sel_${uuidv4().replace(/-/g, "").slice(0, 24)}`;
+    const transaction = new sql.Transaction(pool);
+    let started = false;
 
-    const existingSeller = await pool.request()
-      .input("userId", sql.VarChar, userId)
-      .query("SELECT id FROM Sellers WHERE user_id = @userId");
+    try {
+      await transaction.begin();
+      started = true;
 
-    if (existingSeller.recordset.length > 0) {
-      await pool.request()
+      const existingResult = await transaction.request()
         .input("userId", sql.VarChar, userId)
-        .query("UPDATE Users SET role = 'seller', updated_at = GETDATE() WHERE id = @userId");
+        .query(`
+          SELECT *
+          FROM Sellers WITH (UPDLOCK, HOLDLOCK)
+          WHERE user_id = @userId
+        `);
+      const existing = existingResult.recordset[0] || null;
 
-      const userRes = await pool.request()
+      if (existing?.status === "pending") {
+        throw sellerApplicationError(
+          "SELLER_APPLICATION_PENDING",
+          "Yeu cau mo cua hang dang cho duyet.",
+          409
+        );
+      }
+      if (existing?.status === "active") {
+        throw sellerApplicationError(
+          "SELLER_ALREADY_ACTIVE",
+          "Cua hang da duoc kich hoat.",
+          409
+        );
+      }
+      if (existing?.status === "suspended") {
+        throw sellerApplicationError(
+          "SELLER_SUSPENDED",
+          "Cua hang dang bi tam ngung va khong the gui lai don.",
+          403
+        );
+      }
+      if (existing && existing.status !== "rejected") {
+        throw sellerApplicationError(
+          "INVALID_SELLER_APPLICATION_STATUS",
+          "Trang thai yeu cau mo cua hang khong hop le.",
+          409
+        );
+      }
+
+      const duplicateName = await transaction.request()
+        .input("shopName", sql.NVarChar, normalizedShopName)
+        .input("existingSellerId", sql.VarChar, existing?.id || null)
+        .query(`
+          SELECT TOP 1 id
+          FROM Sellers WITH (UPDLOCK, HOLDLOCK)
+          WHERE shop_name = @shopName
+            AND (@existingSellerId IS NULL OR id <> @existingSellerId)
+        `);
+      if (duplicateName.recordset[0]) {
+        throw sellerApplicationError(
+          "SHOP_NAME_TAKEN",
+          "Ten cua hang da duoc su dung. Vui long chon ten khac.",
+          409
+        );
+      }
+
+      const request = transaction.request()
+        .input("id", sql.VarChar, existing?.id || sellerId)
         .input("userId", sql.VarChar, userId)
-        .query("SELECT id, name, email, role, phone_number, avatar_url, bio, is_active FROM Users WHERE id = @userId");
+        .input("shopName", sql.NVarChar, normalizedShopName)
+        .input("shopPhone", sql.VarChar, shopPhone)
+        .input("shopAddress", sql.NVarChar, normalizedShopAddress)
+        .input("pickupAddress", sql.NVarChar, pickupAddress || normalizedShopAddress)
+        .input("logoUrl", sql.VarChar, logoUrl || null)
+        .input("logoPublicId", sql.VarChar, ownedLogoPublicId)
+        .input("coverUrl", sql.VarChar, coverUrl || null)
+        .input("coverPublicId", sql.VarChar, ownedCoverPublicId)
+        .input("description", sql.NVarChar, description || null)
+        .input("identityName", sql.NVarChar, identityName || null)
+        .input("identityNumber", sql.VarChar, identityNumber || null)
+        .input("bankName", sql.NVarChar, bankName || null)
+        .input("bankAccountNo", sql.VarChar, bankAccountNo || null)
+        .input("bankAccountHolder", sql.NVarChar, bankAccountHolder || null);
 
+      if (existing) {
+        await request.query(`
+          UPDATE Sellers
+          SET shop_name = @shopName,
+              shop_phone = @shopPhone,
+              shop_address = @shopAddress,
+              pickup_address = @pickupAddress,
+              logo_url = @logoUrl,
+              logo_public_id = @logoPublicId,
+              cover_url = @coverUrl,
+              cover_public_id = @coverPublicId,
+              description = @description,
+              identity_name = @identityName,
+              identity_number = @identityNumber,
+              bank_name = @bankName,
+              bank_account_no = @bankAccountNo,
+              bank_account_holder = @bankAccountHolder,
+              status = 'pending',
+              updated_at = GETDATE()
+          WHERE id = @id AND status = 'rejected'
+        `);
+      } else {
+        await request.query(`
+          INSERT INTO Sellers (
+            id, user_id, shop_name, shop_phone, shop_address, pickup_address,
+            logo_url, logo_public_id, cover_url, cover_public_id, description,
+            identity_name, identity_number, bank_name, bank_account_no,
+            bank_account_holder, status, created_at, updated_at
+          ) VALUES (
+            @id, @userId, @shopName, @shopPhone, @shopAddress, @pickupAddress,
+            @logoUrl, @logoPublicId, @coverUrl, @coverPublicId, @description,
+            @identityName, @identityNumber, @bankName, @bankAccountNo,
+            @bankAccountHolder, 'pending', GETDATE(), GETDATE()
+          )
+        `);
+      }
+
+      await transaction.commit();
+      started = false;
       return {
-        user: userRes.recordset[0],
-        sellerId: existingSeller.recordset[0].id
+        sellerId: existing?.id || sellerId,
+        status: "pending",
+        resubmitted: Boolean(existing)
       };
+    } catch (error) {
+      if (started) {
+        try { await transaction.rollback(); } catch (_) { /* preserve original error */ }
+      }
+      if ([2601, 2627].includes(error.number)) {
+        throw sellerApplicationError(
+          "SHOP_NAME_TAKEN",
+          "Ten cua hang da duoc su dung. Vui long chon ten khac.",
+          409
+        );
+      }
+      throw error;
     }
-    
-    // 1. Kiểm tra xem shop_name đã tồn tại chưa
-    const nameCheck = await pool.request()
-      .input("shopName", sql.NVarChar, shopName)
-      .query("SELECT id FROM Sellers WHERE shop_name = @shopName");
-      
-    if (nameCheck.recordset.length > 0) {
-      throw new Error("Tên cửa hàng đã được sử dụng. Vui lòng chọn tên khác!");
-    }
+  },
 
-    // 2. Thêm vào bảng Sellers
-    await pool.request()
-      .input("id", sql.VarChar, sellerId)
+  getSellerApplicationByUserId: async (userId) => {
+    const result = await pool.request()
       .input("userId", sql.VarChar, userId)
-      .input("shopName", sql.NVarChar, shopName)
-      .input("shopPhone", sql.VarChar, shopPhone)
-      .input("shopAddress", sql.NVarChar, shopAddress)
-      .input("pickupAddress", sql.NVarChar, pickupAddress || shopAddress)
-      .input("logoUrl", sql.VarChar, logoUrl || null)
-      .input("logoPublicId", sql.VarChar, logoPublicId || null)
-      .input("coverUrl", sql.VarChar, coverUrl || null)
-      .input("coverPublicId", sql.VarChar, coverPublicId || null)
-      .input("description", sql.NVarChar, description || null)
-      .input("identityName", sql.NVarChar, identityName || null)
-      .input("identityNumber", sql.VarChar, identityNumber || null)
-      .input("bankName", sql.NVarChar, bankName || null)
-      .input("bankAccountNo", sql.VarChar, bankAccountNo || null)
-      .input("bankAccountHolder", sql.NVarChar, bankAccountHolder || null)
       .query(`
-        INSERT INTO Sellers (
-          id, user_id, shop_name, shop_phone, shop_address, pickup_address,
-          logo_url, logo_public_id, cover_url, cover_public_id, description, identity_name, identity_number,
-          bank_name, bank_account_no, bank_account_holder, status, created_at, updated_at
-        )
-        VALUES (
-          @id, @userId, @shopName, @shopPhone, @shopAddress, @pickupAddress,
-          @logoUrl, @logoPublicId, @coverUrl, @coverPublicId, @description, @identityName, @identityNumber,
-          @bankName, @bankAccountNo, @bankAccountHolder, 'active', GETDATE(), GETDATE()
-        )
+        SELECT id, shop_name, status, created_at, updated_at
+        FROM Sellers
+        WHERE user_id = @userId
       `);
-
-    // 3. Nâng cấp role trong bảng Users
-    await pool.request()
-      .input("userId", sql.VarChar, userId)
-      .query("UPDATE Users SET role = 'seller', updated_at = GETDATE() WHERE id = @userId");
-
-    // 4. Lấy thông tin user đã cập nhật
-    const userRes = await pool.request()
-      .input("userId", sql.VarChar, userId)
-      .query("SELECT id, name, email, role, phone_number, avatar_url, bio, is_active FROM Users WHERE id = @userId");
-
+    const application = result.recordset[0];
+    if (!application) return null;
     return {
-      user: userRes.recordset[0],
-      sellerId
+      sellerId: application.id,
+      shopName: application.shop_name,
+      status: application.status,
+      createdAt: application.created_at,
+      updatedAt: application.updated_at
     };
   },
 
@@ -827,7 +947,8 @@ export const sellerService = {
     const result = await pool.request().query(`
       SELECT id, name, slug
       FROM Categories
-      WHERE id IN ('cat_electronics', 'cat_accessories', 'cat_kitchen', 'cat_wearables', 'cat_audio')
+      WHERE is_active = 1
+        AND id IN (${SELLER_CATEGORY_ID_SQL})
       ORDER BY CASE id
         WHEN 'cat_electronics' THEN 1
         WHEN 'cat_accessories' THEN 2
@@ -838,6 +959,30 @@ export const sellerService = {
       END
     `);
     return result.recordset;
+  },
+
+  assertSellerCategoryAvailable: async (categoryId, db = pool) => {
+    const normalizedCategoryId = typeof categoryId === "string" ? categoryId.trim() : "";
+    if (!SELLER_CATEGORY_IDS.includes(normalizedCategoryId)) {
+      throw queryError(
+        "INVALID_SELLER_CATEGORY",
+        "Danh muc khong hop le hoac khong duoc ho tro cho Seller."
+      );
+    }
+    const result = await db.request()
+      .input("categoryId", sql.VarChar, normalizedCategoryId)
+      .query(`
+        SELECT id
+        FROM Categories WITH (HOLDLOCK)
+        WHERE id = @categoryId AND is_active = 1
+      `);
+    if (!result.recordset[0]) {
+      throw queryError(
+        "SELLER_CATEGORY_INACTIVE",
+        "Danh muc da bi tat va khong the dung cho san pham moi hoac cap nhat."
+      );
+    }
+    return normalizedCategoryId;
   },
 
   getSellerCoupons: async (sellerId, query = {}) => {
