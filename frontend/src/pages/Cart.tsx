@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CreditCard, Gift, Minus, Plus, ShieldCheck, ShoppingCart, Trash2, Truck } from 'lucide-react';
+import { ArrowLeft, CreditCard, Gift, Minus, Plus, ShieldCheck, ShoppingCart, Trash2, Truck, AlertCircle, UserCheck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
+import { addressService } from '../services/addressService';
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
@@ -10,11 +12,15 @@ const formatPrice = (value: number) =>
 export default function Cart() {
   const navigate = useNavigate();
   const { cartItems, promoCode, discountPercentage, removeFromCart, updateQuantity, applyDiscount } = useCart();
+  const auth = useContext(AuthContext);
 
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
   const [promoSuccess, setPromoSuccess] = useState(promoCode ? 'Đã áp dụng mã giảm giá' : '');
   const [applyingPromo, setApplyingPromo] = useState(false);
+
+  const [profileValidationMsg, setProfileValidationMsg] = useState('');
+  const [checkingProfile, setCheckingProfile] = useState(false);
 
   const totals = useMemo(() => {
     const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
@@ -28,6 +34,34 @@ export default function Cart() {
       itemCount: cartItems.reduce((acc, item) => acc + item.quantity, 0),
     };
   }, [cartItems, discountPercentage]);
+
+  const handleCheckoutClick = async () => {
+    if (!auth?.isAuthenticated || !auth?.user) {
+      navigate('/login');
+      return;
+    }
+
+    const u = auth.user;
+    if (!u.phone_number || u.phone_number.trim() === '' || u.phone_number === 'Chưa cập nhật') {
+      setProfileValidationMsg('Vui lòng cập nhật đầy đủ Số điện thoại trong Hồ sơ cá nhân trước khi thực hiện thanh toán.');
+      return;
+    }
+
+    setCheckingProfile(true);
+    try {
+      const addrs = await addressService.getAddresses();
+      const validAddr = addrs.find(a => a.street_address && a.street_address !== 'Chưa cập nhật');
+      if (!validAddr) {
+        setProfileValidationMsg('Vui lòng thêm Địa chỉ giao hàng chi tiết trong Sổ địa chỉ / Hồ sơ cá nhân trước khi thanh toán.');
+        setCheckingProfile(false);
+        return;
+      }
+    } catch (e) {
+      // Tiếp tục nếu có lỗi mạng
+    }
+    setCheckingProfile(false);
+    navigate('/checkouts');
+  };
 
   const handleApplyPromo = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -230,11 +264,12 @@ export default function Cart() {
 
                 <button
                   type="button"
-                  onClick={() => navigate('/checkouts')}
-                  className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary text-base font-black text-white shadow-lg shadow-primary/20"
+                  onClick={handleCheckoutClick}
+                  disabled={checkingProfile}
+                  className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-primary text-base font-black text-white shadow-lg shadow-primary/20 hover:brightness-105 active:scale-98 transition-all disabled:opacity-50"
                 >
                   <CreditCard size={20} />
-                  Thanh toán ngay
+                  {checkingProfile ? 'Đang xác thực thông tin...' : 'Thanh toán ngay'}
                 </button>
 
                 <div className="grid grid-cols-3 gap-3 pt-1 text-center text-[11px] font-semibold text-on-surface-variant">
@@ -247,6 +282,47 @@ export default function Cart() {
           </aside>
         </div>
       </section>
+
+      {/* Profile & Address Validation Modal */}
+      {profileValidationMsg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-surface dark:bg-surface-container-lowest p-6 shadow-2xl space-y-5 text-center"
+          >
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+              <AlertCircle size={36} />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-on-surface">Yêu cầu thông tin cá nhân</h3>
+              <p className="text-sm font-medium text-on-surface-variant leading-relaxed">
+                {profileValidationMsg}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                onClick={() => setProfileValidationMsg('')}
+                className="flex-1 rounded-xl border border-outline-variant py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-container"
+              >
+                Để sau
+              </button>
+              <button
+                onClick={() => {
+                  setProfileValidationMsg('');
+                  navigate('/profile');
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-md shadow-primary/20 hover:brightness-105"
+              >
+                <UserCheck size={18} />
+                Cập nhật ngay
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </main>
   );
 }

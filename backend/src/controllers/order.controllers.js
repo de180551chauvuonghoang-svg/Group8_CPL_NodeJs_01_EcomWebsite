@@ -42,6 +42,27 @@ export const createOrder = async (req, res) => {
     } = req.body;
 
     const userId = req.user.id; // Lấy ID user từ token đăng nhập
+
+    // 1b. Bắt Validation: Kiểm tra thông tin cá nhân (SĐT & Địa chỉ) của người dùng trước khi đặt hàng
+    const userResult = await pool.request()
+      .input('userId', sql.VarChar, userId)
+      .query('SELECT name, phone_number FROM Users WHERE id = @userId');
+
+    const userObj = userResult.recordset[0];
+    if (!userObj || !userObj.phone_number || userObj.phone_number.trim() === '' || userObj.phone_number === 'Chưa cập nhật') {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cập nhật đầy đủ Số điện thoại trong Hồ sơ cá nhân trước khi thực hiện thanh toán.'
+      });
+    }
+
+    if (!shippingAddress || shippingAddress.trim() === '' || shippingAddress.includes('Chưa cập nhật')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cập nhật Địa chỉ giao hàng chi tiết trong Hồ sơ cá nhân trước khi thực hiện thanh toán.'
+      });
+    }
+
     const orderId = `ORD_${Date.now()}`; // Tạo mã đơn hàng ngẫu nhiên
 
     // 2. Tạo Transaction để đảm bảo an toàn dữ liệu (nếu lỗi sẽ huỷ toàn bộ)
