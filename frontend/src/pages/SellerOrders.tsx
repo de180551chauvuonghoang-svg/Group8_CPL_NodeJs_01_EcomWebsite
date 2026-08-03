@@ -50,6 +50,19 @@ const cleanProductName = (name?: string) => {
   return text.replace(/\s+/g, ' ');
 };
 
+const getDistinctVariantInfo = (variantInfo?: string, sku?: string) => {
+  const displayValue = variantInfo?.trim();
+  if (!displayValue) return null;
+
+  const normalize = (value?: string) =>
+    value
+      ?.trim()
+      .replace(/^sku\s*:\s*/i, '')
+      .toLocaleLowerCase('vi-VN');
+
+  return normalize(displayValue) === normalize(sku) ? null : displayValue;
+};
+
 const getUpdateErrorMessage = (error: unknown) => {
   const apiError = error as ApiError;
   const code = apiError.data?.code;
@@ -428,6 +441,7 @@ export default function SellerOrders() {
                 <div className="divide-y divide-outline-variant/30">
                   {order.items.map((item) => {
                     const statusMeta = getFulfillmentMeta(item.fulfillment_status);
+                    const variantInfo = getDistinctVariantInfo(item.variant_info, item.sku);
 
                     return (
                       <article key={item.id} className="p-5">
@@ -451,9 +465,11 @@ export default function SellerOrders() {
                                   <span className="rounded-lg bg-surface-container px-2 py-1">
                                     SL: {item.quantity}
                                   </span>
-                                  <span className="rounded-lg bg-surface-container px-2 py-1">
-                                    {item.variant_info || 'Mặc định'}
-                                  </span>
+                                  {variantInfo && (
+                                    <span className="rounded-lg bg-surface-container px-2 py-1">
+                                      {variantInfo}
+                                    </span>
+                                  )}
                                   {item.sku && (
                                     <span className="rounded-lg bg-surface-container px-2 py-1">
                                       SKU: {item.sku}
