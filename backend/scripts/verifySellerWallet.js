@@ -17,17 +17,17 @@ const ids = {
   returnOrder: `ord_wr_${suffix}`,
   returnItem: `item_wr_${suffix}`,
   saleOrder: `ord_ws_${suffix}`,
-  saleItem: `item_ws_${suffix}`
+  saleItem: `item_ws_${suffix}`,
 };
 
 const cleanup = async () => {
-  await pool.request()
+  await pool
+    .request()
     .input("sellerId", sql.VarChar, ids.seller)
     .input("sellerUser", sql.VarChar, ids.sellerUser)
     .input("productId", sql.VarChar, ids.product)
     .input("returnOrder", sql.VarChar, ids.returnOrder)
-    .input("saleOrder", sql.VarChar, ids.saleOrder)
-    .query(`
+    .input("saleOrder", sql.VarChar, ids.saleOrder).query(`
       DELETE FROM Notifications
       WHERE user_id = @sellerUser OR entity_id IN (@returnOrder, @saleOrder);
       DELETE FROM ReturnStatusHistory
@@ -54,7 +54,8 @@ const cleanup = async () => {
 
 try {
   await cleanup();
-  await pool.request()
+  await pool
+    .request()
     .input("sellerUser", sql.VarChar, ids.sellerUser)
     .input("sellerId", sql.VarChar, ids.seller)
     .input("productId", sql.VarChar, ids.product)
@@ -62,8 +63,7 @@ try {
     .input("returnOrder", sql.VarChar, ids.returnOrder)
     .input("returnItem", sql.VarChar, ids.returnItem)
     .input("saleOrder", sql.VarChar, ids.saleOrder)
-    .input("saleItem", sql.VarChar, ids.saleItem)
-    .query(`
+    .input("saleItem", sql.VarChar, ids.saleItem).query(`
       INSERT INTO Users (id, name, email, password, role)
       VALUES (@sellerUser, 'Wallet test seller', CONCAT(@sellerUser, '@test.local'), 'test', 'seller');
 
@@ -102,55 +102,72 @@ try {
          'Wallet test product', 'shipping');
     `);
 
-  const walletCreatedOnApproval = await pool.request()
+  const walletCreatedOnApproval = await pool
+    .request()
     .input("sellerId", sql.VarChar, ids.seller)
-    .query("SELECT COUNT(*) AS count FROM ShopWallets WHERE seller_id = @sellerId");
+    .query(
+      "SELECT COUNT(*) AS count FROM ShopWallets WHERE seller_id = @sellerId",
+    );
   assert.equal(
     Number(walletCreatedOnApproval.recordset[0].count),
     1,
-    "An active seller must receive a wallet automatically"
+    "An active seller must receive a wallet automatically",
   );
 
   const { sellerService } = await import("../src/services/sellerService.js");
-  const {
-    createReturnRequest,
-    updateSellerReturn
-  } = await import("../src/services/returnService.js");
-  const {
-    cancelWithdrawal,
-    createWithdrawal,
-    getSellerWallet,
-    getWalletTransactions,
-    processWithdrawal
-  } = await import("../src/services/sellerWalletService.js");
+  const { createReturnRequest, updateSellerReturn } =
+    await import("../src/services/returnService.js");
+  const { getSellerWallet, getWalletTransactions } =
+    await import("../src/services/sellerWalletQueryService.js");
+  const { cancelWithdrawal, createWithdrawal, processWithdrawal } =
+    await import("../src/services/sellerWithdrawalService.js");
 
-  await sellerService.updateSellerOrderItem(ids.seller, ids.sellerUser, ids.returnItem, {
-    fulfillmentStatus: "delivered"
-  });
-  await sellerService.updateSellerOrderItem(ids.seller, ids.sellerUser, ids.returnItem, {
-    fulfillmentStatus: "delivered"
-  });
+  await sellerService.updateSellerOrderItem(
+    ids.seller,
+    ids.sellerUser,
+    ids.returnItem,
+    {
+      fulfillmentStatus: "delivered",
+    },
+  );
+  await sellerService.updateSellerOrderItem(
+    ids.seller,
+    ids.sellerUser,
+    ids.returnItem,
+    {
+      fulfillmentStatus: "delivered",
+    },
+  );
 
-  const returnRequest = await createReturnRequest("usr_cust001", ids.returnItem, {
-    quantity: 1,
-    reason: "San pham khong phu hop nhu cau su dung"
-  });
+  const returnRequest = await createReturnRequest(
+    "usr_cust001",
+    ids.returnItem,
+    {
+      quantity: 1,
+      reason: "San pham khong phu hop nhu cau su dung",
+    },
+  );
   await updateSellerReturn(ids.seller, ids.sellerUser, returnRequest.id, {
     status: "approved",
-    sellerResponse: "Dong y nhan lai san pham"
+    sellerResponse: "Dong y nhan lai san pham",
   });
   await updateSellerReturn(ids.seller, ids.sellerUser, returnRequest.id, {
     status: "received",
-    sellerResponse: "Da nhan lai san pham"
+    sellerResponse: "Da nhan lai san pham",
   });
 
   let walletData = await getSellerWallet(ids.seller);
   assert.equal(walletData.wallet.lifetimeEarnings, 0);
   assert.equal(walletData.wallet.pendingBalance, 0);
 
-  await sellerService.updateSellerOrderItem(ids.seller, ids.sellerUser, ids.saleItem, {
-    fulfillmentStatus: "delivered"
-  });
+  await sellerService.updateSellerOrderItem(
+    ids.seller,
+    ids.sellerUser,
+    ids.saleItem,
+    {
+      fulfillmentStatus: "delivered",
+    },
+  );
   walletData = await getSellerWallet(ids.seller);
   assert.equal(walletData.wallet.availableBalance, 500000);
   assert.equal(walletData.wallet.lifetimeEarnings, 500000);
@@ -159,11 +176,11 @@ try {
   assert.equal(
     ledger.transactions.filter((item) => item.type === "sale_pending").length,
     2,
-    "Each delivered item must be recorded exactly once"
+    "Each delivered item must be recorded exactly once",
   );
   assert.equal(
     ledger.transactions.filter((item) => item.type === "sale_reversed").length,
-    1
+    1,
   );
 
   const cancelled = await createWithdrawal(ids.seller, { amount: 100000 });
@@ -175,7 +192,7 @@ try {
   const approved = await createWithdrawal(ids.seller, { amount: 100000 });
   await processWithdrawal("usr_admin001", approved.id, {
     status: "approved",
-    adminNote: "Test manual transfer"
+    adminNote: "Test manual transfer",
   });
   walletData = await getSellerWallet(ids.seller);
   assert.equal(walletData.wallet.availableBalance, 400000);
@@ -185,33 +202,68 @@ try {
   const rejected = await createWithdrawal(ids.seller, { amount: 100000 });
   await processWithdrawal("usr_admin001", rejected.id, {
     status: "rejected",
-    adminNote: "Test rejection"
+    adminNote: "Test rejection",
   });
   walletData = await getSellerWallet(ids.seller);
   assert.equal(walletData.wallet.availableBalance, 400000);
   assert.equal(walletData.wallet.withdrawalHoldBalance, 0);
 
   ledger = await getWalletTransactions(ids.seller, { page: 1, limit: 50 });
-  assert.equal(ledger.transactions.filter((item) => item.type === "withdrawal_hold").length, 3);
-  assert.equal(ledger.transactions.filter((item) => item.type === "withdrawal_cancelled").length, 1);
-  assert.equal(ledger.transactions.filter((item) => item.type === "withdrawal_approved").length, 1);
-  assert.equal(ledger.transactions.filter((item) => item.type === "withdrawal_rejected").length, 1);
+  assert.equal(
+    ledger.transactions.filter((item) => item.type === "withdrawal_hold")
+      .length,
+    3,
+  );
+  assert.equal(
+    ledger.transactions.filter((item) => item.type === "withdrawal_cancelled")
+      .length,
+    1,
+  );
+  assert.equal(
+    ledger.transactions.filter((item) => item.type === "withdrawal_approved")
+      .length,
+    1,
+  );
+  assert.equal(
+    ledger.transactions.filter((item) => item.type === "withdrawal_rejected")
+      .length,
+    1,
+  );
 
   const concurrent = await Promise.allSettled([
-    createWithdrawal(ids.seller, { amount: 300000, sellerNote: "Concurrent A" }),
-    createWithdrawal(ids.seller, { amount: 300000, sellerNote: "Concurrent B" })
+    createWithdrawal(ids.seller, {
+      amount: 300000,
+      sellerNote: "Concurrent A",
+    }),
+    createWithdrawal(ids.seller, {
+      amount: 300000,
+      sellerNote: "Concurrent B",
+    }),
   ]);
-  const fulfilled = concurrent.filter((result) => result.status === "fulfilled");
-  const rejectedConcurrent = concurrent.filter((result) => result.status === "rejected");
-  assert.equal(fulfilled.length, 1, "Wallet lock must allow only one oversized concurrent pair");
+  const fulfilled = concurrent.filter(
+    (result) => result.status === "fulfilled",
+  );
+  const rejectedConcurrent = concurrent.filter(
+    (result) => result.status === "rejected",
+  );
+  assert.equal(
+    fulfilled.length,
+    1,
+    "Wallet lock must allow only one oversized concurrent pair",
+  );
   assert.equal(rejectedConcurrent.length, 1);
-  assert.equal(rejectedConcurrent[0].reason.code, "INSUFFICIENT_AVAILABLE_BALANCE");
+  assert.equal(
+    rejectedConcurrent[0].reason.code,
+    "INSUFFICIENT_AVAILABLE_BALANCE",
+  );
   await cancelWithdrawal(ids.seller, fulfilled[0].value.id);
   walletData = await getSellerWallet(ids.seller);
   assert.equal(walletData.wallet.availableBalance, 400000);
   assert.equal(walletData.wallet.withdrawalHoldBalance, 0);
 
-  console.log("[PASS] Seller wallet lifecycle, return reversal, idempotency, and withdrawal flow.");
+  console.log(
+    "[PASS] Seller wallet lifecycle, return reversal, idempotency, and withdrawal flow.",
+  );
 } finally {
   await cleanup();
   await pool.close();

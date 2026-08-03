@@ -8,10 +8,6 @@ import {
   getSellerProfile,
   updateSellerProfile,
   getSellerDashboardStats,
-  getSellerProducts,
-  createSellerProduct,
-  updateSellerProduct,
-  deleteSellerProduct,
   getSellerOrders,
   getSellerOrderTimeline,
   updateSellerOrderItem,
@@ -22,19 +18,25 @@ import {
   deleteSellerCoupon,
   getChatHistory,
   getRecentChats,
-  markChatAsRead
+  markChatAsRead,
 } from "../controllers/seller.controller.js";
+import {
+  createSellerProduct,
+  deleteSellerProduct,
+  getSellerProducts,
+  updateSellerProduct,
+} from "../controllers/sellerProduct.controller.js";
 import {
   createFlashSale,
   getFlashSales,
   updateFlashSale,
-  deleteFlashSale
+  deleteFlashSale,
 } from "../controllers/flashSale.controller.js";
 import {
   adjustInventory,
   getInventoryLogs,
   getLowStockInventory,
-  updateVariantStockAlert
+  updateVariantStockAlert,
 } from "../controllers/inventory.controller.js";
 import { getSellerDashboardAnalytics } from "../controllers/sellerAnalytics.controller.js";
 import { getSellerCouponStats } from "../controllers/couponStats.controller.js";
@@ -43,18 +45,18 @@ import { showSellerFollowerStats } from "../controllers/shopFollow.controller.js
 import {
   changeSellerReturnStatus,
   listSellerReturns,
-  showSellerReturn
+  showSellerReturn,
 } from "../controllers/return.controller.js";
 import {
   listSellerFinanceTransactions,
-  showSellerFinanceSummary
+  showSellerFinanceSummary,
 } from "../controllers/sellerFinance.controller.js";
 import {
   cancelSellerWithdrawalRequest,
   listSellerWalletTransactions,
   listSellerWithdrawalRequests,
   requestSellerWithdrawal,
-  showSellerWallet
+  showSellerWallet,
 } from "../controllers/sellerWallet.controller.js";
 
 const router = express.Router();
@@ -111,9 +113,7 @@ router.use(protect);
 router.use(requireActiveSeller);
 router.use(restrictTo("seller"));
 
-router.route("/profile")
-  .get(getSellerProfile)
-  .put(updateSellerProfile);
+router.route("/profile").get(getSellerProfile).put(updateSellerProfile);
 
 router.get("/dashboard-stats", getSellerDashboardStats);
 router.get("/dashboard-tasks", getSellerDashboardTasks);
@@ -276,14 +276,13 @@ router.post("/inventory/adjust", adjustInventory);
  */
 router.patch(
   "/products/:productId/variants/:variantId/stock-alert",
-  updateVariantStockAlert
+  updateVariantStockAlert,
 );
 
-router.route("/products")
-  .get(getSellerProducts)
-  .post(createSellerProduct);
+router.route("/products").get(getSellerProducts).post(createSellerProduct);
 
-router.route("/products/:id")
+router
+  .route("/products/:id")
   .put(updateSellerProduct)
   .delete(deleteSellerProduct);
 
@@ -295,9 +294,7 @@ router.get("/returns", listSellerReturns);
 router.get("/returns/:returnId", showSellerReturn);
 router.patch("/returns/:returnId", changeSellerReturnStatus);
 
-router.route("/coupons")
-  .get(getSellerCoupons)
-  .post(createSellerCoupon);
+router.route("/coupons").get(getSellerCoupons).post(createSellerCoupon);
 
 /**
  * @openapi
@@ -353,17 +350,14 @@ router.route("/coupons")
  */
 router.get("/coupons/stats", getSellerCouponStats);
 
-router.route("/coupons/:id")
+router
+  .route("/coupons/:id")
   .patch(updateSellerCoupon)
   .delete(deleteSellerCoupon);
 
-router.route("/flash-sales")
-  .get(getFlashSales)
-  .post(createFlashSale);
+router.route("/flash-sales").get(getFlashSales).post(createFlashSale);
 
-router.route("/flash-sales/:id")
-  .patch(updateFlashSale)
-  .delete(deleteFlashSale);
+router.route("/flash-sales/:id").patch(updateFlashSale).delete(deleteFlashSale);
 
 router.get("/chat/recent", getRecentChats);
 router.get("/chat/history/:partnerId", getChatHistory);
