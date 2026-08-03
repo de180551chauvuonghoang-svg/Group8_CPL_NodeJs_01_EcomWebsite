@@ -4,8 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   Archive,
-  DollarSign,
-  FileText,
   Image as ImageIcon,
   Loader2,
   Package,
@@ -14,11 +12,8 @@ import {
   Search,
   Trash2,
   Warehouse,
-  X,
   Zap,
 } from 'lucide-react';
-import DateTimePicker from '../components/common/DateTimePicker';
-import ImageUploadField from '../components/common/ImageUploadField';
 import InventoryAdjustModal, {
   type InventoryVariantTarget,
 } from '../components/inventory/InventoryAdjustModal';
@@ -27,22 +22,16 @@ import SellerFilterBar from '../components/seller/SellerFilterBar';
 import SellerPageHeader from '../components/seller/SellerPageHeader';
 import SellerPagination from '../components/seller/SellerPagination';
 import SellerStatePanel from '../components/seller/SellerStatePanel';
+import DeleteProductDialog from '../components/seller/products/DeleteProductDialog';
+import FlashSaleDialog from '../components/seller/products/FlashSaleDialog';
+import ProductFormDialog, {
+  type ProductFormValues,
+} from '../components/seller/products/ProductFormDialog';
 import { sellerService, type SellerProductPayload } from '../services/sellerService';
 import type { Pagination, ProductImage, SellerFlashSale, SellerProduct } from '../types';
 import { isNonNegativeInteger, isPositivePrice } from '../utils/sellerValidation';
 
-type ProductForm = {
-  name: string;
-  price: string;
-  description: string;
-  stock: string;
-  stockReason: string;
-  sku: string;
-  lowStockThreshold: string;
-  categoryId: string;
-  isActive: boolean;
-  images: ProductImage[];
-};
+type ProductForm = ProductFormValues;
 
 const EMPTY_PAGINATION: Pagination = { page: 1, limit: 12, total: 0, total_pages: 0 };
 
@@ -651,267 +640,39 @@ export default function SellerProducts() {
 
       <AnimatePresence>
         {showModal && (
-          <ModalShell onClose={() => !submitting && setShowModal(false)} maxWidth="max-w-3xl">
-            <header className="flex items-start justify-between gap-4 border-b border-outline-variant/40 px-6 py-5">
-              <div>
-                <p className="text-xs font-bold uppercase text-primary">Thông tin bán hàng</p>
-                <h2 className="mt-1 text-xl font-black text-on-surface">
-                  {editProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="rounded-md p-2 hover:bg-surface-container"
-                aria-label="Đóng"
-              >
-                <X size={20} />
-              </button>
-            </header>
-
-            <form onSubmit={handleSubmit} className="max-h-[75vh] overflow-y-auto">
-              <div className="grid gap-5 p-6 md:grid-cols-2">
-                <div className="space-y-4">
-                  <TextField
-                    label="Tên sản phẩm *"
-                    value={form.name}
-                    onChange={(value) => setForm({ ...form, name: value })}
-                    placeholder="Ví dụ: Chuột không dây"
-                    icon={FileText}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <TextField
-                      label="Giá bán *"
-                      value={form.price}
-                      onChange={(value) => setForm({ ...form, price: value })}
-                      type="number"
-                      min="1"
-                      placeholder="100000"
-                      icon={DollarSign}
-                    />
-                    <TextField
-                      label="Tồn kho *"
-                      value={form.stock}
-                      onChange={(value) => setForm({ ...form, stock: value })}
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="0"
-                      icon={Warehouse}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <TextField
-                      label="SKU *"
-                      value={form.sku}
-                      onChange={(value) => setForm({ ...form, sku: value.toUpperCase() })}
-                      placeholder="MOUSE-001"
-                      icon={Package}
-                    />
-                    <TextField
-                      label="Ngưỡng cảnh báo"
-                      value={form.lowStockThreshold}
-                      onChange={(value) => setForm({ ...form, lowStockThreshold: value })}
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="5"
-                      icon={AlertTriangle}
-                    />
-                  </div>
-                  <label className="block">
-                    <span className="mb-1.5 block text-sm font-bold">Danh mục *</span>
-                    <select
-                      value={form.categoryId}
-                      onChange={(event) => setForm({ ...form, categoryId: event.target.value })}
-                      className="h-11 w-full rounded-md border border-outline-variant bg-surface-container px-3 text-sm outline-none focus:border-primary"
-                    >
-                      <option value="">Chọn danh mục</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-sm font-bold">Mô tả</span>
-                    <textarea
-                      value={form.description}
-                      onChange={(event) => setForm({ ...form, description: event.target.value })}
-                      rows={4}
-                      maxLength={5000}
-                      className="w-full resize-y rounded-md border border-outline-variant bg-surface-container p-3 text-sm outline-none focus:border-primary"
-                      placeholder="Mô tả đặc điểm, công dụng và thông tin sản phẩm"
-                    />
-                  </label>
-                </div>
-
-                <div className="space-y-4">
-                  <ImageUploadField
-                    label="Ảnh sản phẩm *"
-                    purpose="product"
-                    images={form.images}
-                    onChange={(images) => setForm({ ...form, images })}
-                    maxImages={8}
-                    disabled={submitting}
-                  />
-                  {editProduct &&
-                    Number(form.stock) !== (getDefaultVariant(editProduct)?.stock_qty ?? 0) && (
-                      <TextField
-                        label="Lý do thay đổi tồn kho *"
-                        value={form.stockReason}
-                        onChange={(value) => setForm({ ...form, stockReason: value })}
-                        placeholder="Ví dụ: Kiểm kho thực tế"
-                        icon={FileText}
-                      />
-                    )}
-                  <label className="flex items-center justify-between gap-4 rounded-md border border-outline-variant bg-surface-container p-4">
-                    <span>
-                      <span className="block text-sm font-bold">Hiển thị sản phẩm</span>
-                      <span className="text-xs text-on-surface-variant">
-                        Khách hàng có thể tìm thấy sản phẩm này.
-                      </span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={form.isActive}
-                      onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
-                      className="h-5 w-5 accent-primary"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {error && (
-                <p className="mx-6 mb-4 rounded-md bg-error/10 px-4 py-3 text-sm font-semibold text-error">
-                  {error}
-                </p>
-              )}
-              <footer className="sticky bottom-0 flex justify-end gap-3 border-t border-outline-variant/40 bg-surface-container-lowest px-6 py-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  disabled={submitting}
-                  className="h-10 rounded-md border border-outline-variant px-4 text-sm font-bold"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-5 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  {submitting && <Loader2 size={16} className="animate-spin" />}
-                  {editProduct ? 'Lưu thay đổi' : 'Tạo sản phẩm'}
-                </button>
-              </footer>
-            </form>
-          </ModalShell>
+          <ProductFormDialog
+            editProduct={editProduct}
+            form={form}
+            categories={categories}
+            originalStock={editProduct ? (getDefaultVariant(editProduct)?.stock_qty ?? 0) : 0}
+            submitting={submitting}
+            error={error}
+            onFormChange={setForm}
+            onSubmit={handleSubmit}
+            onClose={() => !submitting && setShowModal(false)}
+          />
         )}
 
         {flashTarget && (
-          <ModalShell onClose={() => !flashSubmitting && setFlashTarget(null)} maxWidth="max-w-lg">
-            <form onSubmit={createFlashSale}>
-              <header className="flex items-start justify-between gap-4 border-b border-outline-variant/40 px-6 py-5">
-                <div>
-                  <p className="text-xs font-bold uppercase text-error">Flash sale</p>
-                  <h2 className="mt-1 text-xl font-black">{flashTarget.name}</h2>
-                  <p className="mt-1 text-sm text-on-surface-variant">
-                    Giá gốc: {formatCurrency(flashTarget.base_price)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFlashTarget(null)}
-                  className="rounded-md p-2 hover:bg-surface-container"
-                  aria-label="Đóng"
-                >
-                  <X size={20} />
-                </button>
-              </header>
-              <div className="space-y-4 p-6">
-                <TextField
-                  label="Giá flash sale *"
-                  value={flashForm.salePrice}
-                  onChange={(value) => setFlashForm({ ...flashForm, salePrice: value })}
-                  type="number"
-                  min="1"
-                  placeholder="Nhập giá ưu đãi"
-                  icon={Zap}
-                />
-                <DateTimePicker
-                  label="Bắt đầu"
-                  value={flashForm.startsAt}
-                  onChange={(startsAt) => setFlashForm({ ...flashForm, startsAt })}
-                  min={localDateTimeValue(new Date())}
-                />
-                <DateTimePicker
-                  label="Kết thúc"
-                  value={flashForm.endsAt}
-                  onChange={(endsAt) => setFlashForm({ ...flashForm, endsAt })}
-                  min={flashForm.startsAt}
-                />
-                {error && (
-                  <p className="rounded-md bg-error/10 px-4 py-3 text-sm font-semibold text-error">
-                    {error}
-                  </p>
-                )}
-              </div>
-              <footer className="flex justify-end gap-3 border-t border-outline-variant/40 px-6 py-4">
-                <button
-                  type="button"
-                  onClick={() => setFlashTarget(null)}
-                  className="h-10 rounded-md border border-outline-variant px-4 text-sm font-bold"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={flashSubmitting}
-                  className="inline-flex h-10 items-center gap-2 rounded-md bg-error px-5 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  {flashSubmitting ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Zap size={16} />
-                  )}
-                  Tạo flash sale
-                </button>
-              </footer>
-            </form>
-          </ModalShell>
+          <FlashSaleDialog
+            product={flashTarget}
+            form={flashForm}
+            submitting={flashSubmitting}
+            error={error}
+            minStart={localDateTimeValue(new Date())}
+            onFormChange={setFlashForm}
+            onSubmit={createFlashSale}
+            onClose={() => !flashSubmitting && setFlashTarget(null)}
+          />
         )}
 
         {deleteTarget && (
-          <ModalShell onClose={() => !deleting && setDeleteTarget(null)} maxWidth="max-w-md">
-            <div className="p-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-md bg-error/10 text-error">
-                <Trash2 size={21} />
-              </div>
-              <h2 className="mt-4 text-xl font-black">Xóa sản phẩm?</h2>
-              <p className="mt-2 text-sm text-on-surface-variant">
-                Sản phẩm “{deleteTarget.name}” sẽ không còn hiển thị trong cửa hàng.
-              </p>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget(null)}
-                  className="h-10 rounded-md border border-outline-variant px-4 text-sm font-bold"
-                >
-                  Giữ lại
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void deleteProduct()}
-                  disabled={deleting}
-                  className="inline-flex h-10 items-center gap-2 rounded-md bg-error px-4 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  {deleting && <Loader2 size={15} className="animate-spin" />} Xóa sản phẩm
-                </button>
-              </div>
-            </div>
-          </ModalShell>
+          <DeleteProductDialog
+            product={deleteTarget}
+            deleting={deleting}
+            onClose={() => !deleting && setDeleteTarget(null)}
+            onConfirm={() => void deleteProduct()}
+          />
         )}
       </AnimatePresence>
 
@@ -948,77 +709,5 @@ function IconButton({
     >
       <Icon size={15} />
     </button>
-  );
-}
-
-function ModalShell({
-  children,
-  onClose,
-  maxWidth,
-}: {
-  children: React.ReactNode;
-  onClose: () => void;
-  maxWidth: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 10 }}
-        role="dialog"
-        aria-modal="true"
-        className={`w-full ${maxWidth} overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest shadow-2xl`}
-      >
-        {children}
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function TextField({
-  label,
-  value,
-  onChange,
-  icon: Icon,
-  type = 'text',
-  placeholder,
-  min,
-  step,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  icon: typeof FileText;
-  type?: string;
-  placeholder?: string;
-  min?: string;
-  step?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-bold">{label}</span>
-      <span className="relative block">
-        <Icon
-          size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
-        />
-        <input
-          type={type}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          min={min}
-          step={step}
-          className="h-11 w-full rounded-md border border-outline-variant bg-surface-container pl-10 pr-3 text-sm outline-none focus:border-primary"
-        />
-      </span>
-    </label>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useContext } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -28,50 +28,11 @@ import AnalyticsPeriodFilter from '../components/analytics/AnalyticsPeriodFilter
 import RevenueOrdersChart from '../components/analytics/RevenueOrdersChart';
 import StatusStackedChart from '../components/analytics/StatusStackedChart';
 import CountUpNumber from '../components/common/CountUpNumber';
+import ProductRankingPanel from '../components/seller/dashboard/ProductRankingPanel';
 import SellerPageHeader from '../components/seller/SellerPageHeader';
 import { AuthContext } from '../context/AuthContext';
-import { sellerService } from '../services/sellerService';
-import {
-  AnalyticsPeriod,
-  SellerAnalyticsStatusCounts,
-  SellerDashboardAnalytics,
-  SellerDashboardTasks,
-  SellerDashboardTopProduct,
-  SellerDashboardTopRatedProduct,
-} from '../types';
-import { getAnalyticsErrorMessage } from '../utils/analyticsErrors';
-
-interface Stats {
-  totalProducts: number;
-  totalRevenue: number;
-  totalOrders: number;
-  pendingOrders?: number;
-  lowStock?: number;
-  revenueRule?: 'delivered_items_gross';
-  topProducts?: SellerDashboardTopProduct[];
-  topRatedProducts?: SellerDashboardTopRatedProduct[];
-}
-
-const EMPTY_STATS: Stats = {
-  totalProducts: 0,
-  totalRevenue: 0,
-  totalOrders: 0,
-  pendingOrders: 0,
-  lowStock: 0,
-  topProducts: [],
-  topRatedProducts: [],
-};
-
-const EMPTY_ACTION_STATS: SellerDashboardTasks = {
-  ordersToProcess: 0,
-  overdueOrders: 0,
-  unreadMessages: 0,
-  outOfStockProducts: 0,
-  lowStockProducts: 0,
-  unrepliedReviews: 0,
-  pendingReturns: 0,
-  overdueAfterHours: 24,
-};
+import type { SellerAnalyticsStatusCounts, SellerDashboardAnalytics } from '../types';
+import { useSellerDashboard } from '../hooks/seller/useSellerDashboard';
 
 const STATUS_ITEMS: {
   key: keyof SellerAnalyticsStatusCounts;
@@ -92,27 +53,6 @@ const formatCurrency = (value: number) =>
     currency: 'VND',
     maximumFractionDigits: 0,
   }).format(value);
-
-const getRangeError = (period: AnalyticsPeriod, from: string, to: string) => {
-  if (!from && !to) return '';
-  if (!from || !to) return 'Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc.';
-  if (from > to) return 'Ngày bắt đầu không được sau ngày kết thúc.';
-
-  const fromDate = new Date(`${from}T00:00:00Z`);
-  const toDate = new Date(`${to}T00:00:00Z`);
-  const dayCount = Math.floor((toDate.getTime() - fromDate.getTime()) / 86_400_000) + 1;
-  const monthCount =
-    (toDate.getUTCFullYear() - fromDate.getUTCFullYear()) * 12 +
-    toDate.getUTCMonth() -
-    fromDate.getUTCMonth() +
-    1;
-  const yearCount = toDate.getUTCFullYear() - fromDate.getUTCFullYear() + 1;
-
-  if (period === 'day' && dayCount > 366) return 'Kỳ ngày chỉ hỗ trợ tối đa 366 ngày.';
-  if (period === 'month' && monthCount > 60) return 'Kỳ tháng chỉ hỗ trợ tối đa 60 tháng.';
-  if (period === 'year' && yearCount > 10) return 'Kỳ năm chỉ hỗ trợ tối đa 10 năm.';
-  return '';
-};
 
 function StatCard({
   icon: Icon,
@@ -264,105 +204,25 @@ function AnalyticsKpis({ analytics }: { analytics: SellerDashboardAnalytics }) {
 export default function SellerDashboard() {
   const authContext = useContext(AuthContext);
   const user = authContext?.user;
-  const [stats, setStats] = useState<Stats>(EMPTY_STATS);
-  const [actionStats, setActionStats] = useState<SellerDashboardTasks>(EMPTY_ACTION_STATS);
-  const [analytics, setAnalytics] = useState<SellerDashboardAnalytics | null>(null);
-  const [period, setPeriod] = useState<AnalyticsPeriod>('day');
-  const [fromDraft, setFromDraft] = useState('');
-  const [toDraft, setToDraft] = useState('');
-  const [appliedRange, setAppliedRange] = useState<{ from?: string; to?: string }>({});
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [loadingActions, setLoadingActions] = useState(true);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
-  const [analyticsError, setAnalyticsError] = useState('');
-
-  const loadStats = useCallback(async () => {
-    setLoadingStats(true);
-    try {
-      const data = await sellerService.getDashboardStats();
-      setStats({ ...EMPTY_STATS, ...data });
-    } catch {
-      setStats(EMPTY_STATS);
-    } finally {
-      setLoadingStats(false);
-    }
-  }, []);
-
-  const loadAnalytics = useCallback(async () => {
-    setLoadingAnalytics(true);
-    setAnalyticsError('');
-    try {
-      const data = await sellerService.getDashboardAnalytics({
-        period,
-        ...appliedRange,
-      });
-      setAnalytics(data);
-    } catch (requestError) {
-      setAnalyticsError(
-        getAnalyticsErrorMessage(requestError, 'Không thể tải dữ liệu phân tích cửa hàng.'),
-      );
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  }, [appliedRange, period]);
-
-  const loadActionStats = useCallback(async () => {
-    setLoadingActions(true);
-    try {
-      const tasks = await sellerService.getDashboardTasks();
-      setActionStats({ ...EMPTY_ACTION_STATS, ...tasks });
-    } catch {
-      setActionStats(EMPTY_ACTION_STATS);
-    } finally {
-      setLoadingActions(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadStats();
-  }, [loadStats]);
-
-  useEffect(() => {
-    void loadAnalytics();
-  }, [loadAnalytics]);
-
-  useEffect(() => {
-    void loadActionStats();
-  }, [loadActionStats]);
-
-  const handlePeriodChange = (nextPeriod: AnalyticsPeriod) => {
-    setPeriod(nextPeriod);
-    setFromDraft('');
-    setToDraft('');
-    setAppliedRange({});
-    setAnalyticsError('');
-  };
-
-  const handleApplyRange = () => {
-    const error = getRangeError(period, fromDraft, toDraft);
-    if (error) {
-      setAnalyticsError(error);
-      return;
-    }
-    setAnalyticsError('');
-    setAppliedRange(fromDraft && toDraft ? { from: fromDraft, to: toDraft } : {});
-  };
-
-  const handleResetRange = () => {
-    setFromDraft('');
-    setToDraft('');
-    setAppliedRange({});
-    setAnalyticsError('');
-  };
-
-  const handleRefresh = () => {
-    void Promise.all([loadStats(), loadAnalytics(), loadActionStats()]);
-  };
-
-  const periodLabel = useMemo(() => {
-    if (!analytics) return '';
-    return `${analytics.from} – ${analytics.to}`;
-  }, [analytics]);
+  const {
+    stats,
+    actionStats,
+    analytics,
+    period,
+    fromDraft,
+    toDraft,
+    loadingStats,
+    loadingActions,
+    loadingAnalytics,
+    analyticsError,
+    periodLabel,
+    setFromDraft,
+    setToDraft,
+    handlePeriodChange,
+    handleApplyRange,
+    handleResetRange,
+    handleRefresh,
+  } = useSellerDashboard();
 
   return (
     <div className="min-h-screen bg-surface px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
@@ -665,97 +525,5 @@ export default function SellerDashboard() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ProductRankingPanel({
-  title,
-  description,
-  icon: Icon,
-  products,
-  emptyText,
-}: {
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  products: {
-    id: string;
-    name: string;
-    imageUrl?: string | null;
-    primaryMetric?: string;
-    rating?: number;
-    secondaryMetric: string;
-  }[];
-  emptyText: string;
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest">
-      <header className="flex items-start justify-between gap-4 border-b border-outline-variant/35 px-5 py-4">
-        <div>
-          <h2 className="flex items-center gap-2 text-base font-black text-on-surface">
-            <Icon size={18} className="text-primary" /> {title}
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-on-surface-variant">{description}</p>
-        </div>
-        <Link
-          to="/seller/products"
-          className="shrink-0 text-xs font-bold text-primary hover:underline"
-        >
-          Xem tất cả
-        </Link>
-      </header>
-      {products.length > 0 ? (
-        <ol className="divide-y divide-outline-variant/35">
-          {products.map((product, index) => (
-            <li key={product.id}>
-              <Link
-                to={`/products/${product.id}`}
-                className="group flex items-center gap-3 px-5 py-3 transition hover:bg-surface-container/45"
-              >
-                <span className="w-5 shrink-0 text-center text-xs font-black tabular-nums text-on-surface-variant">
-                  {index + 1}
-                </span>
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-outline-variant/40 bg-surface-container">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-on-surface-variant/50">
-                      <Package size={20} />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-on-surface group-hover:text-primary">
-                    {product.name}
-                  </p>
-                  {typeof product.rating === 'number' ? (
-                    <p className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-600">
-                      <Star size={13} fill="currentColor" />
-                      {product.rating.toFixed(1)} sao
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-xs font-semibold text-on-surface-variant">
-                      {product.primaryMetric}
-                    </p>
-                  )}
-                </div>
-                <strong className="shrink-0 text-sm text-on-surface">
-                  {product.secondaryMetric}
-                </strong>
-              </Link>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <div className="px-5 py-10 text-center">
-          <Package size={24} className="mx-auto text-on-surface-variant/50" />
-          <p className="mt-2 text-sm font-semibold text-on-surface-variant">{emptyText}</p>
-        </div>
-      )}
-    </section>
   );
 }

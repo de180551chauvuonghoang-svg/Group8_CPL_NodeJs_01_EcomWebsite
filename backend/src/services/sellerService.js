@@ -4,127 +4,32 @@ import {
   assertFulfillmentTransition,
   deriveOrderDisplayStatus,
   normalizeFulfillmentStatus,
-  orderStatusError
+  orderStatusError,
 } from "./orderStatusService.js";
 import { INVENTORY_TYPES, recordInventoryLog } from "./inventoryService.js";
 import { createNotification } from "./notificationService.js";
 import { recalculateOrderAfterCancellation } from "./checkoutService.js";
 import { recordDeliveredSale } from "./sellerWalletService.js";
+import { getSellerDashboardStats } from "./sellerDashboardService.js";
+import { sellerCouponService } from "./sellerCouponService.js";
 import {
   paginationMeta,
   parsePagination,
   parseSearch,
   parseSort,
-  queryError
+  queryError,
 } from "../utils/queryUtils.js";
-
-const toLocalDateString = (date) => [
-  date.getFullYear(),
-  String(date.getMonth() + 1).padStart(2, "0"),
-  String(date.getDate()).padStart(2, "0")
-].join("-");
-
-const normalizeCouponDateTime = (value, fieldName, { endOfDay = false } = {}) => {
-  if (!value) {
-    throw new Error(`${fieldName} la bat buoc.`);
-  }
-
-  const raw = String(value);
-  const dateOnly = raw.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
-    throw new Error(`${fieldName} khong hop le.`);
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return `${dateOnly} ${endOfDay ? "23:59:59" : "00:00:00"}`;
-  }
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`${fieldName} khong hop le.`);
-  }
-
-  const datePart = toLocalDateString(parsed);
-  const timePart = [
-    String(parsed.getHours()).padStart(2, "0"),
-    String(parsed.getMinutes()).padStart(2, "0"),
-    String(parsed.getSeconds()).padStart(2, "0")
-  ].join(":");
-  return `${datePart} ${timePart}`;
-};
-
-const validateCouponPayload = (data) => {
-  const discountType = data.discountType || "percentage";
-  const discountValue = Number(data.discountValue || 0);
-  const usageLimit = data.usageLimit === undefined || data.usageLimit === null || data.usageLimit === ""
-    ? null
-    : Number(data.usageLimit);
-  const minOrderAmount = data.minOrderAmount === undefined || data.minOrderAmount === null || data.minOrderAmount === ""
-    ? 0
-    : Number(data.minOrderAmount);
-  const maxDiscountAmt = data.maxDiscountAmt === undefined || data.maxDiscountAmt === null || data.maxDiscountAmt === ""
-    ? null
-    : Number(data.maxDiscountAmt);
-  const startsAt = normalizeCouponDateTime(data.startsAt, "startsAt");
-  const expiresAt = normalizeCouponDateTime(data.expiresAt, "expiresAt", { endOfDay: true });
-
-  if (!["percentage", "fixed"].includes(discountType)) {
-    throw new Error("Loai giam gia voucher khong hop le.");
-  }
-  if (!Number.isFinite(discountValue) || discountValue <= 0) {
-    throw new Error("Gia tri giam gia phai lon hon 0.");
-  }
-  if (discountType === "percentage" && discountValue > 100) {
-    throw new Error("Voucher phan tram khong duoc vuot qua 100%.");
-  }
-  if (usageLimit !== null && (!Number.isInteger(usageLimit) || usageLimit <= 0)) {
-    throw new Error("Gioi han luot dung phai lon hon 0.");
-  }
-  if (!Number.isFinite(minOrderAmount) || minOrderAmount < 0) {
-    throw new Error("Gia tri don hang toi thieu phai lon hon hoac bang 0.");
-  }
-  if (maxDiscountAmt !== null && (!Number.isFinite(maxDiscountAmt) || maxDiscountAmt <= 0)) {
-    throw new Error("Muc giam toi da phai lon hon 0.");
-  }
-  if (new Date(startsAt) >= new Date(expiresAt)) {
-    throw new Error("startsAt phai nho hon expiresAt.");
-  }
-  if (new Date(expiresAt) <= new Date()) {
-    throw new Error("expiresAt phai lon hon thoi diem hien tai.");
-  }
-
-  return {
-    discountType,
-    discountValue,
-    usageLimit,
-    minOrderAmount,
-    maxDiscountAmt,
-    startsAt,
-    expiresAt
-  };
-};
-
-const recycleDeletedCouponCode = async (code) => {
-  await pool.request()
-    .input("code", sql.VarChar, code)
-    .query(`
-      UPDATE Coupons
-      SET code = CONCAT(LEFT(code, 25), '__deleted__', id)
-      WHERE code = @code
-        AND deleted_at IS NOT NULL
-    `);
-};
 
 const SELLER_CATEGORY_IDS = Object.freeze([
   "cat_electronics",
   "cat_accessories",
   "cat_kitchen",
   "cat_wearables",
-  "cat_audio"
+  "cat_audio",
 ]);
-const SELLER_CATEGORY_ID_SQL = SELLER_CATEGORY_IDS
-  .map((categoryId) => `'${categoryId}'`)
-  .join(", ");
+const SELLER_CATEGORY_ID_SQL = SELLER_CATEGORY_IDS.map(
+  (categoryId) => `'${categoryId}'`,
+).join(", ");
 
 const sellerApplicationError = (code, message, statusCode) => {
   const error = new Error(message);
@@ -143,7 +48,7 @@ const assertOwnedApplicationImage = (userId, publicId, purpose) => {
     throw sellerApplicationError(
       "APPLICATION_IMAGE_NOT_OWNED",
       "Ảnh hồ sơ đăng ký không thuộc tài khoản hiện tại.",
-      403
+      403,
     );
   }
   return normalizedPublicId;
@@ -166,12 +71,20 @@ export const sellerService = {
     identityNumber,
     bankName,
     bankAccountNo,
-    bankAccountHolder
+    bankAccountHolder,
   }) => {
     const normalizedShopName = String(shopName).trim();
     const normalizedShopAddress = String(shopAddress).trim();
-    const ownedLogoPublicId = assertOwnedApplicationImage(userId, logoPublicId, "shop_logo");
-    const ownedCoverPublicId = assertOwnedApplicationImage(userId, coverPublicId, "shop_cover");
+    const ownedLogoPublicId = assertOwnedApplicationImage(
+      userId,
+      logoPublicId,
+      "shop_logo",
+    );
+    const ownedCoverPublicId = assertOwnedApplicationImage(
+      userId,
+      coverPublicId,
+      "shop_cover",
+    );
     const sellerId = `sel_${uuidv4().replace(/-/g, "").slice(0, 24)}`;
     const transaction = new sql.Transaction(pool);
     let started = false;
@@ -180,9 +93,9 @@ export const sellerService = {
       await transaction.begin();
       started = true;
 
-      const existingResult = await transaction.request()
-        .input("userId", sql.VarChar, userId)
-        .query(`
+      const existingResult = await transaction
+        .request()
+        .input("userId", sql.VarChar, userId).query(`
           SELECT *
           FROM Sellers WITH (UPDLOCK, HOLDLOCK)
           WHERE user_id = @userId
@@ -193,35 +106,35 @@ export const sellerService = {
         throw sellerApplicationError(
           "SELLER_APPLICATION_PENDING",
           "Yeu cau mo cua hang dang cho duyet.",
-          409
+          409,
         );
       }
       if (existing?.status === "active") {
         throw sellerApplicationError(
           "SELLER_ALREADY_ACTIVE",
           "Cua hang da duoc kich hoat.",
-          409
+          409,
         );
       }
       if (existing?.status === "suspended") {
         throw sellerApplicationError(
           "SELLER_SUSPENDED",
           "Cua hang dang bi tam ngung va khong the gui lai don.",
-          403
+          403,
         );
       }
       if (existing && existing.status !== "rejected") {
         throw sellerApplicationError(
           "INVALID_SELLER_APPLICATION_STATUS",
           "Trang thai yeu cau mo cua hang khong hop le.",
-          409
+          409,
         );
       }
 
-      const duplicateName = await transaction.request()
+      const duplicateName = await transaction
+        .request()
         .input("shopName", sql.NVarChar, normalizedShopName)
-        .input("existingSellerId", sql.VarChar, existing?.id || null)
-        .query(`
+        .input("existingSellerId", sql.VarChar, existing?.id || null).query(`
           SELECT TOP 1 id
           FROM Sellers WITH (UPDLOCK, HOLDLOCK)
           WHERE shop_name = @shopName
@@ -231,17 +144,22 @@ export const sellerService = {
         throw sellerApplicationError(
           "SHOP_NAME_TAKEN",
           "Ten cua hang da duoc su dung. Vui long chon ten khac.",
-          409
+          409,
         );
       }
 
-      const request = transaction.request()
+      const request = transaction
+        .request()
         .input("id", sql.VarChar, existing?.id || sellerId)
         .input("userId", sql.VarChar, userId)
         .input("shopName", sql.NVarChar, normalizedShopName)
         .input("shopPhone", sql.VarChar, shopPhone)
         .input("shopAddress", sql.NVarChar, normalizedShopAddress)
-        .input("pickupAddress", sql.NVarChar, pickupAddress || normalizedShopAddress)
+        .input(
+          "pickupAddress",
+          sql.NVarChar,
+          pickupAddress || normalizedShopAddress,
+        )
         .input("logoUrl", sql.VarChar, logoUrl || null)
         .input("logoPublicId", sql.VarChar, ownedLogoPublicId)
         .input("coverUrl", sql.VarChar, coverUrl || null)
@@ -295,17 +213,21 @@ export const sellerService = {
       return {
         sellerId: existing?.id || sellerId,
         status: "pending",
-        resubmitted: Boolean(existing)
+        resubmitted: Boolean(existing),
       };
     } catch (error) {
       if (started) {
-        try { await transaction.rollback(); } catch (_) { /* preserve original error */ }
+        try {
+          await transaction.rollback();
+        } catch (_) {
+          /* preserve original error */
+        }
       }
       if ([2601, 2627].includes(error.number)) {
         throw sellerApplicationError(
           "SHOP_NAME_TAKEN",
           "Ten cua hang da duoc su dung. Vui long chon ten khac.",
-          409
+          409,
         );
       }
       throw error;
@@ -313,8 +235,7 @@ export const sellerService = {
   },
 
   getSellerApplicationByUserId: async (userId) => {
-    const result = await pool.request()
-      .input("userId", sql.VarChar, userId)
+    const result = await pool.request().input("userId", sql.VarChar, userId)
       .query(`
         SELECT id, shop_name, status, created_at, updated_at
         FROM Sellers
@@ -327,13 +248,14 @@ export const sellerService = {
       shopName: application.shop_name,
       status: application.status,
       createdAt: application.created_at,
-      updatedAt: application.updated_at
+      updatedAt: application.updated_at,
     };
   },
 
   // Lấy thông tin seller theo userId
   getSellerByUserId: async (userId) => {
-    const result = await pool.request()
+    const result = await pool
+      .request()
       .input("userId", sql.VarChar, userId)
       .query("SELECT * FROM Sellers WHERE user_id = @userId");
     return result.recordset[0];
@@ -346,23 +268,66 @@ export const sellerService = {
       throw new Error("Không tìm thấy thông tin cửa hàng.");
     }
 
-    await pool.request()
+    await pool
+      .request()
       .input("sellerId", sql.VarChar, seller.id)
       .input("shopName", sql.NVarChar, data.shopName || seller.shop_name)
       .input("shopPhone", sql.VarChar, data.shopPhone || seller.shop_phone)
-      .input("shopAddress", sql.NVarChar, data.shopAddress || seller.shop_address)
-      .input("pickupAddress", sql.NVarChar, data.pickupAddress || seller.pickup_address || data.shopAddress || seller.shop_address)
+      .input(
+        "shopAddress",
+        sql.NVarChar,
+        data.shopAddress || seller.shop_address,
+      )
+      .input(
+        "pickupAddress",
+        sql.NVarChar,
+        data.pickupAddress ||
+          seller.pickup_address ||
+          data.shopAddress ||
+          seller.shop_address,
+      )
       .input("logoUrl", sql.VarChar, data.logoUrl || seller.logo_url || null)
-      .input("logoPublicId", sql.VarChar, data.logoPublicId ?? seller.logo_public_id ?? null)
+      .input(
+        "logoPublicId",
+        sql.VarChar,
+        data.logoPublicId ?? seller.logo_public_id ?? null,
+      )
       .input("coverUrl", sql.VarChar, data.coverUrl || seller.cover_url || null)
-      .input("coverPublicId", sql.VarChar, data.coverPublicId ?? seller.cover_public_id ?? null)
-      .input("description", sql.NVarChar, data.description ?? seller.description)
-      .input("identityName", sql.NVarChar, data.identityName || seller.identity_name || null)
-      .input("identityNumber", sql.VarChar, data.identityNumber || seller.identity_number || null)
-      .input("bankName", sql.NVarChar, data.bankName || seller.bank_name || null)
-      .input("bankAccountNo", sql.VarChar, data.bankAccountNo || seller.bank_account_no || null)
-      .input("bankAccountHolder", sql.NVarChar, data.bankAccountHolder || seller.bank_account_holder || null)
-      .query(`
+      .input(
+        "coverPublicId",
+        sql.VarChar,
+        data.coverPublicId ?? seller.cover_public_id ?? null,
+      )
+      .input(
+        "description",
+        sql.NVarChar,
+        data.description ?? seller.description,
+      )
+      .input(
+        "identityName",
+        sql.NVarChar,
+        data.identityName || seller.identity_name || null,
+      )
+      .input(
+        "identityNumber",
+        sql.VarChar,
+        data.identityNumber || seller.identity_number || null,
+      )
+      .input(
+        "bankName",
+        sql.NVarChar,
+        data.bankName || seller.bank_name || null,
+      )
+      .input(
+        "bankAccountNo",
+        sql.VarChar,
+        data.bankAccountNo || seller.bank_account_no || null,
+      )
+      .input(
+        "bankAccountHolder",
+        sql.NVarChar,
+        data.bankAccountHolder || seller.bank_account_holder || null,
+      ).query(`
         UPDATE Sellers
         SET shop_name = @shopName,
             shop_phone = @shopPhone,
@@ -386,16 +351,17 @@ export const sellerService = {
   },
 
   getSellerById: async (sellerId) => {
-    const result = await pool.request()
+    const result = await pool
+      .request()
       .input("sellerId", sql.VarChar, sellerId)
       .query("SELECT * FROM Sellers WHERE id = @sellerId");
     return result.recordset[0];
   },
 
   getPublicShop: async (sellerId) => {
-    const shopRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
+    const shopRes = await pool
+      .request()
+      .input("sellerId", sql.VarChar, sellerId).query(`
         SELECT id, user_id, shop_name, shop_phone, shop_address, logo_url, cover_url,
                description, status, created_at
         FROM Sellers
@@ -405,9 +371,9 @@ export const sellerService = {
     const shop = shopRes.recordset[0];
     if (!shop) return null;
 
-    const productsRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
+    const productsRes = await pool
+      .request()
+      .input("sellerId", sql.VarChar, sellerId).query(`
         SELECT TOP 24 p.id, p.name, p.description,
                COALESCE(fs.sale_price, pv.price, p.base_price) AS price,
                CASE WHEN fs.id IS NOT NULL THEN COALESCE(fs.original_price, pv.price, p.base_price) ELSE NULL END AS originalPrice,
@@ -452,9 +418,9 @@ export const sellerService = {
         ORDER BY CASE WHEN fs.id IS NOT NULL THEN 0 ELSE 1 END, p.created_at DESC
       `);
 
-    const statsRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
+    const statsRes = await pool
+      .request()
+      .input("sellerId", sql.VarChar, sellerId).query(`
         SELECT
           (SELECT COUNT(*) FROM Products WHERE seller_id = @sellerId AND is_active = 1) AS total_products,
           (SELECT COUNT(*) FROM ShopFollowers WHERE seller_id = @sellerId) AS follower_count
@@ -462,19 +428,22 @@ export const sellerService = {
 
     return {
       shop,
-      products: productsRes.recordset.map(product => ({
+      products: productsRes.recordset.map((product) => ({
         ...product,
         price: Number(product.price || 0),
-        originalPrice: product.originalPrice === null ? null : Number(product.originalPrice || 0),
+        originalPrice:
+          product.originalPrice === null
+            ? null
+            : Number(product.originalPrice || 0),
         isFlashSale: Boolean(product.isFlashSale),
         stock: Number(product.stock || 0),
         seller_id: sellerId,
-        seller_user_id: shop.user_id
+        seller_user_id: shop.user_id,
       })),
       stats: {
         total_products: Number(statsRes.recordset[0].total_products || 0),
-        follower_count: Number(statsRes.recordset[0].follower_count || 0)
-      }
+        follower_count: Number(statsRes.recordset[0].follower_count || 0),
+      },
     };
   },
 
@@ -483,26 +452,37 @@ export const sellerService = {
     const { page, limit, offset } = parsePagination(query);
     const search = parseSearch(query.search);
     const status = String(query.status || "all").toLowerCase();
-    const allowedStatuses = ["all", "active", "inactive", "low_stock", "out_of_stock"];
+    const allowedStatuses = [
+      "all",
+      "active",
+      "inactive",
+      "low_stock",
+      "out_of_stock",
+    ];
     if (!allowedStatuses.includes(status)) {
-      throw queryError("INVALID_PRODUCT_STATUS", "Trạng thái sản phẩm không hợp lệ.");
+      throw queryError(
+        "INVALID_PRODUCT_STATUS",
+        "Trạng thái sản phẩm không hợp lệ.",
+      );
     }
-    const categoryId = query.categoryId ? String(query.categoryId).trim() : null;
+    const categoryId = query.categoryId
+      ? String(query.categoryId).trim()
+      : null;
     const { orderSql } = parseSort(query, {
       created_at: "product.created_at",
       name: "product.name",
       price: "product.base_price",
-      stock: "variant.stock_qty"
+      stock: "variant.stock_qty",
     });
 
-    const productsResult = await pool.request()
+    const productsResult = await pool
+      .request()
       .input("sellerId", sql.VarChar, sellerId)
       .input("search", sql.NVarChar, search || null)
       .input("status", sql.VarChar, status)
       .input("categoryId", sql.VarChar, categoryId)
       .input("offset", sql.Int, offset)
-      .input("limit", sql.Int, limit)
-      .query(`
+      .input("limit", sql.Int, limit).query(`
         SELECT
           product.*,
           variant.sku,
@@ -555,33 +535,37 @@ export const sellerService = {
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
     const total = Number(productsResult.recordset[0]?.total_count || 0);
-    const products = productsResult.recordset.map(({ total_count, ...product }) => {
-      const defaultVariant = {
-        id: product.variant_id,
-        product_id: product.id,
-        sku: product.sku,
-        price: Number(product.variant_price),
-        stock_qty: Number(product.stock_qty),
-        low_stock_threshold: Number(product.low_stock_threshold),
-        image_url: product.image_url,
-        is_active: Boolean(product.is_active),
-        is_default: true,
-        updated_at: product.variant_updated_at
-      };
-      return {
-        ...product,
-        images_json: undefined,
-        images: product.images_json ? JSON.parse(product.images_json).map((imageItem) => ({
-          ...imageItem,
-          isPrimary: Boolean(imageItem.isPrimary)
-        })) : [],
-        base_price: Number(product.base_price),
-        stock_qty: Number(product.stock_qty),
-        is_active: Boolean(product.is_active),
-        default_variant: defaultVariant,
-        variants: [defaultVariant]
-      };
-    });
+    const products = productsResult.recordset.map(
+      ({ total_count, ...product }) => {
+        const defaultVariant = {
+          id: product.variant_id,
+          product_id: product.id,
+          sku: product.sku,
+          price: Number(product.variant_price),
+          stock_qty: Number(product.stock_qty),
+          low_stock_threshold: Number(product.low_stock_threshold),
+          image_url: product.image_url,
+          is_active: Boolean(product.is_active),
+          is_default: true,
+          updated_at: product.variant_updated_at,
+        };
+        return {
+          ...product,
+          images_json: undefined,
+          images: product.images_json
+            ? JSON.parse(product.images_json).map((imageItem) => ({
+                ...imageItem,
+                isPrimary: Boolean(imageItem.isPrimary),
+              }))
+            : [],
+          base_price: Number(product.base_price),
+          stock_qty: Number(product.stock_qty),
+          is_active: Boolean(product.is_active),
+          default_variant: defaultVariant,
+          variants: [defaultVariant],
+        };
+      },
+    );
 
     return { products, pagination: paginationMeta(page, limit, total) };
   },
@@ -592,24 +576,32 @@ export const sellerService = {
     const search = parseSearch(query.search);
     const status = String(query.status || "all").toLowerCase();
     const allowedStatuses = [
-      "all", "pending_fulfillment", "ready_to_ship", "shipping", "delivered", "cancelled"
+      "all",
+      "pending_fulfillment",
+      "ready_to_ship",
+      "shipping",
+      "delivered",
+      "cancelled",
     ];
     if (!allowedStatuses.includes(status)) {
-      throw queryError("INVALID_ORDER_STATUS", "Trạng thái đơn hàng không hợp lệ.");
+      throw queryError(
+        "INVALID_ORDER_STATUS",
+        "Trạng thái đơn hàng không hợp lệ.",
+      );
     }
     const { orderSql } = parseSort(query, {
       created_at: "summary.created_at",
       total: "summary.seller_total",
-      status: "summary.display_status"
+      status: "summary.display_status",
     });
 
-    const ordersRes = await pool.request()
+    const ordersRes = await pool
+      .request()
       .input("sellerId", sql.VarChar, sellerId)
       .input("search", sql.NVarChar, search || null)
       .input("status", sql.VarChar, status)
       .input("offset", sql.Int, offset)
-      .input("limit", sql.Int, limit)
-      .query(`
+      .input("limit", sql.Int, limit).query(`
         WITH SellerOrderSummary AS (
           SELECT
             orders.*,
@@ -649,15 +641,15 @@ export const sellerService = {
     const total = Number(ordersRes.recordset[0]?.total_count || 0);
     const orders = ordersRes.recordset.map(({ total_count, ...order }) => ({
       ...order,
-      seller_total: Number(order.seller_total)
+      seller_total: Number(order.seller_total),
     }));
-    
+
     // Lấy các OrderItems thuộc seller này cho từng đơn hàng
     for (let order of orders) {
-      const itemsRes = await pool.request()
+      const itemsRes = await pool
+        .request()
         .input("orderId", sql.VarChar, order.id)
-        .input("sellerId", sql.VarChar, sellerId)
-        .query(`
+        .input("sellerId", sql.VarChar, sellerId).query(`
           SELECT
             oi.id,
             oi.order_id,
@@ -682,9 +674,12 @@ export const sellerService = {
       `);
       order.items = itemsRes.recordset.map((item) => ({
         ...item,
-        fulfillment_status: normalizeFulfillmentStatus(item.fulfillment_status)
+        fulfillment_status: normalizeFulfillmentStatus(item.fulfillment_status),
       }));
-      order.display_status = deriveOrderDisplayStatus(order.items, order.status);
+      order.display_status = deriveOrderDisplayStatus(
+        order.items,
+        order.status,
+      );
     }
 
     return { orders, pagination: paginationMeta(page, limit, total) };
@@ -694,18 +689,21 @@ export const sellerService = {
     sellerId,
     sellerUserId,
     orderItemId,
-    { fulfillmentStatus, trackingCode, shippingLabelUrl, cancelReason }
+    { fulfillmentStatus, trackingCode, shippingLabelUrl, cancelReason },
   ) => {
     const optionalFields = [
       ["trackingCode", trackingCode, 100],
       ["shippingLabelUrl", shippingLabelUrl, 2083],
-      ["cancelReason", cancelReason, 255]
+      ["cancelReason", cancelReason, 255],
     ];
     for (const [field, value, maxLength] of optionalFields) {
-      if (value != null && (typeof value !== "string" || value.trim().length > maxLength)) {
+      if (
+        value != null &&
+        (typeof value !== "string" || value.trim().length > maxLength)
+      ) {
         throw orderStatusError(
           "INVALID_ORDER_ITEM_UPDATE",
-          `${field} không hợp lệ hoặc vượt quá ${maxLength} ký tự.`
+          `${field} không hợp lệ hoặc vượt quá ${maxLength} ký tự.`,
         );
       }
     }
@@ -717,10 +715,10 @@ export const sellerService = {
       await transaction.begin();
       transactionStarted = true;
 
-      const ownerCheck = await transaction.request()
+      const ownerCheck = await transaction
+        .request()
         .input("sellerId", sql.VarChar, sellerId)
-        .input("orderItemId", sql.VarChar, orderItemId)
-        .query(`
+        .input("orderItemId", sql.VarChar, orderItemId).query(`
           SELECT item.id, item.order_id, item.variant_id, item.quantity,
                  item.product_name, item.fulfillment_status, item.cancel_reason,
                  orders.user_id AS customer_user_id,
@@ -740,13 +738,13 @@ export const sellerService = {
         throw orderStatusError(
           "ORDER_ITEM_NOT_FOUND",
           "Không tìm thấy dòng đơn hàng thuộc cửa hàng.",
-          404
+          404,
         );
       }
 
       const transition = assertFulfillmentTransition(
         orderItem.fulfillment_status,
-        fulfillmentStatus
+        fulfillmentStatus,
       );
       let orderPricing = null;
       const normalizedCancelReason = cancelReason?.trim() || null;
@@ -758,17 +756,21 @@ export const sellerService = {
       ) {
         throw orderStatusError(
           "CANCEL_REASON_REQUIRED",
-          "Vui lòng nhập lý do hủy đơn hàng."
+          "Vui lòng nhập lý do hủy đơn hàng.",
         );
       }
 
-      await transaction.request()
+      await transaction
+        .request()
         .input("orderItemId", sql.VarChar, orderItemId)
         .input("status", sql.VarChar, transition.next)
         .input("trackingCode", sql.VarChar, trackingCode?.trim() || null)
-        .input("shippingLabelUrl", sql.VarChar, shippingLabelUrl?.trim() || null)
-        .input("cancelReason", sql.NVarChar, normalizedCancelReason)
-        .query(`
+        .input(
+          "shippingLabelUrl",
+          sql.VarChar,
+          shippingLabelUrl?.trim() || null,
+        )
+        .input("cancelReason", sql.NVarChar, normalizedCancelReason).query(`
           UPDATE OrderItems
           SET fulfillment_status = @status,
               tracking_code = COALESCE(@trackingCode, tracking_code),
@@ -782,14 +784,14 @@ export const sellerService = {
         `);
 
       if (transition.changed) {
-        await transaction.request()
+        await transaction
+          .request()
           .input("id", sql.VarChar, uuidv4())
           .input("orderItemId", sql.VarChar, orderItemId)
           .input("oldStatus", sql.VarChar, transition.current)
           .input("newStatus", sql.VarChar, transition.next)
           .input("userId", sql.VarChar, sellerUserId)
-          .input("note", sql.NVarChar, normalizedCancelReason)
-          .query(`
+          .input("note", sql.NVarChar, normalizedCancelReason).query(`
             INSERT INTO OrderItemStatusHistory (
               id, order_item_id, old_status, new_status,
               changed_by_user_id, change_source, note, created_at
@@ -800,10 +802,10 @@ export const sellerService = {
           `);
 
         if (transition.next === "cancelled") {
-          const stockUpdate = await transaction.request()
+          const stockUpdate = await transaction
+            .request()
             .input("variantId", sql.VarChar, orderItem.stock_variant_id)
-            .input("quantity", sql.Int, orderItem.quantity)
-            .query(`
+            .input("quantity", sql.Int, orderItem.quantity).query(`
               UPDATE ProductVariants
               SET stock_qty = stock_qty + @quantity,
                   updated_at = GETDATE()
@@ -822,22 +824,26 @@ export const sellerService = {
             type: INVENTORY_TYPES.ORDER_CANCELLED,
             referenceId: orderItemId,
             reason: normalizedCancelReason,
-            createdBy: sellerUserId
+            createdBy: sellerUserId,
           });
-          orderPricing = await recalculateOrderAfterCancellation(transaction, orderItem.order_id);
+          orderPricing = await recalculateOrderAfterCancellation(
+            transaction,
+            orderItem.order_id,
+          );
         }
 
         if (transition.next === "delivered") {
           await recordDeliveredSale(transaction, {
             sellerId,
-            orderItemId
+            orderItemId,
           });
         }
 
         await createNotification(transaction, {
           userId: orderItem.customer_user_id,
           type: "order_status",
-          title: "C\u1eadp nh\u1eadt tr\u1ea1ng th\u00e1i \u0111\u01a1n h\u00e0ng",
+          title:
+            "C\u1eadp nh\u1eadt tr\u1ea1ng th\u00e1i \u0111\u01a1n h\u00e0ng",
           message: `${orderItem.product_name}: ${transition.next}.`,
           entityType: "order",
           entityId: orderItem.order_id,
@@ -845,9 +851,9 @@ export const sellerService = {
             orderId: orderItem.order_id,
             orderItemId,
             productId: orderItem.product_id,
-            status: transition.next
+            status: transition.next,
           },
-          dedupeKey: `order-status:${orderItemId}:${transition.next}`
+          dedupeKey: `order-status:${orderItemId}:${transition.next}`,
         });
       }
 
@@ -860,8 +866,9 @@ export const sellerService = {
         changed: transition.changed,
         tracking_code: trackingCode?.trim() || null,
         shipping_label_url: shippingLabelUrl?.trim() || null,
-        cancel_reason: normalizedCancelReason || orderItem.cancel_reason || null,
-        pricing: orderPricing
+        cancel_reason:
+          normalizedCancelReason || orderItem.cancel_reason || null,
+        pricing: orderPricing,
       };
     } catch (error) {
       if (transactionStarted) {
@@ -876,113 +883,7 @@ export const sellerService = {
   },
 
   // Lấy thống kê Dashboard cho Seller
-  getSellerDashboardStats: async (sellerId) => {
-    // 1. Tổng số sản phẩm
-    const productCountRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query("SELECT COUNT(*) AS total_products FROM Products WHERE seller_id = @sellerId");
-      
-    // 2. Tổng doanh thu & Số đơn hàng từ các sản phẩm thuộc seller
-    const salesRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
-        SELECT 
-          ISNULL(SUM(CASE
-            WHEN oi.fulfillment_status = 'delivered' THEN oi.total_price
-            ELSE 0
-          END), 0) AS total_revenue,
-          COUNT(DISTINCT CASE
-            WHEN oi.fulfillment_status <> 'cancelled' THEN oi.order_id
-          END) AS total_orders
-        FROM OrderItems oi
-        JOIN ProductVariants pv ON oi.variant_id = pv.id
-        JOIN Products p ON pv.product_id = p.id
-        WHERE p.seller_id = @sellerId
-      `);
-
-    const pendingRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
-        SELECT COUNT(DISTINCT oi.order_id) AS pending_orders
-        FROM OrderItems oi
-        JOIN ProductVariants pv ON oi.variant_id = pv.id
-        JOIN Products p ON pv.product_id = p.id
-        WHERE p.seller_id = @sellerId AND oi.fulfillment_status IN ('pending_fulfillment', 'ready_to_ship')
-      `);
-
-    const lowStockRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
-        SELECT COUNT(*) AS low_stock
-        FROM ProductVariants pv
-        JOIN Products p ON pv.product_id = p.id
-        WHERE p.seller_id = @sellerId
-          AND ISNULL(p.is_active, 1) = 1
-          AND pv.is_active = 1
-          AND pv.is_default = 1
-          AND pv.stock_qty <= pv.low_stock_threshold
-      `);
-
-    const topProductsRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
-        SELECT TOP 5 p.id, p.name, image.image_url,
-               SUM(oi.quantity) AS sold_qty, SUM(oi.total_price) AS revenue
-        FROM OrderItems oi
-        JOIN ProductVariants pv ON oi.variant_id = pv.id
-        JOIN Products p ON pv.product_id = p.id
-        OUTER APPLY (
-          SELECT TOP 1 product_image.image_url
-          FROM ProductImages product_image
-          WHERE product_image.product_id = p.id
-          ORDER BY product_image.is_primary DESC, product_image.sort_order ASC, product_image.id ASC
-        ) image
-        WHERE p.seller_id = @sellerId
-          AND oi.fulfillment_status = 'delivered'
-        GROUP BY p.id, p.name, image.image_url
-        ORDER BY sold_qty DESC, revenue DESC
-      `);
-
-    const topRatedProductsRes = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .query(`
-        SELECT TOP 5 product.id, product.name, image.image_url,
-               CAST(AVG(CAST(review.rating AS DECIMAL(10,2))) AS DECIMAL(10,2)) AS rating,
-               COUNT(*) AS reviews_count
-        FROM Reviews review
-        INNER JOIN Products product ON product.id = review.product_id
-        OUTER APPLY (
-          SELECT TOP 1 product_image.image_url
-          FROM ProductImages product_image
-          WHERE product_image.product_id = product.id
-          ORDER BY product_image.is_primary DESC, product_image.sort_order ASC, product_image.id ASC
-        ) image
-        WHERE product.seller_id = @sellerId
-          AND review.deleted_at IS NULL
-          AND review.is_approved = 1
-        GROUP BY product.id, product.name, image.image_url
-        ORDER BY rating DESC, reviews_count DESC, product.id ASC
-      `);
-
-    return {
-      totalProducts: Number(productCountRes.recordset[0].total_products || 0),
-      totalRevenue: Number(salesRes.recordset[0].total_revenue || 0),
-      totalOrders: Number(salesRes.recordset[0].total_orders || 0),
-      pendingOrders: Number(pendingRes.recordset[0].pending_orders || 0),
-      lowStock: Number(lowStockRes.recordset[0].low_stock || 0),
-      revenueRule: "delivered_items_gross",
-      topProducts: topProductsRes.recordset.map((product) => ({
-        ...product,
-        sold_qty: Number(product.sold_qty || 0),
-        revenue: Number(product.revenue || 0)
-      })),
-      topRatedProducts: topRatedProductsRes.recordset.map((product) => ({
-        ...product,
-        rating: Number(product.rating || 0),
-        reviews_count: Number(product.reviews_count || 0)
-      }))
-    };
-  },
+  getSellerDashboardStats,
 
   getSellerCategories: async () => {
     const result = await pool.request().query(`
@@ -1003,16 +904,17 @@ export const sellerService = {
   },
 
   assertSellerCategoryAvailable: async (categoryId, db = pool) => {
-    const normalizedCategoryId = typeof categoryId === "string" ? categoryId.trim() : "";
+    const normalizedCategoryId =
+      typeof categoryId === "string" ? categoryId.trim() : "";
     if (!SELLER_CATEGORY_IDS.includes(normalizedCategoryId)) {
       throw queryError(
         "INVALID_SELLER_CATEGORY",
-        "Danh muc khong hop le hoac khong duoc ho tro cho Seller."
+        "Danh muc khong hop le hoac khong duoc ho tro cho Seller.",
       );
     }
-    const result = await db.request()
-      .input("categoryId", sql.VarChar, normalizedCategoryId)
-      .query(`
+    const result = await db
+      .request()
+      .input("categoryId", sql.VarChar, normalizedCategoryId).query(`
         SELECT id
         FROM Categories WITH (HOLDLOCK)
         WHERE id = @categoryId AND is_active = 1
@@ -1020,201 +922,11 @@ export const sellerService = {
     if (!result.recordset[0]) {
       throw queryError(
         "SELLER_CATEGORY_INACTIVE",
-        "Danh muc da bi tat va khong the dung cho san pham moi hoac cap nhat."
+        "Danh muc da bi tat va khong the dung cho san pham moi hoac cap nhat.",
       );
     }
     return normalizedCategoryId;
   },
 
-  getSellerCoupons: async (sellerId, query = {}) => {
-    const { page, limit, offset } = parsePagination(query);
-    const search = parseSearch(query.search);
-    const status = String(query.status || "all").toLowerCase();
-    if (!["all", "active", "scheduled", "expired", "disabled", "exhausted"].includes(status)) {
-      throw queryError("INVALID_COUPON_STATUS", "Trạng thái voucher không hợp lệ.");
-    }
-    const { orderSql } = parseSort(query, {
-      created_at: "coupon.created_at",
-      code: "coupon.code",
-      starts_at: "coupon.starts_at",
-      expires_at: "coupon.expires_at",
-      used_count: "coupon.used_count"
-    });
-    const result = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .input("search", sql.NVarChar, search || null)
-      .input("status", sql.VarChar, status)
-      .input("offset", sql.Int, offset)
-      .input("limit", sql.Int, limit)
-      .query(`
-        WITH SellerCoupons AS (
-          SELECT coupon.*,
-            CASE
-              WHEN coupon.is_active = 0 THEN 'disabled'
-              WHEN coupon.starts_at > GETDATE() THEN 'scheduled'
-              WHEN coupon.expires_at < GETDATE() THEN 'expired'
-              WHEN coupon.usage_limit IS NOT NULL AND coupon.used_count >= coupon.usage_limit THEN 'exhausted'
-              ELSE 'active'
-            END AS coupon_status
-          FROM Coupons coupon
-          WHERE coupon.seller_id = @sellerId
-            AND coupon.deleted_at IS NULL
-            AND (@search IS NULL OR coupon.code LIKE '%' + @search + '%' OR coupon.description LIKE '%' + @search + '%')
-        )
-        SELECT coupon.*, COUNT(*) OVER() AS total_count
-        FROM SellerCoupons coupon
-        WHERE @status = 'all' OR coupon.coupon_status = @status
-        ORDER BY ${orderSql}, coupon.id
-        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
-      `);
-    const total = Number(result.recordset[0]?.total_count || 0);
-    return {
-      coupons: result.recordset.map(({ total_count, ...coupon }) => ({
-        ...coupon,
-        discount_value: Number(coupon.discount_value),
-        min_order_amount: coupon.min_order_amount === null ? null : Number(coupon.min_order_amount),
-        max_discount_amt: coupon.max_discount_amt === null ? null : Number(coupon.max_discount_amt),
-        is_active: Boolean(coupon.is_active)
-      })),
-      pagination: paginationMeta(page, limit, total)
-    };
-  },
-
-  createSellerCoupon: async (sellerId, data) => {
-    const couponId = `coup_${Math.random().toString(36).substr(2, 9)}`;
-    const code = String(data.code || "").trim().toUpperCase();
-    if (!code) throw new Error("Mã voucher là bắt buộc.");
-    if (!/^[A-Z0-9_-]{3,50}$/.test(code)) {
-      throw new Error("Ma voucher phai co 3-50 ky tu gom chu, so, gach duoi hoac gach ngang.");
-    }
-    const {
-      discountType, discountValue, usageLimit, minOrderAmount,
-      maxDiscountAmt, startsAt, expiresAt
-    } = validateCouponPayload(data);
-
-    await recycleDeletedCouponCode(code);
-
-    const duplicate = await pool.request()
-      .input("code", sql.VarChar, code)
-      .query(`
-        SELECT TOP 1 id
-        FROM Coupons
-        WHERE code = @code
-          AND deleted_at IS NULL
-      `);
-
-    if (duplicate.recordset.length > 0) {
-      throw new Error("Ma voucher da ton tai.");
-    }
-
-    await pool.request()
-      .input("id", sql.VarChar, couponId)
-      .input("sellerId", sql.VarChar, sellerId)
-      .input("code", sql.VarChar, code)
-      .input("description", sql.NVarChar, data.description || null)
-      .input("discountType", sql.VarChar, discountType)
-      .input("discountValue", sql.Decimal(18, 2), discountValue)
-      .input("minOrderAmount", sql.Decimal(18, 2), minOrderAmount)
-      .input("maxDiscountAmt", sql.Decimal(18, 2), maxDiscountAmt)
-      .input("usageLimit", sql.Int, usageLimit)
-      .input("startsAt", sql.VarChar, startsAt)
-      .input("expiresAt", sql.VarChar, expiresAt)
-      .query(`
-        INSERT INTO Coupons (
-          id, seller_id, code, description, discount_type, discount_value,
-          min_order_amount, max_discount_amt, usage_limit, starts_at, expires_at, is_active
-        )
-        VALUES (
-          @id, @sellerId, @code, @description, @discountType, @discountValue,
-          @minOrderAmount, @maxDiscountAmt, @usageLimit,
-          CONVERT(datetime2, @startsAt), CONVERT(datetime2, @expiresAt), 1
-        )
-      `);
-    return { id: couponId, code };
-  },
-
-  updateSellerCoupon: async (sellerId, couponId, data) => {
-    const check = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .input("couponId", sql.VarChar, couponId)
-      .query("SELECT id, starts_at, expires_at FROM Coupons WHERE id = @couponId AND seller_id = @sellerId AND deleted_at IS NULL");
-
-    if (check.recordset.length === 0) {
-      throw new Error("Không tìm thấy voucher thuộc shop của bạn.");
-    }
-
-    const request = pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .input("couponId", sql.VarChar, couponId);
-    const updates = [];
-
-    if (data.isActive !== undefined) {
-      updates.push("is_active = @isActive");
-      request.input("isActive", sql.Bit, Boolean(data.isActive));
-    }
-
-    let nextStartsAt = check.recordset[0].starts_at;
-    let nextExpiresAt = check.recordset[0].expires_at;
-    if (data.startsAt !== undefined) {
-      nextStartsAt = normalizeCouponDateTime(data.startsAt, "startsAt");
-      updates.push("starts_at = CONVERT(datetime2, @startsAt)");
-      request.input("startsAt", sql.VarChar, nextStartsAt);
-    }
-
-    if (data.expiresAt !== undefined) {
-      nextExpiresAt = normalizeCouponDateTime(data.expiresAt, "expiresAt", { endOfDay: true });
-      updates.push("expires_at = CONVERT(datetime2, @expiresAt)");
-      request.input("expiresAt", sql.VarChar, nextExpiresAt);
-    }
-
-    if (new Date(nextStartsAt) >= new Date(nextExpiresAt)) {
-      throw new Error("startsAt phai nho hon expiresAt.");
-    }
-
-    if (updates.length === 0) {
-      return true;
-    }
-
-    await request.query(`
-      UPDATE Coupons
-      SET ${updates.join(", ")}
-      WHERE id = @couponId AND seller_id = @sellerId
-    `);
-    return true;
-  },
-
-  deleteSellerCoupon: async (sellerId, couponId) => {
-    const coupon = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .input("couponId", sql.VarChar, couponId)
-      .query(`
-        SELECT id, code
-        FROM Coupons
-        WHERE id = @couponId AND seller_id = @sellerId AND deleted_at IS NULL
-      `);
-
-    if (coupon.recordset.length === 0) {
-      throw new Error("Khong tim thay voucher thuoc shop cua ban.");
-    }
-
-    const deletedCode = `${String(coupon.recordset[0].code || "").slice(0, 25)}__deleted__${couponId}`;
-
-    const result = await pool.request()
-      .input("sellerId", sql.VarChar, sellerId)
-      .input("couponId", sql.VarChar, couponId)
-      .input("deletedCode", sql.VarChar, deletedCode)
-      .query(`
-        UPDATE Coupons
-        SET is_active = 0,
-            code = @deletedCode,
-            deleted_at = GETDATE()
-        WHERE id = @couponId AND seller_id = @sellerId AND deleted_at IS NULL
-      `);
-
-    if (result.rowsAffected[0] === 0) {
-      throw new Error("Khong tim thay voucher thuoc shop cua ban.");
-    }
-
-    return true;
-  }
+  ...sellerCouponService,
 };

@@ -1,10 +1,12 @@
 import {
-  cancelWithdrawal,
-  createWithdrawal,
   getSellerWallet,
   getWalletTransactions,
-  listSellerWithdrawals
-} from "../services/sellerWalletService.js";
+} from "../services/sellerWalletQueryService.js";
+import {
+  cancelWithdrawal,
+  createWithdrawal,
+  listSellerWithdrawals,
+} from "../services/sellerWithdrawalService.js";
 
 export const showSellerWallet = async (req, res, next) => {
   try {
@@ -30,7 +32,7 @@ export const requestSellerWithdrawal = async (req, res, next) => {
     return res.status(201).json({
       status: "success",
       message: "Yeu cau rut tien da duoc tao.",
-      data: { withdrawal }
+      data: { withdrawal },
     });
   } catch (error) {
     return next(error);
@@ -50,12 +52,12 @@ export const cancelSellerWithdrawalRequest = async (req, res, next) => {
   try {
     const withdrawal = await cancelWithdrawal(
       req.activeSeller.id,
-      req.params.id
+      req.params.id,
     );
     return res.status(200).json({
       status: "success",
       message: "Yeu cau rut tien da duoc huy.",
-      data: { withdrawal }
+      data: { withdrawal },
     });
   } catch (error) {
     return next(error);
