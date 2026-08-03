@@ -204,8 +204,16 @@ export default function Checkout() {
   };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.phone || !form.address) {
-      setError('Vui lòng điền đầy đủ thông tin giao hàng');
+    if (
+      !form.name ||
+      !form.phone ||
+      !form.address ||
+      form.phone === 'Chưa cập nhật' ||
+      form.address.includes('Chưa cập nhật')
+    ) {
+      setError(
+        'Vui lòng cập nhật đầy đủ Họ tên, Số điện thoại và Địa chỉ giao hàng chi tiết trong Hồ sơ cá nhân trước khi đặt hàng.',
+      );
       return;
     }
     setError('');

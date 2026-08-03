@@ -1,12 +1,17 @@
 import { pool, sql } from "../config/db.js";
-import { createTrustedOrder, sendCheckoutError } from "../services/checkoutService.js";
+import {
+  createTrustedOrder,
+  sendCheckoutError,
+} from "../services/checkoutService.js";
 import { getCustomerOrderTimeline as loadCustomerOrderTimeline } from "../services/orderTimelineService.js";
 
 const parseShippingAddress = (shippingAddress) => {
   if (typeof shippingAddress !== "string") return null;
 
   const [contactLine = "", ...addressLines] = shippingAddress.split("\n");
-  const [name = "", phone = ""] = contactLine.split("|").map((value) => value.trim());
+  const [name = "", phone = ""] = contactLine
+    .split("|")
+    .map((value) => value.trim());
   const address = addressLines.join("\n").trim();
 
   return { name, phone, address };
@@ -23,14 +28,14 @@ export const createOrder = async (req, res) => {
       paymentMethod,
       couponCode,
       couponCodes,
-      totalAmount
+      totalAmount,
     } = req.body;
 
     if (!["cod", "qr"].includes(paymentMethod)) {
       return res.status(400).json({
         status: "fail",
         code: "INVALID_PAYMENT_METHOD",
-        message: "Phương thức thanh toán không hợp lệ."
+        message: "Phương thức thanh toán không hợp lệ.",
       });
     }
 
@@ -45,8 +50,9 @@ export const createOrder = async (req, res) => {
       couponCodes,
       paymentMethod,
       orderStatus: "pending",
-      paymentStatus: paymentMethod === "cod" ? "pending_cod" : "pending_payment",
-      clientTotal: totalAmount
+      paymentStatus:
+        paymentMethod === "cod" ? "pending_cod" : "pending_payment",
+      clientTotal: totalAmount,
     });
 
     await transaction.commit();
@@ -65,7 +71,7 @@ export const createOrder = async (req, res) => {
         orderId: result.orderId,
         qrUrl,
         pricing: result.pricing,
-        items: result.items
+        items: result.items,
       });
     }
 
@@ -75,7 +81,7 @@ export const createOrder = async (req, res) => {
       message: "Đặt hàng thành công.",
       orderId: result.orderId,
       pricing: result.pricing,
-      items: result.items
+      items: result.items,
     });
   } catch (error) {
     if (transactionStarted) {
@@ -92,21 +98,24 @@ export const createOrder = async (req, res) => {
     return res.status(400).json({
       status: "fail",
       success: false,
-      message: error.message || "Lỗi server khi đặt hàng."
+      message: error.message || "Lỗi server khi đặt hàng.",
     });
   }
 };
 
 export const getCustomerOrderTimeline = async (req, res, next) => {
   try {
-    const timeline = await loadCustomerOrderTimeline(req.user.id, req.params.orderId);
+    const timeline = await loadCustomerOrderTimeline(
+      req.user.id,
+      req.params.orderId,
+    );
     return res.status(200).json({ status: "success", data: timeline });
   } catch (error) {
     if (error.code) {
       return res.status(error.statusCode || 400).json({
         status: "fail",
         code: error.code,
-        message: error.message
+        message: error.message,
       });
     }
     next(error);
