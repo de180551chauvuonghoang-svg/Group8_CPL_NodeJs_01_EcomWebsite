@@ -23,6 +23,7 @@ import uploadRoutes from "./routes/upload.routes.js";
 import sellerApplicationUploadRoutes from "./routes/sellerApplicationUpload.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import shopFollowRoutes from "./routes/shopFollow.routes.js";
+import adminWithdrawalRoutes from "./routes/adminWithdrawal.routes.js";
 
 // Middlewares imports
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -103,6 +104,7 @@ app.use("/api/seller/application/uploads", sellerApplicationUploadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/shops", shopFollowRoutes);
 app.use("/api/seller", sellerRoutes);
+app.use("/api/admin/withdrawals", adminWithdrawalRoutes);
 app.use("/api/chat", chatRoutes);
 
 // 4. Handle 404 Routes

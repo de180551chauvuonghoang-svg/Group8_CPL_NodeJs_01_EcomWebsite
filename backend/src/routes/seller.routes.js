@@ -49,6 +49,13 @@ import {
   listSellerFinanceTransactions,
   showSellerFinanceSummary
 } from "../controllers/sellerFinance.controller.js";
+import {
+  cancelSellerWithdrawalRequest,
+  listSellerWalletTransactions,
+  listSellerWithdrawalRequests,
+  requestSellerWithdrawal,
+  showSellerWallet
+} from "../controllers/sellerWallet.controller.js";
 
 const router = express.Router();
 
@@ -113,6 +120,11 @@ router.get("/dashboard-tasks", getSellerDashboardTasks);
 router.get("/followers/stats", showSellerFollowerStats);
 router.get("/finance/summary", showSellerFinanceSummary);
 router.get("/finance/transactions", listSellerFinanceTransactions);
+router.get("/wallet", showSellerWallet);
+router.get("/wallet/transactions", listSellerWalletTransactions);
+router.post("/withdrawals", requestSellerWithdrawal);
+router.get("/withdrawals", listSellerWithdrawalRequests);
+router.patch("/withdrawals/:id/cancel", cancelSellerWithdrawalRequest);
 
 /**
  * @openapi

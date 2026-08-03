@@ -9,6 +9,7 @@ import {
 import { INVENTORY_TYPES, recordInventoryLog } from "./inventoryService.js";
 import { createNotification } from "./notificationService.js";
 import { recalculateOrderAfterCancellation } from "./checkoutService.js";
+import { recordDeliveredSale } from "./sellerWalletService.js";
 import {
   paginationMeta,
   parsePagination,
@@ -448,7 +449,7 @@ export const sellerService = {
           ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
         ) fs
         WHERE p.seller_id = @sellerId AND p.is_active = 1
-        ORDER BY p.created_at DESC
+        ORDER BY CASE WHEN fs.id IS NOT NULL THEN 0 ELSE 1 END, p.created_at DESC
       `);
 
     const statsRes = await pool.request()
@@ -826,6 +827,13 @@ export const sellerService = {
           orderPricing = await recalculateOrderAfterCancellation(transaction, orderItem.order_id);
         }
 
+        if (transition.next === "delivered") {
+          await recordDeliveredSale(transaction, {
+            sellerId,
+            orderItemId
+          });
+        }
+
         await createNotification(transaction, {
           userId: orderItem.customer_user_id,
           type: "order_status",
@@ -918,14 +926,42 @@ export const sellerService = {
     const topProductsRes = await pool.request()
       .input("sellerId", sql.VarChar, sellerId)
       .query(`
-        SELECT TOP 5 p.id, p.name, SUM(oi.quantity) AS sold_qty, SUM(oi.total_price) AS revenue
+        SELECT TOP 5 p.id, p.name, image.image_url,
+               SUM(oi.quantity) AS sold_qty, SUM(oi.total_price) AS revenue
         FROM OrderItems oi
         JOIN ProductVariants pv ON oi.variant_id = pv.id
         JOIN Products p ON pv.product_id = p.id
+        OUTER APPLY (
+          SELECT TOP 1 product_image.image_url
+          FROM ProductImages product_image
+          WHERE product_image.product_id = p.id
+          ORDER BY product_image.is_primary DESC, product_image.sort_order ASC, product_image.id ASC
+        ) image
         WHERE p.seller_id = @sellerId
           AND oi.fulfillment_status = 'delivered'
-        GROUP BY p.id, p.name
+        GROUP BY p.id, p.name, image.image_url
         ORDER BY sold_qty DESC, revenue DESC
+      `);
+
+    const topRatedProductsRes = await pool.request()
+      .input("sellerId", sql.VarChar, sellerId)
+      .query(`
+        SELECT TOP 5 product.id, product.name, image.image_url,
+               CAST(AVG(CAST(review.rating AS DECIMAL(10,2))) AS DECIMAL(10,2)) AS rating,
+               COUNT(*) AS reviews_count
+        FROM Reviews review
+        INNER JOIN Products product ON product.id = review.product_id
+        OUTER APPLY (
+          SELECT TOP 1 product_image.image_url
+          FROM ProductImages product_image
+          WHERE product_image.product_id = product.id
+          ORDER BY product_image.is_primary DESC, product_image.sort_order ASC, product_image.id ASC
+        ) image
+        WHERE product.seller_id = @sellerId
+          AND review.deleted_at IS NULL
+          AND review.is_approved = 1
+        GROUP BY product.id, product.name, image.image_url
+        ORDER BY rating DESC, reviews_count DESC, product.id ASC
       `);
 
     return {
@@ -939,6 +975,11 @@ export const sellerService = {
         ...product,
         sold_qty: Number(product.sold_qty || 0),
         revenue: Number(product.revenue || 0)
+      })),
+      topRatedProducts: topRatedProductsRes.recordset.map((product) => ({
+        ...product,
+        rating: Number(product.rating || 0),
+        reviews_count: Number(product.reviews_count || 0)
       }))
     };
   },

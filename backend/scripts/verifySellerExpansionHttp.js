@@ -48,6 +48,27 @@ const cleanupReturnFixtures = async () => {
       AND return_request.status = 'item_returned'
       AND default_variant.is_default = 1;
 
+    UPDATE wallet
+    SET available_balance = available_balance + CASE WHEN released.id IS NOT NULL THEN reversal.amount ELSE 0 END,
+        pending_balance = pending_balance + CASE WHEN released.id IS NULL THEN reversal.amount ELSE 0 END,
+        lifetime_earnings = lifetime_earnings + reversal.amount,
+        updated_at = GETDATE()
+    FROM ShopWallets wallet
+    INNER JOIN WalletTransactions reversal
+      ON reversal.wallet_id = wallet.id
+     AND reversal.type = 'sale_reversed'
+     AND reversal.reference_type = 'return'
+     AND reversal.reference_id = @receivedReturnId
+    INNER JOIN ReturnRequests return_request ON return_request.id = reversal.reference_id
+    LEFT JOIN WalletTransactions released
+      ON released.wallet_id = wallet.id
+     AND released.idempotency_key = CONCAT('wallet:sale-release:', return_request.order_item_id);
+
+    DELETE FROM WalletTransactions
+    WHERE type = 'sale_reversed'
+      AND reference_type = 'return'
+      AND reference_id IN (${parameters.join(", ")});
+
     DELETE FROM InventoryLogs WHERE reference_id IN (${parameters.join(", ")});
     DELETE FROM Notifications
     WHERE entity_type = 'return' AND entity_id IN (${parameters.join(", ")});
@@ -71,7 +92,13 @@ try {
     WHERE role = 'customer'
     ORDER BY id
   `)).recordset[0];
-  assert(seller && customer, "Seller and customer fixtures are required.");
+  const admin = (await pool.request().query(`
+    SELECT TOP 1 id, email, role
+    FROM Users
+    WHERE role = 'admin'
+    ORDER BY id
+  `)).recordset[0];
+  assert(seller && customer && admin, "Seller, customer, and admin fixtures are required.");
   assert(process.env.ACCESS_TOKEN_SECRET, "ACCESS_TOKEN_SECRET is required.");
   const makeToken = (user) => jwt.sign({
     userID: user.id,
@@ -80,10 +107,12 @@ try {
   }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "5m" });
   const sellerToken = makeToken(seller);
   const customerToken = makeToken(customer);
+  const adminToken = makeToken(admin);
 
   const checks = [
     ["health", "/api/health", null, 200],
     ["dashboardTasks", "/api/seller/dashboard-tasks", sellerToken, 200],
+    ["dashboardStats", "/api/seller/dashboard-stats", sellerToken, 200],
     ["products", "/api/seller/products?page=1&limit=2&status=all", sellerToken, 200],
     ["orders", "/api/seller/orders?page=1&limit=2&status=all", sellerToken, 200],
     ["coupons", "/api/seller/coupons?page=1&limit=2&status=all", sellerToken, 200],
@@ -92,6 +121,10 @@ try {
     ["approvedReturns", "/api/seller/returns?page=1&limit=2&status=approved", sellerToken, 200],
     ["financeSummary", "/api/seller/finance/summary", sellerToken, 200],
     ["financeTransactions", "/api/seller/finance/transactions?page=1&limit=2&status=all", sellerToken, 200],
+    ["wallet", "/api/seller/wallet", sellerToken, 200],
+    ["walletTransactions", "/api/seller/wallet/transactions?page=1&limit=2", sellerToken, 200],
+    ["withdrawals", "/api/seller/withdrawals?page=1&limit=2&status=all", sellerToken, 200],
+    ["adminWithdrawals", "/api/admin/withdrawals?page=1&limit=2&status=all", adminToken, 200],
     ["notifications", "/api/notifications?page=1&limit=2", sellerToken, 200],
     ["followStatus", `/api/shops/${seller.seller_id}/follow-status`, customerToken, 200],
     ["publicShop", `/api/seller/shops/${seller.seller_id}`, null, 200]
@@ -117,6 +150,22 @@ try {
         "Dashboard task response must use the documented camelCase counters."
       );
       assert(response.body.data.overdueAfterHours === 24, "Dashboard overdue threshold must be 24 hours.");
+    }
+    if (name === "dashboardStats") {
+      assert(Array.isArray(response.body?.data?.topProducts), "topProducts must be an array.");
+      assert(Array.isArray(response.body?.data?.topRatedProducts), "topRatedProducts must be an array.");
+      assert(response.body.data.topProducts.length <= 5, "topProducts must contain at most 5 items.");
+      assert(response.body.data.topRatedProducts.length <= 5, "topRatedProducts must contain at most 5 items.");
+    }
+    if (name === "wallet") {
+      assert(
+        Number.isFinite(response.body?.data?.wallet?.availableBalance),
+        "Wallet response must include a numeric availableBalance."
+      );
+      assert(
+        Number.isInteger(response.body?.data?.minimumWithdrawalAmount),
+        "Wallet response must include minimumWithdrawalAmount."
+      );
     }
     results[name] = response.status;
   }
@@ -178,6 +227,7 @@ try {
       INNER JOIN ProductVariants variant ON variant.id = item.variant_id
       INNER JOIN Products product ON product.id = variant.product_id
       WHERE product.seller_id = @sellerId
+        AND item.fulfillment_status = 'delivered'
       ORDER BY item.id
     `)).recordset[0];
   assert(returnItem, "A seller order item is required for return transition verification.");
@@ -259,6 +309,14 @@ try {
   const forbiddenFinance = await request("/api/seller/finance/summary", customerToken);
   assert(forbiddenFinance.status === 403, "Customer must not access seller finance.");
   results.customerFinanceIsolation = forbiddenFinance.status;
+
+  const forbiddenWallet = await request("/api/seller/wallet", customerToken);
+  assert(forbiddenWallet.status === 403, "Customer must not access seller wallet.");
+  results.customerWalletIsolation = forbiddenWallet.status;
+
+  const forbiddenAdminWithdrawals = await request("/api/admin/withdrawals", sellerToken);
+  assert(forbiddenAdminWithdrawals.status === 403, "Seller must not access admin withdrawals.");
+  results.sellerAdminWithdrawalIsolation = forbiddenAdminWithdrawals.status;
 
   console.log(JSON.stringify({ status: "success", baseUrl, results }, null, 2));
 } finally {

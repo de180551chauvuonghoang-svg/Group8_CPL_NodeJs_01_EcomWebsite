@@ -3,6 +3,10 @@ import { pool, sql } from "../config/db.js";
 import { INVENTORY_TYPES, recordInventoryLog } from "./inventoryService.js";
 import { createNotification } from "./notificationService.js";
 import {
+  acquireSellerWalletLock,
+  reverseSaleForReturn
+} from "./sellerWalletService.js";
+import {
   paginationMeta,
   parsePagination,
   parseSearch,
@@ -315,6 +319,7 @@ export const updateSellerReturn = async (sellerId, sellerUserId, returnId, paylo
   try {
     await transaction.begin();
     started = true;
+    await acquireSellerWalletLock(transaction, sellerId);
     const currentResult = await transaction.request()
       .input("sellerId", sql.VarChar, sellerId)
       .input("returnId", sql.VarChar, returnId)
@@ -385,6 +390,14 @@ export const updateSellerReturn = async (sellerId, sellerUserId, returnId, paylo
             updated_at = GETDATE()
         WHERE id = @returnId
       `);
+    if (nextStatus === "item_returned") {
+      await reverseSaleForReturn(transaction, {
+        sellerId,
+        returnId,
+        orderItemId: current.order_item_id,
+        quantity: Number(current.quantity)
+      });
+    }
     await transaction.request()
       .input("id", sql.VarChar, `rsh_${uuidv4().replace(/-/g, "")}`)
       .input("returnId", sql.VarChar, returnId)
