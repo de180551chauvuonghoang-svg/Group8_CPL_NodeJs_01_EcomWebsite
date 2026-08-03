@@ -7,7 +7,7 @@ import {
   TrendingDown,
   WalletCards,
 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import SellerFilterBar from '../components/seller/SellerFilterBar';
 import SellerPageHeader from '../components/seller/SellerPageHeader';
 import SellerPagination from '../components/seller/SellerPagination';
@@ -159,7 +159,15 @@ export default function SellerFinance() {
       <SellerPageHeader
         icon={WalletCards}
         title="Tài chính cửa hàng"
-        description="Theo dõi doanh thu đã ghi nhận, giảm giá và giá trị trả hàng. Dữ liệu hiện chỉ dùng để đối soát, chưa hỗ trợ rút tiền."
+        description="Theo dõi doanh thu đã ghi nhận, giảm giá và giá trị trả hàng để đối soát vận hành."
+        actions={
+          <Link
+            to="/seller/wallet"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-white transition hover:bg-primary/90"
+          >
+            <WalletCards size={17} /> Mở ví cửa hàng
+          </Link>
+        }
       />
 
       {error && (

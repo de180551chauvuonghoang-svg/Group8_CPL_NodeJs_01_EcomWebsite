@@ -36,6 +36,8 @@ import {
   SellerAnalyticsStatusCounts,
   SellerDashboardAnalytics,
   SellerDashboardTasks,
+  SellerDashboardTopProduct,
+  SellerDashboardTopRatedProduct,
 } from '../types';
 import { getAnalyticsErrorMessage } from '../utils/analyticsErrors';
 
@@ -46,7 +48,8 @@ interface Stats {
   pendingOrders?: number;
   lowStock?: number;
   revenueRule?: 'delivered_items_gross';
-  topProducts?: { id: string; name: string; sold_qty: number; revenue: number }[];
+  topProducts?: SellerDashboardTopProduct[];
+  topRatedProducts?: SellerDashboardTopRatedProduct[];
 }
 
 const EMPTY_STATS: Stats = {
@@ -56,6 +59,7 @@ const EMPTY_STATS: Stats = {
   pendingOrders: 0,
   lowStock: 0,
   topProducts: [],
+  topRatedProducts: [],
 };
 
 const EMPTY_ACTION_STATS: SellerDashboardTasks = {
@@ -577,7 +581,7 @@ export default function SellerDashboard() {
           ) : null}
         </motion.section>
 
-        <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="mt-7">
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-black text-on-surface">Thao tác nhanh</h2>
@@ -629,43 +633,129 @@ export default function SellerDashboard() {
               ))}
             </div>
           </section>
+        </div>
 
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-black text-on-surface">Sản phẩm bán chạy</h2>
-            </div>
-            <div className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest">
-              {(stats.topProducts || []).length > 0 ? (
-                <ol className="divide-y divide-outline-variant/35">
-                  {stats.topProducts?.map((product, index) => (
-                    <li key={product.id} className="flex items-center gap-3 px-4 py-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-black text-primary">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-on-surface">{product.name}</p>
-                        <p className="mt-0.5 text-xs text-on-surface-variant">
-                          {product.sold_qty} đã bán
-                        </p>
-                      </div>
-                      <strong className="text-sm text-on-surface">
-                        {formatCurrency(product.revenue)}
-                      </strong>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <div className="px-5 py-10 text-center">
-                  <Package size={24} className="mx-auto text-on-surface-variant" />
-                  <p className="mt-2 text-sm font-semibold text-on-surface-variant">
-                    Chưa có sản phẩm đã giao thành công.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
+        <div className="mt-7 grid gap-5 xl:grid-cols-2">
+          <ProductRankingPanel
+            title="Sản phẩm bán chạy"
+            description="Xếp hạng theo số lượng sản phẩm đã giao thành công."
+            icon={TrendingUp}
+            emptyText="Chưa có sản phẩm đã giao thành công."
+            products={(stats.topProducts || []).map((product) => ({
+              id: product.id,
+              name: product.name,
+              imageUrl: product.image_url,
+              primaryMetric: `${product.sold_qty.toLocaleString('vi-VN')} đã bán`,
+              secondaryMetric: formatCurrency(product.revenue),
+            }))}
+          />
+          <ProductRankingPanel
+            title="Sản phẩm được đánh giá cao"
+            description="Xếp hạng từ điểm đánh giá thật của khách đã mua hàng."
+            icon={Star}
+            emptyText="Chưa có sản phẩm nhận được đánh giá."
+            products={(stats.topRatedProducts || []).map((product) => ({
+              id: product.id,
+              name: product.name,
+              imageUrl: product.image_url,
+              rating: Number(product.rating || 0),
+              secondaryMetric: `${product.reviews_count.toLocaleString('vi-VN')} đánh giá`,
+            }))}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+function ProductRankingPanel({
+  title,
+  description,
+  icon: Icon,
+  products,
+  emptyText,
+}: {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  products: {
+    id: string;
+    name: string;
+    imageUrl?: string | null;
+    primaryMetric?: string;
+    rating?: number;
+    secondaryMetric: string;
+  }[];
+  emptyText: string;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest">
+      <header className="flex items-start justify-between gap-4 border-b border-outline-variant/35 px-5 py-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-black text-on-surface">
+            <Icon size={18} className="text-primary" /> {title}
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-on-surface-variant">{description}</p>
+        </div>
+        <Link
+          to="/seller/products"
+          className="shrink-0 text-xs font-bold text-primary hover:underline"
+        >
+          Xem tất cả
+        </Link>
+      </header>
+      {products.length > 0 ? (
+        <ol className="divide-y divide-outline-variant/35">
+          {products.map((product, index) => (
+            <li key={product.id}>
+              <Link
+                to={`/products/${product.id}`}
+                className="group flex items-center gap-3 px-5 py-3 transition hover:bg-surface-container/45"
+              >
+                <span className="w-5 shrink-0 text-center text-xs font-black tabular-nums text-on-surface-variant">
+                  {index + 1}
+                </span>
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-outline-variant/40 bg-surface-container">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-on-surface-variant/50">
+                      <Package size={20} />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-on-surface group-hover:text-primary">
+                    {product.name}
+                  </p>
+                  {typeof product.rating === 'number' ? (
+                    <p className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-amber-600">
+                      <Star size={13} fill="currentColor" />
+                      {product.rating.toFixed(1)} sao
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs font-semibold text-on-surface-variant">
+                      {product.primaryMetric}
+                    </p>
+                  )}
+                </div>
+                <strong className="shrink-0 text-sm text-on-surface">
+                  {product.secondaryMetric}
+                </strong>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div className="px-5 py-10 text-center">
+          <Package size={24} className="mx-auto text-on-surface-variant/50" />
+          <p className="mt-2 text-sm font-semibold text-on-surface-variant">{emptyText}</p>
+        </div>
+      )}
+    </section>
   );
 }

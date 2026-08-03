@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Save, Store } from 'lucide-react';
+import { ArrowRight, Landmark, Loader2, Save, Store } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import ImageUploadField from '../components/common/ImageUploadField';
 import SellerPageHeader from '../components/seller/SellerPageHeader';
 import SellerStatePanel from '../components/seller/SellerStatePanel';
 import { sellerService } from '../services/sellerService';
+import { useToast } from '../context/ToastContext';
 import type { ProductImage, Seller } from '../types';
-import {
-  isValidOptionalBankAccount,
-  isValidOptionalIdentityNumber,
-  isValidShopPhone,
-} from '../utils/sellerValidation';
+import { isValidOptionalIdentityNumber, isValidShopPhone } from '../utils/sellerValidation';
 
 const EMPTY_FORM = {
   shopName: '',
@@ -29,11 +27,11 @@ const EMPTY_FORM = {
 };
 
 export default function SellerProfile() {
+  const toast = useToast();
   const [seller, setSeller] = useState<Seller | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -68,7 +66,6 @@ export default function SellerProfile() {
 
   const update = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
-    setMessage('');
     setError('');
   };
 
@@ -104,21 +101,17 @@ export default function SellerProfile() {
       setError('Số CCCD phải gồm đúng 12 chữ số.');
       return;
     }
-    if (!isValidOptionalBankAccount(form.bankAccountNo)) {
-      setError('Số tài khoản phải gồm từ 6 đến 20 chữ số.');
-      return;
-    }
-
     setSaving(true);
     setError('');
     try {
       const updated = await sellerService.updateSellerProfile(form);
       setSeller(updated);
-      setMessage('Đã lưu hồ sơ shop.');
+      toast.success('Đã lưu hồ sơ shop', 'Thông tin cửa hàng đã được cập nhật.');
     } catch (requestError: any) {
-      setError(
-        requestError?.data?.message || requestError?.message || 'Không lưu được hồ sơ shop.',
-      );
+      const message =
+        requestError?.data?.message || requestError?.message || 'Không lưu được hồ sơ shop.';
+      setError(message);
+      toast.error('Cập nhật chưa thành công', message);
     } finally {
       setSaving(false);
     }
@@ -146,7 +139,7 @@ export default function SellerProfile() {
           icon={Store}
           eyebrow="Thiết lập"
           title="Hồ sơ shop"
-          description="Quản lý hình ảnh, thông tin liên hệ, định danh và tài khoản nhận tiền."
+          description="Quản lý hình ảnh, thông tin liên hệ và định danh của cửa hàng."
         />
 
         <form onSubmit={save} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -217,9 +210,9 @@ export default function SellerProfile() {
             </div>
 
             <div className="border-t border-outline-variant/40 pt-6">
-              <h2 className="text-base font-black">Định danh và thanh toán</h2>
+              <h2 className="text-base font-black">Thông tin định danh</h2>
               <p className="mt-1 text-sm text-on-surface-variant">
-                Dùng để xác minh chủ shop và nhận tiền từ hệ thống.
+                Dùng để xác minh chủ shop khi cần đối soát.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -236,23 +229,28 @@ export default function SellerProfile() {
                 }
                 inputMode="numeric"
               />
-              <Field
-                label="Ngân hàng"
-                value={form.bankName}
-                onChange={(value) => update('bankName', value)}
-              />
-              <Field
-                label="Số tài khoản"
-                value={form.bankAccountNo}
-                onChange={(value) => update('bankAccountNo', value.replace(/\D/g, '').slice(0, 20))}
-                inputMode="numeric"
-              />
-              <Field
-                label="Chủ tài khoản"
-                value={form.bankAccountHolder}
-                onChange={(value) => update('bankAccountHolder', value)}
-                className="sm:col-span-2"
-              />
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-md border border-outline-variant/45 bg-surface-container p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Landmark size={18} />
+                </span>
+                <div>
+                  <p className="text-sm font-black text-on-surface">Tài khoản nhận tiền</p>
+                  <p className="mt-1 text-sm text-on-surface-variant">
+                    {form.bankName && form.bankAccountNo
+                      ? `${form.bankName} · ••••${form.bankAccountNo.slice(-4)}`
+                      : 'Chưa cập nhật thông tin ngân hàng.'}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/seller/bank"
+                className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline"
+              >
+                Quản lý ngân hàng <ArrowRight size={15} />
+              </Link>
             </div>
 
             {error && (
@@ -260,12 +258,6 @@ export default function SellerProfile() {
                 {error}
               </p>
             )}
-            {message && (
-              <p className="rounded-md bg-success/10 px-4 py-3 text-sm font-semibold text-success">
-                {message}
-              </p>
-            )}
-
             <button
               disabled={saving}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-bold text-white disabled:opacity-60"

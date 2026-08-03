@@ -35,6 +35,8 @@ const SellerReviews = lazy(() => import('../pages/SellerReviews'));
 const SellerInventory = lazy(() => import('../pages/SellerInventory'));
 const SellerReturns = lazy(() => import('../pages/SellerReturns'));
 const SellerFinance = lazy(() => import('../pages/SellerFinance'));
+const SellerWallet = lazy(() => import('../pages/SellerWallet'));
+const SellerBank = lazy(() => import('../pages/SellerBank'));
 
 export default function AppRoutes() {
   const location = useLocation();
@@ -79,9 +81,11 @@ export default function AppRoutes() {
               <Route path="inventory" element={<SellerInventory />} />
               <Route path="returns" element={<SellerReturns />} />
               <Route path="finance" element={<SellerFinance />} />
+              <Route path="wallet" element={<SellerWallet />} />
               <Route path="vouchers" element={<SellerVouchers />} />
               <Route path="inbox" element={<SellerInbox />} />
               <Route path="profile" element={<SellerProfile />} />
+              <Route path="bank" element={<SellerBank />} />
             </Route>
           </Route>
 

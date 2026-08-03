@@ -4,7 +4,9 @@ import { Loader2, MessageSquare, Package, Store, UserCheck, UserPlus } from 'luc
 import { sellerService } from '../services/sellerService';
 import { shopFollowService } from '../services/shopFollowService';
 import { AuthContext } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { openSellerChat } from '../utils/liveChat';
+import { getApiErrorMessage } from '../utils/apiErrors';
 import { Product } from '../types';
 
 type PublicShop = {
@@ -29,11 +31,12 @@ export default function ShopPublic() {
   const navigate = useNavigate();
   const authCtx = useContext(AuthContext);
   const user = authCtx?.user;
+  const toast = useToast();
 
   const [data, setData] = useState<PublicShop | null>(null);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [sortKey, setSortKey] = useState('newest');
+  const [sortKey, setSortKey] = useState('recommended');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followLoading, setFollowLoading] = useState(false);
@@ -89,6 +92,8 @@ export default function ShopPublic() {
         ? products
         : products.filter((product) => product.category === categoryFilter);
 
+    if (sortKey === 'recommended') return filtered;
+
     return [...filtered].sort((a, b) => {
       if (sortKey === 'price-asc') return a.price - b.price;
       if (sortKey === 'price-desc') return b.price - a.price;
@@ -125,6 +130,14 @@ export default function ShopPublic() {
         : await shopFollowService.follow(shop.id);
       setIsFollowing(Boolean(status.is_following));
       setFollowerCount(Number(status.follower_count || 0));
+      toast.success(
+        isFollowing ? 'Đã bỏ theo dõi shop' : 'Đã theo dõi shop',
+        isFollowing
+          ? 'Bạn sẽ không còn nhận cập nhật mới từ shop này.'
+          : 'Bạn sẽ nhận được cập nhật mới từ shop này.',
+      );
+    } catch (requestError) {
+      toast.error('Không thể cập nhật theo dõi', getApiErrorMessage(requestError));
     } finally {
       setFollowLoading(false);
     }
@@ -260,7 +273,7 @@ export default function ShopPublic() {
               onChange={(event) => setSortKey(event.target.value)}
               className="h-10 rounded-xl border border-outline-variant bg-surface-container-lowest px-3 text-sm font-semibold outline-none focus:border-primary"
             >
-              <option value="newest">Mới nhất</option>
+              <option value="recommended">Đang sale trước</option>
               <option value="price-asc">Giá thấp đến cao</option>
               <option value="price-desc">Giá cao đến thấp</option>
               <option value="name">Tên A đến Z</option>

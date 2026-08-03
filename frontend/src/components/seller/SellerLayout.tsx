@@ -6,6 +6,7 @@ import {
   BarChart3,
   Home,
   Inbox,
+  Landmark,
   Package,
   ReceiptText,
   RotateCcw,
@@ -14,6 +15,7 @@ import {
   Store,
   TicketPercent,
   Warehouse,
+  WalletCards,
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
@@ -34,6 +36,7 @@ const navSections = [
     label: 'Kinh doanh',
     items: [
       { to: '/seller/finance', label: 'Tài chính', icon: Banknote },
+      { to: '/seller/wallet', label: 'Ví & rút tiền', icon: WalletCards },
       { to: '/seller/reviews', label: 'Đánh giá', icon: Star },
       { to: '/seller/vouchers', label: 'Voucher', icon: TicketPercent },
     ],
@@ -43,6 +46,7 @@ const navSections = [
     items: [
       { to: '/seller/inbox', label: 'Hộp thư', icon: Inbox },
       { to: '/seller/profile', label: 'Hồ sơ shop', icon: Settings },
+      { to: '/seller/bank', label: 'Ngân hàng', icon: Landmark },
     ],
   },
 ];
