@@ -1,6 +1,17 @@
-import { createContext, useState, useEffect, ReactNode, useContext } from 'react';
-import { Product } from '../types';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import type { CouponValidationResult, Product } from '../types';
 import API from '../services/api';
+import { productService } from '../services/productService';
+import { AuthContext } from './AuthContext';
 
 export interface CartItem {
   id: string;
@@ -10,227 +21,325 @@ export interface CartItem {
   selectedVersion?: string;
 }
 
+export interface AppliedShopCoupon {
+  code: string;
+  discountAmount: number;
+  coupon: CouponValidationResult;
+}
+
+interface RefreshCartResult {
+  items: CartItem[];
+  pricesChanged: boolean;
+  removedUnavailableItems: number;
+}
+
 interface CartContextType {
   cartItems: CartItem[];
-  promoCode: string;
-  discountPercentage: number;
+  appliedCoupons: Record<string, AppliedShopCoupon>;
+  discountAmount: number;
+  couponCodes: Array<{ sellerId: string; code: string }>;
   addToCart: (product: Product, selectedColor?: string, selectedVersion?: string) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, action: 'add' | 'remove') => void;
   clearCart: () => void;
-  applyDiscount: (code: string) => Promise<{ ok: boolean; message: string; discountAmount?: number }>;
+  clearDiscount: (sellerId?: string) => void;
+  applyDiscount: (
+    sellerId: string,
+    code: string,
+  ) => Promise<{ ok: boolean; message: string; coupon?: CouponValidationResult }>;
+  refreshCartPrices: () => Promise<RefreshCartResult>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+const GUEST_OWNER = 'guest';
+const LEGACY_MOCK_PRODUCT_IDS = new Set(['prod_audio_pro', 'prod_home_hub', 'prod_glass_keyboard']);
 
-const defaultCartItems: CartItem[] = [
-  {
-    id: 'prod_audio_pro',
-    product: {
-      id: 'prod_audio_pro',
-      name: 'Volitify Audio Pro - Noise Cancelling',
-      description: 'Noise Cancelling premium headphone',
-      price: 12500000,
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBbuSwgA71gPXYOW8sJSvPy6tWjHvFLKpSk3aWgjMFX7qyywljK5WaDWy2rOAuywZWnt-CfSgfvBEkbMLulEjj9RvXm7kd8Y8v74m-2FQrmXKSvaEqRcNJ64-d3UTkv4dSsHVCQj5Qx_Jz0T8b7ohY5Fy1kcMTvCVH85LY-sD1I6Z8CgsgZH1O-E1uLO11dyNI-4hlgXLsE8qjCx-fLYipnyLG7hl1wfoyXvQfuSMsEFfU9NbqHoJtVzQr6EagVFKfrIbF57-QqLrJO',
-      category: 'Audio',
-      rating: 5,
-      stock: 10
-    },
-    quantity: 1,
-    selectedColor: 'Midnight Blue',
-    selectedVersion: 'Bluetooth 5.3, LDAC'
-  },
-  {
-    id: 'prod_home_hub',
-    product: {
-      id: 'prod_home_hub',
-      name: 'Smart Home Hub Pro',
-      description: 'Advanced smart home automation center',
-      price: 4200000,
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAbzO7P36ix5dtwE3iu4WIbTqBcwkQ9Qbhrybw6-H7Pfv073jz3890b778t5RlGtjfUmNrIiqS445xFCvFTdpQ6eUaNM4g_l9Tl9yie2YY8f-997iCLpYgzzctBmII_6p1rEBUpV15HtsGMTZAegvgLiREhQvHQxIm1HL4DNqT1hpWWAMmmsWTNiod8K-zjh7LxC3qI4N_VbDRQgtcu0NhZaiSHWVFSSHG91EM7zY3dh1FNvyV1GmcQbaXOZpJHCnCcg-AVPVwLpRJ7',
-      category: 'Accessories',
-      rating: 4.8,
-      stock: 5
-    },
-    quantity: 1,
-    selectedColor: 'Edition v2',
-    selectedVersion: 'Apple Home, Google, Alexa'
-  },
-  {
-    id: 'prod_glass_keyboard',
-    product: {
-      id: 'prod_glass_keyboard',
-      name: 'Bàn phím cơ Volitify Glass',
-      description: 'Premium futuristic mechanical keyboard',
-      price: 3850000,
-      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDiTZglZpJU6cEz7NfviIN2qQiKpgOvE28Bww_JYwE3OXfkGNvTuCfmzDwZtRrTswh8HfT5yUEX6i0HwjXURyZA1ZnmXFfPPBmgWjN5fkgZYtXRQHxL7H7bIyWfp9MboAsKafNcEqVdC0-_6a774T9yjpEOziPmUstjAQCqyqTLXcKOHaT6EMPneA-flK1BuHT97bEX2adzsbCBWNE1tZYhE105xZV1MxMCEZO4fjoU50iqFxZF3unkQHj2RdejTHUaCPbBLfhROuNp',
-      category: 'Accessories',
-      rating: 4.9,
-      stock: 12
-    },
-    quantity: 1,
-    selectedColor: 'Silent Linear',
-    selectedVersion: 'Tenkeyless (TKL)'
-  }
-];
+const storageKeys = (ownerId: string) => ({
+  cart: `cart:${ownerId}`,
+  coupons: `cart_coupons:${ownerId}`,
+});
 
-function isValidCartItem(item: any): boolean {
+const isLegacyMockProduct = (productId: string) =>
+  productId.startsWith('mock-p-') || LEGACY_MOCK_PRODUCT_IDS.has(productId);
+
+const getSellerId = (item: CartItem) => item.product.seller_id || '';
+
+function isValidCartItem(item: unknown): item is CartItem {
   if (!item || typeof item !== 'object') return false;
-  if (typeof item.id !== 'string') return false;
-  if (typeof item.quantity !== 'number' || isNaN(item.quantity)) return false;
-  if (!item.product || typeof item.product !== 'object') return false;
-  if (typeof item.product.id !== 'string') return false;
-  if (typeof item.product.name !== 'string') return false;
-  if (typeof item.product.price !== 'number' || isNaN(item.product.price)) return false;
-  return true;
+  const candidate = item as Partial<CartItem>;
+  const product = candidate.product as Partial<Product> | undefined;
+  return (
+    typeof candidate.id === 'string' &&
+    Number.isInteger(candidate.quantity) &&
+    Number(candidate.quantity) > 0 &&
+    typeof product?.id === 'string' &&
+    !isLegacyMockProduct(product.id) &&
+    typeof product.name === 'string' &&
+    typeof product.price === 'number' &&
+    Number.isFinite(product.price)
+  );
+}
+
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function loadOwnerState(ownerId: string) {
+  const keys = storageKeys(ownerId);
+  let cartItems = readJson<unknown[]>(keys.cart, []).filter(isValidCartItem);
+  const appliedCoupons = readJson<Record<string, AppliedShopCoupon>>(keys.coupons, {});
+
+  const legacyScopedCart = `ecom_cart:${ownerId}`;
+  if (!localStorage.getItem(keys.cart) && localStorage.getItem(legacyScopedCart)) {
+    cartItems = readJson<unknown[]>(legacyScopedCart, []).filter(isValidCartItem);
+  }
+
+  if (
+    ownerId === GUEST_OWNER &&
+    !localStorage.getItem(keys.cart) &&
+    localStorage.getItem('ecom_cart')
+  ) {
+    cartItems = readJson<unknown[]>('ecom_cart', []).filter(isValidCartItem);
+  }
+
+  localStorage.setItem(keys.cart, JSON.stringify(cartItems));
+  localStorage.setItem(keys.coupons, JSON.stringify(appliedCoupons));
+
+  if (ownerId === GUEST_OWNER) {
+    ['ecom_cart', 'ecom_cart_promo', 'ecom_cart_discount'].forEach((key) =>
+      localStorage.removeItem(key),
+    );
+  }
+  [
+    legacyScopedCart,
+    `ecom_cart_promo:${ownerId}`,
+    `ecom_cart_discount:${ownerId}`,
+    `ecom_cart_discount_amount:${ownerId}`,
+  ].forEach((key) => localStorage.removeItem(key));
+
+  return { cartItems, appliedCoupons };
 }
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    const stored = localStorage.getItem('ecom_cart');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.every(isValidCartItem)) {
-          return parsed;
-        }
-      } catch (e) {
-        console.error('Lỗi khi đọc giỏ hàng từ localStorage:', e);
-      }
-    }
-    return defaultCartItems;
-  });
-
-  const [promoCode, setPromoCode] = useState<string>(() => {
-    const stored = localStorage.getItem('ecom_cart_promo');
-    return typeof stored === 'string' ? stored : '';
-  });
-
-  const [discountPercentage, setDiscountPercentage] = useState<number>(() => {
-    const pct = localStorage.getItem('ecom_cart_discount');
-    if (pct) {
-      const parsed = parseFloat(pct);
-      if (Number.isFinite(parsed) && !isNaN(parsed)) {
-        return parsed;
-      }
-    }
-    return 0;
-  });
+  const auth = useContext(AuthContext);
+  const ownerId = auth?.loading ? null : auth?.user?.id || GUEST_OWNER;
+  const [hydratedOwnerId, setHydratedOwnerId] = useState<string | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [appliedCoupons, setAppliedCoupons] = useState<Record<string, AppliedShopCoupon>>({});
+  const cartItemsRef = useRef<CartItem[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('ecom_cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+    if (!ownerId || ownerId === hydratedOwnerId) return;
+    setHydratedOwnerId(null);
+    const state = loadOwnerState(ownerId);
+    cartItemsRef.current = state.cartItems;
+    setCartItems(state.cartItems);
+    setAppliedCoupons(state.appliedCoupons);
+    setHydratedOwnerId(ownerId);
+  }, [hydratedOwnerId, ownerId]);
 
   useEffect(() => {
-    localStorage.setItem('ecom_cart_promo', promoCode);
-    localStorage.setItem('ecom_cart_discount', discountPercentage.toString());
-  }, [promoCode, discountPercentage]);
+    cartItemsRef.current = cartItems;
+    if (!ownerId || hydratedOwnerId !== ownerId) return;
+    localStorage.setItem(storageKeys(ownerId).cart, JSON.stringify(cartItems));
+  }, [cartItems, hydratedOwnerId, ownerId]);
 
-  const addToCart = (product: Product, selectedColor?: string, selectedVersion?: string) => {
-    setCartItems(prev => {
-      // Find if item already exists with same product id, color, and version
-      const existingIndex = prev.findIndex(item => 
-        item.product.id === product.id && 
-        item.selectedColor === selectedColor && 
-        item.selectedVersion === selectedVersion
-      );
+  useEffect(() => {
+    if (!ownerId || hydratedOwnerId !== ownerId) return;
+    localStorage.setItem(storageKeys(ownerId).coupons, JSON.stringify(appliedCoupons));
+  }, [appliedCoupons, hydratedOwnerId, ownerId]);
 
-      if (existingIndex > -1) {
-        const next = [...prev];
-        next[existingIndex] = {
-          ...next[existingIndex],
-          quantity: next[existingIndex].quantity + 1
-        };
-        return next;
-      }
-
-      const newItemId = `${product.id}_${selectedColor || ''}_${selectedVersion || ''}`;
-      return [...prev, {
-        id: newItemId,
-        product,
-        quantity: 1,
-        selectedColor,
-        selectedVersion
-      }];
+  const clearDiscount = useCallback((sellerId?: string) => {
+    if (!sellerId) {
+      setAppliedCoupons({});
+      return;
+    }
+    setAppliedCoupons((current) => {
+      const next = { ...current };
+      delete next[sellerId];
+      return next;
     });
-  };
+  }, []);
 
-  const removeFromCart = (id: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
-  };
+  const addToCart = useCallback(
+    (product: Product, selectedColor?: string, selectedVersion?: string) => {
+      if (isLegacyMockProduct(product.id)) return;
+      const variantKey = product.variantId || product.id;
+      if (product.seller_id) clearDiscount(product.seller_id);
 
-  const updateQuantity = (id: string, action: 'add' | 'remove') => {
-    setCartItems(prev => 
-      prev.map(item => {
-        if (item.id === id) {
-          const newQty = action === 'add' ? item.quantity + 1 : item.quantity - 1;
-          return {
-            ...item,
-            quantity: Math.max(1, newQty) // Ensure quantity is at least 1
-          };
+      setCartItems((current) => {
+        const index = current.findIndex(
+          (item) =>
+            (item.product.variantId || item.product.id) === variantKey &&
+            item.selectedColor === selectedColor &&
+            item.selectedVersion === selectedVersion,
+        );
+        if (index >= 0) {
+          const next = [...current];
+          next[index] = { ...next[index], quantity: next[index].quantity + 1, product };
+          return next;
         }
-        return item;
-      })
-    );
-  };
-
-  const clearCart = () => {
-    setCartItems([]);
-    setPromoCode('');
-    setDiscountPercentage(0);
-  };
-
-  const applyDiscount = async (code: string): Promise<{ ok: boolean; message: string; discountAmount?: number }> => {
-    const sanitized = code.trim().toUpperCase();
-    const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-
-    if (sanitized === 'ECOM2026') {
-      setPromoCode('ECOM2026');
-      setDiscountPercentage(10); // 10% discount
-      return { ok: true, message: 'Áp dụng thành công. Giảm 10%' };
-    }
-
-    try {
-      const response: any = await API.post('/payments/coupons/validate', {
-        code: sanitized,
-        subtotal,
-        cartItems,
+        return [
+          ...current,
+          {
+            id: `${variantKey}_${selectedColor || ''}_${selectedVersion || ''}`,
+            product,
+            quantity: 1,
+            selectedColor,
+            selectedVersion,
+          },
+        ];
       });
-      const data = response.data || response;
-      const coupon = data.data || data;
-      const discountAmount = Number(coupon.discountAmount || 0);
-      if (discountAmount <= 0) {
-        throw new Error('Mã voucher hợp lệ nhưng chưa tạo được số tiền giảm.');
-      }
-      const percent = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
-      setPromoCode(coupon.code || sanitized);
-      setDiscountPercentage(percent);
-      return {
-        ok: true,
-        message: `Áp dụng thành công. Giảm ${new Intl.NumberFormat('vi-VN').format(discountAmount)}đ`,
-        discountAmount,
-      };
-    } catch (err: any) {
-      setPromoCode('');
-      setDiscountPercentage(0);
-      return {
-        ok: false,
-        message: err?.data?.message || err?.message || 'Mã không hợp lệ hoặc đã hết hạn',
-      };
+    },
+    [clearDiscount],
+  );
+
+  const removeFromCart = useCallback(
+    (id: string) => {
+      const item = cartItemsRef.current.find((candidate) => candidate.id === id);
+      if (item) clearDiscount(getSellerId(item));
+      setCartItems((current) => current.filter((candidate) => candidate.id !== id));
+    },
+    [clearDiscount],
+  );
+
+  const updateQuantity = useCallback(
+    (id: string, action: 'add' | 'remove') => {
+      const item = cartItemsRef.current.find((candidate) => candidate.id === id);
+      if (item) clearDiscount(getSellerId(item));
+      setCartItems((current) =>
+        current.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                quantity: Math.max(1, candidate.quantity + (action === 'add' ? 1 : -1)),
+              }
+            : candidate,
+        ),
+      );
+    },
+    [clearDiscount],
+  );
+
+  const clearCart = useCallback(() => {
+    cartItemsRef.current = [];
+    setCartItems([]);
+    setAppliedCoupons({});
+  }, []);
+
+  const refreshCartPrices = useCallback(async (): Promise<RefreshCartResult> => {
+    const currentItems = cartItemsRef.current;
+    if (currentItems.length === 0) {
+      return { items: [], pricesChanged: false, removedUnavailableItems: 0 };
     }
-  };
+
+    const productsById = new Map<string, Product>();
+    const unavailableIds = new Set<string>();
+    await Promise.all(
+      [...new Set(currentItems.map((item) => item.product.id))].map(async (productId) => {
+        try {
+          productsById.set(productId, await productService.getById(productId));
+        } catch (error: any) {
+          if (error?.status === 404) unavailableIds.add(productId);
+          else throw error;
+        }
+      }),
+    );
+
+    let pricesChanged = false;
+    const items = currentItems
+      .filter((item) => !unavailableIds.has(item.product.id))
+      .map((item) => {
+        const product = productsById.get(item.product.id);
+        if (!product) return item;
+        if (
+          product.price !== item.product.price ||
+          product.variantId !== item.product.variantId ||
+          product.stock !== item.product.stock
+        ) {
+          pricesChanged = true;
+        }
+        return { ...item, product };
+      });
+
+    const removedUnavailableItems = currentItems.length - items.length;
+    cartItemsRef.current = items;
+    setCartItems(items);
+    if (pricesChanged || removedUnavailableItems > 0) setAppliedCoupons({});
+    return { items, pricesChanged, removedUnavailableItems };
+  }, []);
+
+  const applyDiscount = useCallback(
+    async (sellerId: string, code: string) => {
+      const normalizedCode = code.trim().toUpperCase();
+      const shopItems = cartItemsRef.current.filter((item) => item.product.seller_id === sellerId);
+      if (!sellerId || shopItems.length === 0) {
+        return { ok: false, message: 'Không tìm thấy sản phẩm của shop để áp dụng voucher.' };
+      }
+
+      try {
+        const response: any = await API.post('/payments/coupons/validate', {
+          code: normalizedCode,
+          sellerId,
+          cartItems: shopItems,
+        });
+        const coupon = (response.data || response) as CouponValidationResult;
+        const amount = Number(coupon.discountAmount || 0);
+        setAppliedCoupons((current) => ({
+          ...current,
+          [sellerId]: { code: coupon.code || normalizedCode, discountAmount: amount, coupon },
+        }));
+        return {
+          ok: true,
+          message: `Đã giảm ${new Intl.NumberFormat('vi-VN').format(amount)}đ cho shop này.`,
+          coupon,
+        };
+      } catch (error: any) {
+        clearDiscount(sellerId);
+        if (error?.data?.code === 'PRICE_CHANGED') await refreshCartPrices();
+        return {
+          ok: false,
+          message: error?.data?.message || error?.message || 'Voucher không hợp lệ.',
+        };
+      }
+    },
+    [clearDiscount, refreshCartPrices],
+  );
+
+  const discountAmount = useMemo(
+    () => Object.values(appliedCoupons).reduce((sum, item) => sum + item.discountAmount, 0),
+    [appliedCoupons],
+  );
+  const couponCodes = useMemo(
+    () =>
+      Object.entries(appliedCoupons).map(([sellerId, coupon]) => ({
+        sellerId,
+        code: coupon.code,
+      })),
+    [appliedCoupons],
+  );
 
   return (
-    <CartContext.Provider value={{
-      cartItems,
-      promoCode,
-      discountPercentage,
-      addToCart,
-      removeFromCart,
-      updateQuantity,
-      clearCart,
-      applyDiscount
-    }}>
+    <CartContext.Provider
+      value={{
+        cartItems,
+        appliedCoupons,
+        discountAmount,
+        couponCodes,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+        clearDiscount,
+        applyDiscount,
+        refreshCartPrices,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
@@ -238,8 +347,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
+  if (!context) throw new Error('useCart must be used within a CartProvider');
   return context;
 };

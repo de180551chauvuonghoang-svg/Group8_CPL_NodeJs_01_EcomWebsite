@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
@@ -17,7 +17,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
@@ -37,12 +37,17 @@ export default function Login() {
     onError: (error) => {
       setErrorMsg(error);
     },
-    buttonElementId: 'google-login-btn'
+    buttonElementId: 'google-login-btn',
   });
+
+  const handleQuickLogin = useCallback((role: 'customer' | 'seller' | 'admin') => {
+    setEmail(role);
+    setPassword('password123');
+  }, []);
 
   useEffect(() => {
     (window as any).handleQuickLogin = handleQuickLogin;
-  }, []);
+  }, [handleQuickLogin]);
 
   // Motion values for cinematic bento/card hover tilt
   const mouseX = useMotionValue(0.5);
@@ -70,11 +75,6 @@ export default function Login() {
         setErrorMsg('Sai tài khoản hoặc mật khẩu');
       }
     }
-  };
-
-  const handleQuickLogin = (role: 'customer' | 'seller' | 'admin') => {
-    setEmail(role);
-    setPassword('password123');
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -122,10 +122,11 @@ export default function Login() {
         {/* Left Side: Login Form Canvas */}
         <section className="w-full lg:w-1/2 flex flex-col justify-center items-center px-margin-mobile md:px-margin-desktop py-24 bg-white relative z-10">
           <div className="w-full max-w-[440px] space-y-6">
-
             {/* Header Text */}
             <header className="space-y-2 mb-10">
-              <h1 className="font-headline-lg text-headline-lg text-on-surface text-center text-primary">Volitify</h1>
+              <h1 className="font-headline-lg text-headline-lg text-on-surface text-center text-primary">
+                Volitify
+              </h1>
               <p className="font-body-lg text-body-lg text-on-surface-variant text-center">
                 Chào mừng bạn đến với Volitify
               </p>
@@ -142,7 +143,10 @@ export default function Login() {
             {/* Login Form */}
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="email">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant"
+                  htmlFor="email"
+                >
                   Tên đăng nhập / Email
                 </label>
                 <div className="relative">
@@ -163,7 +167,10 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="password">
+                <label
+                  className="font-label-md text-label-md text-on-surface-variant"
+                  htmlFor="password"
+                >
                   Mật khẩu
                 </label>
                 <div className="relative">
@@ -202,7 +209,10 @@ export default function Login() {
                     Ghi nhớ đăng nhập
                   </span>
                 </label>
-                <Link className="font-label-md text-label-md text-primary hover:underline decoration-2 underline-offset-4 font-semibold" to="/forgot-password">
+                <Link
+                  className="font-label-md text-label-md text-primary hover:underline decoration-2 underline-offset-4 font-semibold"
+                  to="/forgot-password"
+                >
                   Quên mật khẩu?
                 </Link>
               </div>
@@ -218,7 +228,7 @@ export default function Login() {
             </form>
 
             <div className="grid grid-cols-3 gap-2">
-              {(['customer', 'seller', 'admin'] as const).map(role => (
+              {(['customer', 'seller', 'admin'] as const).map((role) => (
                 <button
                   key={role}
                   type="button"
@@ -244,14 +254,20 @@ export default function Login() {
 
             {/* Social Logins */}
             <div className="grid grid-cols-2 gap-4">
-              <div id="google-login-btn" className="w-full flex justify-center h-[56px] items-center overflow-hidden" />
+              <div
+                id="google-login-btn"
+                className="w-full flex justify-center h-[56px] items-center overflow-hidden"
+              />
               <motion.button
                 type="button"
                 className="flex items-center justify-center gap-3 h-[56px] border border-outline-variant rounded-xl hover:bg-surface-container transition-colors focus:outline-none bg-white"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
               >
-                <span className="material-symbols-outlined text-on-surface" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span
+                  className="material-symbols-outlined text-on-surface"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
                   ios
                 </span>
                 <span className="font-label-md text-label-md text-on-surface">Apple</span>
@@ -261,7 +277,10 @@ export default function Login() {
             {/* Signup Link */}
             <p className="text-center font-body-md text-on-surface-variant mt-10">
               Chưa có tài khoản?{' '}
-              <Link className="text-primary font-bold hover:underline decoration-2 underline-offset-4" to="/register">
+              <Link
+                className="text-primary font-bold hover:underline decoration-2 underline-offset-4"
+                to="/register"
+              >
                 Đăng ký ngay
               </Link>
             </p>
@@ -289,20 +308,26 @@ export default function Login() {
               background: 'rgba(255, 255, 255, 0.8)',
               rotateX,
               rotateY,
-              transformStyle: 'preserve-3d'
+              transformStyle: 'preserve-3d',
             }}
           >
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <span
+                  className="material-symbols-outlined text-primary"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
                   smart_toy
                 </span>
               </div>
-              <h3 className="font-title-lg text-title-lg text-on-surface font-bold">Tương lai của nhà thông minh</h3>
+              <h3 className="font-title-lg text-title-lg text-on-surface font-bold">
+                Tương lai của nhà thông minh
+              </h3>
             </div>
             <p className="font-body-md text-on-surface-variant leading-relaxed">
-              Trải nghiệm sự tiện nghi tuyệt đối với hệ sinh thái Volitify. Điều khiển mọi thiết bị trong ngôi nhà của
-              bạn chỉ với một cú chạm hoặc lệnh giọng nói. An toàn, bảo mật và hoàn toàn tự động.
+              Trải nghiệm sự tiện nghi tuyệt đối với hệ sinh thái Volitify. Điều khiển mọi thiết bị
+              trong ngôi nhà của bạn chỉ với một cú chạm hoặc lệnh giọng nói. An toàn, bảo mật và
+              hoàn toàn tự động.
             </p>
             <div className="flex gap-2">
               <div className="h-1 w-12 bg-primary rounded-full"></div>
@@ -315,12 +340,20 @@ export default function Login() {
 
       {/* Footer */}
       <footer className="absolute bottom-0 left-0 w-full lg:w-1/2 p-6 flex justify-between items-center border-t border-outline-variant/50 md:border-none z-20">
-        <p className="font-label-md text-label-md text-outline">© {new Date().getFullYear()} Volitify Systems.</p>
+        <p className="font-label-md text-label-md text-outline">
+          © {new Date().getFullYear()} Volitify Systems.
+        </p>
         <div className="flex gap-6">
-          <a className="font-label-md text-label-md text-outline hover:text-primary transition-colors" href="#">
+          <a
+            className="font-label-md text-label-md text-outline hover:text-primary transition-colors"
+            href="#"
+          >
             Bảo mật
           </a>
-          <a className="font-label-md text-label-md text-outline hover:text-primary transition-colors" href="#">
+          <a
+            className="font-label-md text-label-md text-outline hover:text-primary transition-colors"
+            href="#"
+          >
             Điều khoản
           </a>
         </div>

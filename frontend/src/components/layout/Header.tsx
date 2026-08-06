@@ -1,14 +1,15 @@
-import { useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useTheme } from '../../context/ThemeContext';
+import NotificationBell from '../common/NotificationBell';
 
 // Logo URL - use local favicon.png
-const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined')
-  ? `${import.meta.env.VITE_CDN_URL}/favicon.png`
-  : '/favicon.png';
-
+const logoUrl =
+  import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined'
+    ? `${import.meta.env.VITE_CDN_URL}/favicon.png`
+    : '/favicon.png';
 
 export default function Header() {
   const { cartItems } = useCart();
@@ -85,7 +86,6 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-surface/80 dark:bg-surface-container-low/90 backdrop-blur-xl shadow-sm border-b border-outline-variant/30 transition-colors duration-300">
       <div className="max-w-container-max mx-auto px-3 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between w-full gap-2 lg:gap-4">
-        
         {/* Left Section: Logo & Nav */}
         <div className="flex items-center gap-3 lg:gap-5 xl:gap-7 shrink-0">
           {/* Logo Link */}
@@ -110,7 +110,8 @@ export default function Header() {
             </Link>
             <div className="mega-menu-trigger relative py-1.5">
               <button className="text-on-surface-variant hover:text-primary transition-colors duration-200 flex items-center gap-0.5 cursor-pointer">
-                TV &amp; Video <span className="material-symbols-outlined text-sm">expand_more</span>
+                TV &amp; Video{' '}
+                <span className="material-symbols-outlined text-sm">expand_more</span>
               </button>
               <div className="mega-menu absolute top-full left-0 w-[750px] bg-surface-container-lowest shadow-2xl rounded-3xl p-6 border border-outline-variant/50 mt-2">
                 <div className="grid grid-cols-3 gap-6">
@@ -118,17 +119,26 @@ export default function Header() {
                     <h4 className="font-bold text-primary mb-3">Loại Tivi</h4>
                     <ul className="space-y-2">
                       <li>
-                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
+                        <button
+                          onClick={() => handleCategoryClick('Electronics')}
+                          className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer"
+                        >
                           OLED TVs
                         </button>
                       </li>
                       <li>
-                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
+                        <button
+                          onClick={() => handleCategoryClick('Electronics')}
+                          className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer"
+                        >
                           QLED TVs
                         </button>
                       </li>
                       <li>
-                        <button onClick={() => handleCategoryClick('Electronics')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
+                        <button
+                          onClick={() => handleCategoryClick('Electronics')}
+                          className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer"
+                        >
                           8K Ultra HD
                         </button>
                       </li>
@@ -138,12 +148,18 @@ export default function Header() {
                     <h4 className="font-bold text-primary mb-3">Phụ Kiện</h4>
                     <ul className="space-y-2">
                       <li>
-                        <button onClick={() => handleCategoryClick('Audio')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
+                        <button
+                          onClick={() => handleCategoryClick('Audio')}
+                          className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer"
+                        >
                           Loa Soundbar
                         </button>
                       </li>
                       <li>
-                        <button onClick={() => handleCategoryClick('Accessories')} className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer">
+                        <button
+                          onClick={() => handleCategoryClick('Accessories')}
+                          className="text-body-md text-on-surface-variant hover:text-primary transition-colors text-left w-full cursor-pointer"
+                        >
                           Giá Treo Tivi
                         </button>
                       </li>
@@ -165,16 +181,28 @@ export default function Header() {
               </div>
             </div>
 
-            <Link to="/combos" className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
+            <Link
+              to="/combos"
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer"
+            >
               Combo
             </Link>
-            <button onClick={() => handleCategoryClick('Accessories')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
+            <button
+              onClick={() => handleCategoryClick('Accessories')}
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer"
+            >
               Nhà Thông Minh
             </button>
-            <button onClick={() => handleCategoryClick('Wearables')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
+            <button
+              onClick={() => handleCategoryClick('Wearables')}
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer"
+            >
               Gaming
             </button>
-            <button onClick={() => handleCategoryClick('Home & Kitchen')} className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer">
+            <button
+              onClick={() => handleCategoryClick('Home & Kitchen')}
+              className="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer"
+            >
               Gia Dụng
             </button>
           </nav>
@@ -198,7 +226,6 @@ export default function Header() {
 
         {/* Cart + Auth + Theme Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
@@ -236,6 +263,7 @@ export default function Header() {
           {/* Authentication Buttons */}
           {isAuthenticated && user ? (
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <NotificationBell user={user} />
               {user.role === 'seller' ? (
                 <Link
                   to="/seller/dashboard"
@@ -295,7 +323,6 @@ export default function Header() {
                 <span className="hidden 2xl:inline whitespace-nowrap">Đăng xuất</span>
               </button>
             </div>
-
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {/* Đăng nhập — outline pill */}
@@ -326,7 +353,6 @@ export default function Header() {
             </span>
           </button>
         </div>
-
       </div>
 
       {/* Mobile Slide-over Drawer Overlay */}
@@ -341,10 +367,13 @@ export default function Header() {
           {/* Drawer Container */}
           <div className="relative z-10 w-full max-w-xs bg-surface dark:bg-surface-container-lowest h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto border-l border-outline-variant/30">
             <div className="space-y-6">
-              
               {/* Drawer Top Header */}
               <div className="flex items-center justify-between pb-4 border-b border-outline-variant/40">
-                <Link to="/" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link
+                  to="/"
+                  className="flex items-center gap-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
                   <img alt="Volitify Logo" className="h-8 w-auto shrink-0" src={logoUrl} />
                   <span className="text-lg font-black text-primary">VOLITIFY</span>
                 </Link>
@@ -361,7 +390,11 @@ export default function Header() {
                 <div className="bg-surface-container-low dark:bg-surface-container-high p-4 rounded-2xl space-y-3">
                   <div className="flex items-center gap-3">
                     {user.avatar_url ? (
-                      <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover border-2 border-primary" />
+                      <img
+                        src={user.avatar_url}
+                        alt={user.name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-primary"
+                      />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
                         {user.name.charAt(0).toUpperCase()}
@@ -369,7 +402,9 @@ export default function Header() {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-sm text-on-surface truncate">{user.name}</p>
-                      <p className="text-xs text-on-surface-variant capitalize">{user.role || 'customer'}</p>
+                      <p className="text-xs text-on-surface-variant capitalize">
+                        {user.role || 'customer'}
+                      </p>
                     </div>
                   </div>
 
@@ -420,7 +455,9 @@ export default function Header() {
 
               {/* Mobile Navigation Links */}
               <div className="space-y-1 pt-2">
-                <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider px-3 mb-2">Danh mục sản phẩm</p>
+                <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider px-3 mb-2">
+                  Danh mục sản phẩm
+                </p>
                 <Link
                   to="/products"
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-surface-container-low font-semibold text-sm text-on-surface"
@@ -431,10 +468,16 @@ export default function Header() {
 
                 <div className="space-y-1 pl-2 border-l-2 border-primary/20 my-2">
                   <p className="text-xs font-bold text-primary px-3 py-1">TV & Video</p>
-                  <button onClick={() => handleCategoryClick('Electronics')} className="w-full text-left px-3 py-1.5 text-xs text-on-surface-variant hover:text-primary">
+                  <button
+                    onClick={() => handleCategoryClick('Electronics')}
+                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface-variant hover:text-primary"
+                  >
                     • OLED &amp; QLED TVs
                   </button>
-                  <button onClick={() => handleCategoryClick('Audio')} className="w-full text-left px-3 py-1.5 text-xs text-on-surface-variant hover:text-primary">
+                  <button
+                    onClick={() => handleCategoryClick('Audio')}
+                    className="w-full text-left px-3 py-1.5 text-xs text-on-surface-variant hover:text-primary"
+                  >
                     • Loa Soundbar
                   </button>
                 </div>
@@ -471,7 +514,6 @@ export default function Header() {
                   <span className="material-symbols-outlined text-sm">chevron_right</span>
                 </button>
               </div>
-
             </div>
 
             {/* Mobile Drawer Bottom: Logout & Copyright */}

@@ -5,15 +5,11 @@ import { AuthContext } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
 import { socketService } from '../../services/socketService';
 import { ChatPartner, ChatUnreadUpdate, Message } from '../../types';
-
-const SELLER_CHAT_KEY = 'ecom_chat_seller_id';
-
-type ChatTargetMeta = {
-  sellerId: string;
-  name?: string;
-  avatarUrl?: string;
-  shopId?: string;
-};
+import {
+  LIVE_CHAT_SELLER_KEY,
+  LIVE_CHAT_TARGET_EVENT,
+  type LiveChatTarget,
+} from '../../utils/liveChat';
 
 const normalizePartner = (partner: Partial<ChatPartner> & { id: string }): ChatPartner => ({
   id: partner.id,
@@ -42,24 +38,34 @@ export default function LiveChatWidget() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeConversation = conversations.find(item => item.id === activePartnerId) || null;
-  const activeMessages = activePartnerId ? messagesByPartner[activePartnerId] || [] : [];
+  const activeConversation = conversations.find((item) => item.id === activePartnerId) || null;
+  const activeMessages = useMemo(
+    () => (activePartnerId ? messagesByPartner[activePartnerId] || [] : []),
+    [activePartnerId, messagesByPartner],
+  );
   const totalUnread = conversations.reduce((sum, item) => sum + Number(item.unread_count || 0), 0);
 
   const sortConversations = useCallback((items: ChatPartner[]) => {
     return [...items].sort((a, b) => {
       const unreadDiff = Number(b.unread_count || 0) - Number(a.unread_count || 0);
       if (unreadDiff !== 0) return unreadDiff;
-      return new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime();
+      return (
+        new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime()
+      );
     });
   }, []);
 
-  const upsertConversation = useCallback((partner: ChatPartner) => {
-    setConversations(prev => sortConversations([
-      normalizePartner(partner),
-      ...prev.filter(item => item.id !== partner.id),
-    ]));
-  }, [sortConversations]);
+  const upsertConversation = useCallback(
+    (partner: ChatPartner) => {
+      setConversations((prev) =>
+        sortConversations([
+          normalizePartner(partner),
+          ...prev.filter((item) => item.id !== partner.id),
+        ]),
+      );
+    },
+    [sortConversations],
+  );
 
   const loadRecent = useCallback(async () => {
     if (!user?.id) return;
@@ -67,11 +73,11 @@ export default function LiveChatWidget() {
     try {
       const data = await chatService.getRecentChats();
       const next = Array.isArray(data)
-        ? data.map(normalizePartner).filter(item => item.id !== user.id)
+        ? data.map(normalizePartner).filter((item) => item.id !== user.id)
         : [];
       setConversations(sortConversations(next));
-      const savedSellerId = sessionStorage.getItem(SELLER_CHAT_KEY);
-      if (savedSellerId && next.some(item => item.id === savedSellerId)) {
+      const savedSellerId = sessionStorage.getItem(LIVE_CHAT_SELLER_KEY);
+      if (savedSellerId && next.some((item) => item.id === savedSellerId)) {
         setActivePartnerId(savedSellerId);
       } else if (!activePartnerId && next[0]) {
         setActivePartnerId(next[0].id);
@@ -86,9 +92,14 @@ export default function LiveChatWidget() {
     setLoadingHistory(true);
     try {
       const history = await chatService.getChatHistory(partnerId);
-      setMessagesByPartner(prev => ({ ...prev, [partnerId]: Array.isArray(history) ? history : [] }));
+      setMessagesByPartner((prev) => ({
+        ...prev,
+        [partnerId]: Array.isArray(history) ? history : [],
+      }));
       await chatService.markChatAsRead(partnerId);
-      setConversations(prev => prev.map(item => item.id === partnerId ? { ...item, unread_count: 0 } : item));
+      setConversations((prev) =>
+        prev.map((item) => (item.id === partnerId ? { ...item, unread_count: 0 } : item)),
+      );
     } finally {
       setLoadingHistory(false);
     }
@@ -96,7 +107,7 @@ export default function LiveChatWidget() {
 
   useEffect(() => {
     if (!user?.id) return;
-    socketService.connect(user.id);
+    socketService.connect();
     loadRecent();
     return () => {
       socketService.offReceiveMessage();
@@ -107,7 +118,7 @@ export default function LiveChatWidget() {
 
   useEffect(() => {
     const handleNewTarget = (event: Event) => {
-      const detail = (event as CustomEvent<ChatTargetMeta>).detail;
+      const detail = (event as CustomEvent<LiveChatTarget>).detail;
       if (!detail?.sellerId) return;
 
       const partner = normalizePartner({
@@ -121,15 +132,15 @@ export default function LiveChatWidget() {
         unread_count: 0,
       });
 
-      sessionStorage.setItem(SELLER_CHAT_KEY, detail.sellerId);
+      sessionStorage.setItem(LIVE_CHAT_SELLER_KEY, detail.sellerId);
       upsertConversation(partner);
       setActivePartnerId(detail.sellerId);
       setIsOpen(true);
       loadHistory(detail.sellerId);
     };
 
-    window.addEventListener('seller-chat-target', handleNewTarget);
-    return () => window.removeEventListener('seller-chat-target', handleNewTarget);
+    window.addEventListener(LIVE_CHAT_TARGET_EVENT, handleNewTarget);
+    return () => window.removeEventListener(LIVE_CHAT_TARGET_EVENT, handleNewTarget);
   }, [loadHistory, upsertConversation]);
 
   useEffect(() => {
@@ -149,17 +160,18 @@ export default function LiveChatWidget() {
       if (msg.sender_id === user.id) return;
       const partnerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
       if (partnerId === user.id) return;
-      setMessagesByPartner(prev => {
+      setMessagesByPartner((prev) => {
         const current = prev[partnerId] || [];
-        if (current.some(item => item.id === msg.id)) return prev;
+        if (current.some((item) => item.id === msg.id)) return prev;
         return { ...prev, [partnerId]: [...current, msg] };
       });
 
-      setConversations(prev => {
-        const existing = prev.find(item => item.id === partnerId);
-        const unread = msg.sender_id !== user.id && (!isOpen || activePartnerId !== partnerId)
-          ? Number(existing?.unread_count || 0) + 1
-          : Number(existing?.unread_count || 0);
+      setConversations((prev) => {
+        const existing = prev.find((item) => item.id === partnerId);
+        const unread =
+          msg.sender_id !== user.id && (!isOpen || activePartnerId !== partnerId)
+            ? Number(existing?.unread_count || 0) + 1
+            : Number(existing?.unread_count || 0);
         const partner = normalizePartner({
           id: partnerId,
           name: existing?.name || 'Shop',
@@ -172,7 +184,7 @@ export default function LiveChatWidget() {
           last_message_time: msg.created_at,
           unread_count: unread,
         });
-        return sortConversations([partner, ...prev.filter(item => item.id !== partnerId)]);
+        return sortConversations([partner, ...prev.filter((item) => item.id !== partnerId)]);
       });
     });
     return () => socketService.offReceiveMessage();
@@ -183,15 +195,20 @@ export default function LiveChatWidget() {
     socketService.onMessageSent((msg: Message) => {
       if (!user?.id) return;
       const partnerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
-      setMessagesByPartner(prev => {
+      setMessagesByPartner((prev) => {
         const current = prev[partnerId] || [];
-        const withoutPending = current.filter(item =>
-          !(item.id.startsWith('pending_')
-            && item.sender_id === msg.sender_id
-            && item.receiver_id === msg.receiver_id
-            && item.message_text === msg.message_text)
+        const withoutPending = current.filter(
+          (item) =>
+            !(
+              item.id.startsWith('pending_') &&
+              item.sender_id === msg.sender_id &&
+              item.receiver_id === msg.receiver_id &&
+              item.message_text === msg.message_text
+            ),
         );
-        const messages = withoutPending.some(item => item.id === msg.id) ? withoutPending : [...withoutPending, msg];
+        const messages = withoutPending.some((item) => item.id === msg.id)
+          ? withoutPending
+          : [...withoutPending, msg];
         return { ...prev, [partnerId]: messages };
       });
       setSending(false);
@@ -215,7 +232,9 @@ export default function LiveChatWidget() {
         last_message_time: payload.last_message_time || undefined,
         unread_count: activePartnerId === payload.partnerId && isOpen ? 0 : payload.unread_count,
       });
-      setConversations(prev => sortConversations([partner, ...prev.filter(item => item.id !== payload.partnerId)]));
+      setConversations((prev) =>
+        sortConversations([partner, ...prev.filter((item) => item.id !== payload.partnerId)]),
+      );
     });
     return () => socketService.offChatUnreadUpdated();
   }, [activePartnerId, isOpen, sortConversations, user?.id]);
@@ -226,8 +245,10 @@ export default function LiveChatWidget() {
 
   const openConversation = async (partnerId: string) => {
     setActivePartnerId(partnerId);
-    sessionStorage.setItem(SELLER_CHAT_KEY, partnerId);
-    setConversations(prev => prev.map(item => item.id === partnerId ? { ...item, unread_count: 0 } : item));
+    sessionStorage.setItem(LIVE_CHAT_SELLER_KEY, partnerId);
+    setConversations((prev) =>
+      prev.map((item) => (item.id === partnerId ? { ...item, unread_count: 0 } : item)),
+    );
     await loadHistory(partnerId);
   };
 
@@ -250,15 +271,19 @@ export default function LiveChatWidget() {
       created_at: new Date().toISOString(),
     };
 
-    setMessagesByPartner(prev => ({
+    if (!socketService.sendMessage(activePartnerId, messageText)) return;
+
+    setMessagesByPartner((prev) => ({
       ...prev,
       [activePartnerId]: [...(prev[activePartnerId] || []), pendingMessage],
     }));
-    setConversations(prev => prev.map(item => item.id === activePartnerId
-      ? { ...item, last_message: messageText, last_message_time: pendingMessage.created_at }
-      : item
-    ));
-    socketService.sendMessage(activePartnerId, messageText);
+    setConversations((prev) =>
+      prev.map((item) =>
+        item.id === activePartnerId
+          ? { ...item, last_message: messageText, last_message_time: pendingMessage.created_at }
+          : item,
+      ),
+    );
     setInputText('');
     setSending(true);
     window.setTimeout(() => setSending(false), 5000);
@@ -271,7 +296,10 @@ export default function LiveChatWidget() {
     }
   };
 
-  const sortedConversations = useMemo(() => sortConversations(conversations), [conversations, sortConversations]);
+  const sortedConversations = useMemo(
+    () => sortConversations(conversations),
+    [conversations, sortConversations],
+  );
 
   if (!user || user.role === 'seller' || user.role === 'admin') return null;
 
@@ -322,21 +350,29 @@ export default function LiveChatWidget() {
                 ) : sortedConversations.length === 0 ? (
                   <div className="px-3 py-10 text-center">
                     <MessageSquare size={24} className="mx-auto mb-2 text-on-surface-variant/30" />
-                    <p className="text-xs font-semibold text-on-surface-variant">Chưa có cuộc chat</p>
+                    <p className="text-xs font-semibold text-on-surface-variant">
+                      Chưa có cuộc chat
+                    </p>
                   </div>
                 ) : (
-                  sortedConversations.map(conversation => (
+                  sortedConversations.map((conversation) => (
                     <button
                       key={conversation.id}
                       type="button"
                       onClick={() => openConversation(conversation.id)}
                       className={`flex w-full items-center gap-2 border-b border-outline-variant/20 px-3 py-3 text-left transition ${
-                        activePartnerId === conversation.id ? 'bg-emerald-50' : 'hover:bg-surface-container'
+                        activePartnerId === conversation.id
+                          ? 'bg-emerald-50'
+                          : 'hover:bg-surface-container'
                       }`}
                     >
                       <div className="relative shrink-0">
                         {conversation.avatar_url ? (
-                          <img src={conversation.avatar_url} alt={conversation.name} className="h-8 w-8 rounded-full object-cover" />
+                          <img
+                            src={conversation.avatar_url}
+                            alt={conversation.name}
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
                         ) : (
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                             <Store size={15} />
@@ -344,13 +380,19 @@ export default function LiveChatWidget() {
                         )}
                         {(conversation.unread_count || 0) > 0 && (
                           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[9px] font-black text-white">
-                            {(conversation.unread_count || 0) > 9 ? '9+' : conversation.unread_count}
+                            {(conversation.unread_count || 0) > 9
+                              ? '9+'
+                              : conversation.unread_count}
                           </span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-on-surface">{conversation.name}</p>
-                        <p className="truncate text-[10px] text-on-surface-variant">{conversation.last_message || 'Bắt đầu chat'}</p>
+                        <p className="truncate text-xs font-bold text-on-surface">
+                          {conversation.name}
+                        </p>
+                        <p className="truncate text-[10px] text-on-surface-variant">
+                          {conversation.last_message || 'Bắt đầu chat'}
+                        </p>
                       </div>
                     </button>
                   ))
@@ -361,13 +403,19 @@ export default function LiveChatWidget() {
             <section className="flex min-w-0 flex-1 flex-col">
               <header className="flex h-14 shrink-0 items-center justify-between bg-gradient-to-r from-emerald-500 to-teal-600 px-4">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-black text-white">{activeConversation?.name || 'Shop'}</h3>
+                  <h3 className="truncate text-sm font-black text-white">
+                    {activeConversation?.name || 'Shop'}
+                  </h3>
                   <div className="mt-0.5 flex items-center gap-1">
                     <Circle size={5} className="fill-white/70 text-white/70" />
                     <span className="text-[10px] text-white/80">Đang hoạt động</span>
                   </div>
                 </div>
-                <button type="button" onClick={() => setIsOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-white transition hover:bg-white/20">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-white transition hover:bg-white/20"
+                >
                   <X size={16} />
                 </button>
               </header>
@@ -380,9 +428,14 @@ export default function LiveChatWidget() {
                 ) : activeMessages.length === 0 ? (
                   <div className="flex h-full items-center justify-center px-5 text-center">
                     <div>
-                      <MessageSquare size={34} className="mx-auto mb-2 text-on-surface-variant/30" />
+                      <MessageSquare
+                        size={34}
+                        className="mx-auto mb-2 text-on-surface-variant/30"
+                      />
                       <p className="text-xs text-on-surface-variant">
-                        {activePartnerId ? 'Gửi tin nhắn để hỏi shop về sản phẩm.' : 'Chọn một shop để bắt đầu chat.'}
+                        {activePartnerId
+                          ? 'Gửi tin nhắn để hỏi shop về sản phẩm.'
+                          : 'Chọn một shop để bắt đầu chat.'}
                       </p>
                     </div>
                   </div>
@@ -390,18 +443,25 @@ export default function LiveChatWidget() {
                   activeMessages.map((msg, index) => {
                     const isMe = msg.sender_id === user.id;
                     return (
-                      <motion.div key={msg.id || index} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
+                      <motion.div
+                        key={msg.id || index}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}
+                      >
                         {!isMe && (
                           <div className="mt-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                             <Store size={12} />
                           </div>
                         )}
                         <div className="max-w-[78%]">
-                          <div className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
-                            isMe
-                              ? 'rounded-tr-sm bg-primary text-white'
-                              : 'rounded-tl-sm border border-outline-variant/30 bg-white text-on-surface shadow-sm'
-                          }`}>
+                          <div
+                            className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${
+                              isMe
+                                ? 'rounded-tr-sm bg-primary text-white'
+                                : 'rounded-tl-sm border border-outline-variant/30 bg-white text-on-surface shadow-sm'
+                            }`}
+                          >
                             {msg.message_text}
                           </div>
                         </div>
@@ -417,13 +477,19 @@ export default function LiveChatWidget() {
                   <input
                     type="text"
                     value={inputText}
-                    onChange={event => setInputText(event.target.value)}
+                    onChange={(event) => setInputText(event.target.value)}
                     onKeyDown={handleKeyDown}
+                    maxLength={2000}
                     placeholder="Nhắn tin với shop..."
                     disabled={sending || !activePartnerId}
                     className="min-w-0 flex-1 bg-transparent text-xs font-medium text-on-surface outline-none placeholder:text-on-surface-variant/50"
                   />
-                  <button type="button" onClick={handleSend} disabled={!inputText.trim() || sending || !activePartnerId} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow disabled:opacity-50">
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={!inputText.trim() || sending || !activePartnerId}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow disabled:opacity-50"
+                  >
                     {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
                   </button>
                 </div>
@@ -435,15 +501,3 @@ export default function LiveChatWidget() {
     </>
   );
 }
-
-export const setLiveChatSeller = (sellerUserId: string, meta?: { name?: string; avatarUrl?: string; shopId?: string }) => {
-  sessionStorage.setItem(SELLER_CHAT_KEY, sellerUserId);
-  window.dispatchEvent(new CustomEvent<ChatTargetMeta>('seller-chat-target', {
-    detail: {
-      sellerId: sellerUserId,
-      name: meta?.name,
-      avatarUrl: meta?.avatarUrl,
-      shopId: meta?.shopId,
-    },
-  }));
-};

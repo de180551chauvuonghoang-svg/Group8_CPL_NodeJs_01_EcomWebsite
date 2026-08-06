@@ -65,7 +65,7 @@ export default function ResetPassword(): React.ReactElement {
       // Simulate calling password reset API offline
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setSuccess(true);
-    } catch (err: unknown) {
+    } catch {
       setErrorMsg('Có lỗi xảy ra, vui lòng thử lại sau.');
     } finally {
       setLoading(false);
@@ -127,7 +127,6 @@ export default function ResetPassword(): React.ReactElement {
         {/* Right Side: Reset Form */}
         <section className="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center bg-surface-container-lowest p-margin-mobile md:p-margin-desktop py-12 relative">
           <div className="w-full max-w-md space-y-10 px-4">
-
             {/* Header Text */}
             {!success && (
               <div className="space-y-4">
@@ -154,7 +153,10 @@ export default function ResetPassword(): React.ReactElement {
                 <div className="space-y-6">
                   {/* New Password Field */}
                   <div className="space-y-2">
-                    <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider block font-semibold" htmlFor="password">
+                    <label
+                      className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider block font-semibold"
+                      htmlFor="password"
+                    >
                       Mật khẩu mới
                     </label>
                     <div className="relative">
@@ -184,7 +186,10 @@ export default function ResetPassword(): React.ReactElement {
 
                   {/* Confirm Password Field */}
                   <div className="space-y-2">
-                    <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider block font-semibold" htmlFor="confirm-password">
+                    <label
+                      className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider block font-semibold"
+                      htmlFor="confirm-password"
+                    >
                       Xác nhận mật khẩu
                     </label>
                     <div className="relative">
@@ -218,13 +223,17 @@ export default function ResetPassword(): React.ReactElement {
                   <p className="font-label-md text-label-md text-on-surface mb-1 font-bold">
                     Yêu cầu mật khẩu:
                   </p>
-                  <div className={`flex items-center gap-2 transition-colors duration-300 ${isMinLength ? 'text-success' : 'text-on-surface-variant'}`}>
+                  <div
+                    className={`flex items-center gap-2 transition-colors duration-300 ${isMinLength ? 'text-success' : 'text-on-surface-variant'}`}
+                  >
                     <span className="material-symbols-outlined text-sm">
                       {isMinLength ? 'check_circle' : 'circle'}
                     </span>
                     <span className="text-xs">Tối thiểu 8 ký tự</span>
                   </div>
-                  <div className={`flex items-center gap-2 transition-colors duration-300 ${hasLetterAndNumber ? 'text-success' : 'text-on-surface-variant'}`}>
+                  <div
+                    className={`flex items-center gap-2 transition-colors duration-300 ${hasLetterAndNumber ? 'text-success' : 'text-on-surface-variant'}`}
+                  >
                     <span className="material-symbols-outlined text-sm">
                       {hasLetterAndNumber ? 'check_circle' : 'circle'}
                     </span>
@@ -243,9 +252,25 @@ export default function ResetPassword(): React.ReactElement {
                   >
                     {loading ? (
                       <span className="flex items-center gap-2 justify-center text-white">
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
                         </svg>
                         <span>Đang cập nhật...</span>
                       </span>
@@ -277,7 +302,10 @@ export default function ResetPassword(): React.ReactElement {
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
               >
                 <div className="w-20 h-20 bg-success/15 text-success rounded-full flex items-center justify-center mx-auto">
-                  <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  <span
+                    className="material-symbols-outlined text-[48px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
                     check_circle
                   </span>
                 </div>
@@ -286,7 +314,8 @@ export default function ResetPassword(): React.ReactElement {
                     Đặt lại thành công!
                   </h3>
                   <p className="text-on-surface-variant font-body-lg text-body-lg leading-relaxed">
-                    Mật khẩu của bạn đã được cập nhật thành công. Đang chuyển hướng bạn quay lại trang đăng nhập...
+                    Mật khẩu của bạn đã được cập nhật thành công. Đang chuyển hướng bạn quay lại
+                    trang đăng nhập...
                   </p>
                 </div>
                 <Spinner message="Vui lòng đợi..." />

@@ -11,6 +11,7 @@ export const errorHandler = (err, req, res, next) => {
 
   res.status(err.statusCode).json({
     status: err.status,
+    ...(err.code && { code: err.code }),
     message: err.message || 'Internal Server Error',
     // Only send stack trace in development mode
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })

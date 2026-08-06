@@ -11,7 +11,11 @@ const baseConfig = {
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    instanceName: process.env.DB_INSTANCE
+    instanceName: process.env.DB_INSTANCE,
+    // SQL Server stores this project's DATETIME2 values in Vietnam local time.
+    // Read/write them as local wall-clock values so JSON serialization produces
+    // the correct UTC instant instead of adding another seven hours in the UI.
+    useUTC: false
   }
 };
 

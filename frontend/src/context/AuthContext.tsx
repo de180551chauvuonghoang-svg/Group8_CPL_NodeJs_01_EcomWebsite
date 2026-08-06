@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Sync with server profile to ensure it is valid
           const freshUser = await authService.getProfile();
           setUser(freshUser);
-        } catch (error) {
+        } catch {
           console.warn('Session expired or invalid, logging out automatically.');
           socketService.disconnect();
           authService.logout();
@@ -72,7 +72,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string, phone: string): Promise<any> => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string,
+  ): Promise<any> => {
     setLoading(true);
     try {
       return await authService.register(name, email, password, phone);
@@ -92,8 +97,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(updatedUser);
   };
 
+  const refreshUser = async (): Promise<User> => {
+    const freshUser = await authService.getProfile();
+    setUser(freshUser);
+    return freshUser;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithGoogle, register, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        login,
+        loginWithGoogle,
+        register,
+        logout,
+        updateUser,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

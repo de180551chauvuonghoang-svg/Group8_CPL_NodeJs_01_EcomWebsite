@@ -10,16 +10,29 @@ function Confetti() {
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
       {Array.from({ length: 30 }).map((_, i) => {
         const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
-        const left  = `${(i * 3.33) % 100}%`;
-        const size  = 6 + (i % 5) * 2;
+        const left = `${(i * 3.33) % 100}%`;
+        const size = 6 + (i % 5) * 2;
         const delay = `${(i * 0.12).toFixed(2)}s`;
-        const dur   = `${2.5 + (i % 4) * 0.4}s`;
+        const dur = `${2.5 + (i % 4) * 0.4}s`;
         return (
           <motion.div
             key={i}
-            style={{ position: 'absolute', top: '-20px', left, width: size, height: size, borderRadius: i % 2 === 0 ? '50%' : 2, background: color }}
+            style={{
+              position: 'absolute',
+              top: '-20px',
+              left,
+              width: size,
+              height: size,
+              borderRadius: i % 2 === 0 ? '50%' : 2,
+              background: color,
+            }}
             animate={{ y: '110vh', rotate: i % 2 === 0 ? 360 : -360, opacity: [1, 1, 0] }}
-            transition={{ duration: parseFloat(dur), delay: parseFloat(delay), ease: 'linear', repeat: 0 }}
+            transition={{
+              duration: parseFloat(dur),
+              delay: parseFloat(delay),
+              ease: 'linear',
+              repeat: 0,
+            }}
           />
         );
       })}
@@ -29,46 +42,61 @@ function Confetti() {
 
 // ─── Status badge ──────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  pending:   { label: 'Chờ xử lý',   color: '#fbbf24' },
+  pending: { label: 'Chờ xử lý', color: '#fbbf24' },
   confirmed: { label: 'Đã xác nhận', color: '#34d399' },
-  paid:      { label: 'Đã thanh toán', color: '#34d399' },
-  cod:       { label: 'COD',          color: '#60a5fa' },
-  momo:      { label: 'MoMo',         color: '#ae2070' },
-  failed:    { label: 'Thất bại',     color: '#f87171' },
+  pending_fulfillment: { label: 'Chờ xử lý', color: '#fbbf24' },
+  ready_to_ship: { label: 'Chờ lấy hàng', color: '#22d3ee' },
+  shipping: { label: 'Đang giao', color: '#60a5fa' },
+  delivered: { label: 'Đã giao', color: '#34d399' },
+  cancelled: { label: 'Đã hủy', color: '#f87171' },
+  paid: { label: 'Đã thanh toán', color: '#34d399' },
+  cod: { label: 'COD', color: '#60a5fa' },
+  momo: { label: 'MoMo', color: '#ae2070' },
+  failed: { label: 'Thất bại', color: '#f87171' },
 };
 const StatusBadge = ({ value }: { value: string }) => {
   const s = STATUS_MAP[value] || { label: value, color: '#94a3b8' };
   return (
-    <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-      style={{ background: `${s.color}20`, color: s.color }}>{s.label}</span>
+    <span
+      className="text-xs font-bold px-2.5 py-1 rounded-full"
+      style={{ background: `${s.color}20`, color: s.color }}
+    >
+      {s.label}
+    </span>
   );
 };
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
 export default function PaymentReturn() {
-  const [params]   = useSearchParams();
-  const navigate   = useNavigate();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
   const resultCode = Number(params.get('resultCode') ?? 1);
-  const orderId    = params.get('orderId') ?? '';
-  const method     = params.get('method') ?? 'momo'; // 'momo' | 'cod'
-  const isSuccess  = resultCode === 0;
+  const orderId = params.get('orderId') ?? '';
+  const method = params.get('method') ?? 'momo'; // 'momo' | 'cod'
+  const isSuccess = resultCode === 0;
 
-  const [order,   setOrder]   = useState<OrderStatusData | null>(null);
+  const [order, setOrder] = useState<OrderStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelError, setCancelError] = useState('');
   const cancelRequestedRef = useRef(false);
   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
 
   useEffect(() => {
-    if (!orderId) { setLoading(false); return; }
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
     if (!isSuccess && !cancelRequestedRef.current) {
       cancelRequestedRef.current = true;
       paymentService.cancelOrder(orderId).catch((error) => {
         console.warn('Unable to cancel failed payment order.', error);
-        setCancelError('Chưa thể tự động hủy đơn và hoàn kho. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+        setCancelError(
+          'Chưa thể tự động hủy đơn và hoàn kho. Vui lòng thử lại hoặc liên hệ hỗ trợ.',
+        );
       });
     }
-    paymentService.getOrderStatus(orderId)
+    paymentService
+      .getOrderStatus(orderId)
       .then(setOrder)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -82,11 +110,14 @@ export default function PaymentReturn() {
     >
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 z-0" aria-hidden>
-        <div className="absolute inset-0" style={{
-          background: isSuccess
-            ? 'radial-gradient(ellipse at 50% 30%, rgba(52,211,153,0.06) 0%, transparent 65%)'
-            : 'radial-gradient(ellipse at 50% 30%, rgba(248,113,113,0.06) 0%, transparent 65%)'
-        }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: isSuccess
+              ? 'radial-gradient(ellipse at 50% 30%, rgba(52,211,153,0.06) 0%, transparent 65%)'
+              : 'radial-gradient(ellipse at 50% 30%, rgba(248,113,113,0.06) 0%, transparent 65%)',
+          }}
+        />
       </div>
 
       {isSuccess && <Confetti />}
@@ -154,8 +185,12 @@ export default function PaymentReturn() {
             ) : order ? (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">Mã đơn hàng</p>
-                  <p className="text-sm font-mono font-bold text-primary">#{order.id.substring(0, 12).toUpperCase()}</p>
+                  <p className="text-xs text-on-surface-variant font-semibold uppercase tracking-wider">
+                    Mã đơn hàng
+                  </p>
+                  <p className="text-sm font-mono font-bold text-primary">
+                    #{order.id.substring(0, 12).toUpperCase()}
+                  </p>
                 </div>
                 <div className="h-px bg-white/8 mb-4" />
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -169,7 +204,7 @@ export default function PaymentReturn() {
                   </div>
                   <div>
                     <p className="text-xs text-on-surface-variant mb-1">Trạng thái đơn</p>
-                    <StatusBadge value={order.order_status} />
+                    <StatusBadge value={order.display_status} />
                   </div>
                   <div>
                     <p className="text-xs text-on-surface-variant mb-1">Thanh toán</p>
@@ -186,10 +221,31 @@ export default function PaymentReturn() {
                     </div>
                   )}
                 </div>
+                {order.items.length > 0 && (
+                  <div className="mt-4 divide-y divide-white/8 border-t border-white/8">
+                    {order.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-wrap items-center justify-between gap-2 py-3 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{item.product_name}</p>
+                          <p className="mt-0.5 text-on-surface-variant">
+                            {item.shop_name} · SL: {item.quantity}
+                          </p>
+                        </div>
+                        <StatusBadge value={item.fulfillment_status} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-on-surface-variant">
-                Mã đơn hàng: <span className="font-mono text-primary">#{orderId.substring(0, 12).toUpperCase()}</span>
+                Mã đơn hàng:{' '}
+                <span className="font-mono text-primary">
+                  #{orderId.substring(0, 12).toUpperCase()}
+                </span>
               </p>
             )}
           </motion.div>
@@ -204,27 +260,36 @@ export default function PaymentReturn() {
         >
           {isSuccess ? (
             <>
-              <Link to="/profile" className="flex-1 h-12 rounded-2xl border border-white/15 flex items-center justify-center gap-2 text-sm font-bold text-on-surface hover:border-white/30 hover:bg-white/5 transition-all">
+              <Link
+                to="/profile"
+                className="flex-1 h-12 rounded-2xl border border-white/15 flex items-center justify-center gap-2 text-sm font-bold text-on-surface hover:border-white/30 hover:bg-white/5 transition-all"
+              >
                 <span className="material-symbols-outlined text-[18px]">receipt_long</span>
                 Xem đơn hàng
               </Link>
-              <Link to="/"
+              <Link
+                to="/"
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-black text-white transition-all"
-                style={{ background: 'var(--accent-gradient)' }}>
+                style={{ background: 'var(--accent-gradient)' }}
+              >
                 <span className="material-symbols-outlined text-[18px]">home</span>
                 Về trang chủ
               </Link>
             </>
           ) : (
             <>
-              <button onClick={() => navigate('/checkouts')}
+              <button
+                onClick={() => navigate('/checkouts')}
                 className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-black text-white"
-                style={{ background: 'var(--accent-gradient)' }}>
+                style={{ background: 'var(--accent-gradient)' }}
+              >
                 <span className="material-symbols-outlined text-[18px]">refresh</span>
                 Thử lại
               </button>
-              <Link to="/cart"
-                className="flex-1 h-12 rounded-2xl border border-white/15 flex items-center justify-center gap-2 text-sm font-bold text-on-surface hover:border-white/30 hover:bg-white/5 transition-all">
+              <Link
+                to="/cart"
+                className="flex-1 h-12 rounded-2xl border border-white/15 flex items-center justify-center gap-2 text-sm font-bold text-on-surface hover:border-white/30 hover:bg-white/5 transition-all"
+              >
                 <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
                 Về giỏ hàng
               </Link>

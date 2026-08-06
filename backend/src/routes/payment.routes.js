@@ -14,7 +14,7 @@ const router = Router();
 
 // ─── COD ──────────────────────────────────────────────────────────────────────
 router.post('/cod/create', protect, createCODOrder);
-router.post('/coupons/validate', validateCoupon);
+router.post('/coupons/validate', protect, validateCoupon);
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 // Lấy trạng thái 1 đơn hàng (dùng ở PaymentReturn page sau redirect)

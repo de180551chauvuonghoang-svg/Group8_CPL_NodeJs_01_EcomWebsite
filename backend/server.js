@@ -2,9 +2,11 @@ import 'dotenv/config';
 import app from "./src/app.js";
 import { connectDB } from "./src/config/db.js";
 import { setupSocket } from "./src/config/socket.js";
+import { startSellerWalletReleaseJob } from "./src/services/sellerWalletService.js";
 
 // Connect to SQL Server Database before starting server
 await connectDB();
+startSellerWalletReleaseJob();
 
 const PORT = process.env.PORT || 5000;
 

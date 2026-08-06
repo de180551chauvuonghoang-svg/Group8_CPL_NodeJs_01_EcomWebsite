@@ -12,6 +12,8 @@ export const productService = {
           CASE WHEN fs.id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isFlashSale,
           fs.ends_at AS flashSaleEndsAt,
           COALESCE(pv.stock_qty, 0) AS stock,
+          pv.id AS variantId,
+          pv.sku,
           COALESCE(pv.image_url, pi.image_url, '') AS image,
           c.name AS category,
           c.slug AS category_slug,
@@ -19,11 +21,13 @@ export const productService = {
           s.user_id AS seller_user_id,
           s.shop_name AS seller_name,
           s.logo_url AS seller_logo_url,
+          CAST(COALESCE(review_stats.average_rating, 0) AS DECIMAL(10, 2)) AS rating,
+          COALESCE(review_stats.review_count, 0) AS reviewsCount,
           ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY pv.id) AS rn
         FROM Products p
-        LEFT JOIN ProductVariants pv ON p.id = pv.product_id
+        LEFT JOIN ProductVariants pv ON p.id = pv.product_id AND pv.is_default = 1
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        LEFT JOIN Sellers s ON p.seller_id = s.id
+        INNER JOIN Sellers s ON p.seller_id = s.id AND s.status = 'active'
         LEFT JOIN ProductCategories pc ON p.id = pc.product_id
         LEFT JOIN Categories c ON pc.category_id = c.id
         OUTER APPLY (
@@ -36,6 +40,15 @@ export const productService = {
             AND ends_at >= GETDATE()
           ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
         ) fs
+        OUTER APPLY (
+          SELECT
+            AVG(CAST(review.rating AS DECIMAL(10, 2))) AS average_rating,
+            COUNT(*) AS review_count
+          FROM Reviews review
+          WHERE review.product_id = p.id
+            AND review.is_approved = 1
+            AND review.deleted_at IS NULL
+        ) review_stats
         WHERE ISNULL(p.is_active, 1) = 1
     `;
     const request = pool.request();
@@ -66,8 +79,9 @@ export const productService = {
     query += `
       )
       SELECT id, name, description, price, originalPrice, isFlashSale, flashSaleEndsAt,
-             stock, image, category, category_slug,
-             seller_id, seller_user_id, seller_name, seller_logo_url
+             stock, variantId, sku, image, category, category_slug,
+             seller_id, seller_user_id, seller_name, seller_logo_url,
+             rating, reviewsCount
       FROM product_variants
       WHERE rn = 1
     `;
@@ -80,7 +94,9 @@ export const productService = {
       price: parseFloat(product.price || 0),
       originalPrice: product.originalPrice === null ? null : parseFloat(product.originalPrice || 0),
       isFlashSale: Boolean(product.isFlashSale),
-      stock: parseInt(product.stock || 0)
+      stock: parseInt(product.stock || 0),
+      rating: Number(product.rating || 0),
+      reviewsCount: Number(product.reviewsCount || 0)
     }));
   },
 
@@ -96,17 +112,21 @@ export const productService = {
           CASE WHEN fs.id IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isFlashSale,
           fs.ends_at AS flashSaleEndsAt,
           COALESCE(pv.stock_qty, 0) AS stock,
+          pv.id AS variantId,
+          pv.sku,
           COALESCE(pv.image_url, pi.image_url, '') AS image,
           c.name AS category,
           c.slug AS category_slug,
           p.seller_id,
           s.user_id AS seller_user_id,
           s.shop_name AS seller_name,
-          s.logo_url AS seller_logo_url
+          s.logo_url AS seller_logo_url,
+          CAST(COALESCE(review_stats.average_rating, 0) AS DECIMAL(10, 2)) AS rating,
+          COALESCE(review_stats.review_count, 0) AS reviewsCount
         FROM Products p
-        LEFT JOIN ProductVariants pv ON p.id = pv.product_id
+        LEFT JOIN ProductVariants pv ON p.id = pv.product_id AND pv.is_default = 1
         LEFT JOIN ProductImages pi ON p.id = pi.product_id AND pi.is_primary = 1
-        LEFT JOIN Sellers s ON p.seller_id = s.id
+        INNER JOIN Sellers s ON p.seller_id = s.id AND s.status = 'active'
         LEFT JOIN ProductCategories pc ON p.id = pc.product_id
         LEFT JOIN Categories c ON pc.category_id = c.id
         OUTER APPLY (
@@ -119,6 +139,15 @@ export const productService = {
             AND ends_at >= GETDATE()
           ORDER BY CASE WHEN variant_id = pv.id THEN 0 ELSE 1 END, ends_at ASC
         ) fs
+        OUTER APPLY (
+          SELECT
+            AVG(CAST(review.rating AS DECIMAL(10, 2))) AS average_rating,
+            COUNT(*) AS review_count
+          FROM Reviews review
+          WHERE review.product_id = p.id
+            AND review.is_approved = 1
+            AND review.deleted_at IS NULL
+        ) review_stats
         WHERE p.id = @id AND ISNULL(p.is_active, 1) = 1
       `);
 
@@ -127,12 +156,28 @@ export const productService = {
       throw new Error('Product not found');
     }
 
+    const imagesResult = await pool.request()
+      .input('id', sql.VarChar, productId)
+      .query(`
+        SELECT id, image_url AS url, public_id AS publicId,
+               is_primary AS isPrimary, sort_order AS sortOrder
+        FROM ProductImages
+        WHERE product_id = @id
+        ORDER BY is_primary DESC, sort_order, id
+      `);
+
     return {
       ...product,
       price: parseFloat(product.price || 0),
       originalPrice: product.originalPrice === null ? null : parseFloat(product.originalPrice || 0),
       isFlashSale: Boolean(product.isFlashSale),
       stock: parseInt(product.stock || 0),
+      rating: Number(product.rating || 0),
+      reviewsCount: Number(product.reviewsCount || 0),
+      images: imagesResult.recordset.map((image) => ({
+        ...image,
+        isPrimary: Boolean(image.isPrimary)
+      })),
       seller_id: product.seller_id || null,
       seller_user_id: product.seller_user_id || null
     };

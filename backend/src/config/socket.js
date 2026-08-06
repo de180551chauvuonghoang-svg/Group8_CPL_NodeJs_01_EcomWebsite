@@ -2,7 +2,22 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { messageService } from "../services/messageService.js";
 
+// A user can be connected from several tabs or devices at the same time.
 const userSocketMap = new Map();
+
+const addUserSocket = (userId, socketId) => {
+  const socketIds = userSocketMap.get(userId) || new Set();
+  socketIds.add(socketId);
+  userSocketMap.set(userId, socketIds);
+};
+
+const removeUserSocket = (userId, socketId) => {
+  const socketIds = userSocketMap.get(userId);
+  if (!socketIds) return;
+
+  socketIds.delete(socketId);
+  if (socketIds.size === 0) userSocketMap.delete(userId);
+};
 
 const getAllowedOrigins = () => {
   const origins = [
@@ -53,16 +68,24 @@ export const setupSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
-    userSocketMap.set(socket.userId, socket.id);
+    addUserSocket(socket.userId, socket.id);
     console.log(`[Socket Connected] User: ${socket.userId} -> Socket: ${socket.id}`);
 
     socket.on("sendMessage", async (data) => {
       try {
-        const { receiverId, messageText } = data;
+        const receiverId = typeof data?.receiverId === "string"
+          ? data.receiverId.trim()
+          : "";
+        const messageText = typeof data?.messageText === "string"
+          ? data.messageText.trim()
+          : "";
         const senderId = socket.userId;
 
-        if (!senderId || !receiverId || !messageText) {
+        if (!senderId || !receiverId || !messageText || messageText.length > 2000) {
           console.warn("[Invalid Message Data]", data);
+          socket.emit("error", {
+            message: "Message must contain between 1 and 2000 characters."
+          });
           return;
         }
 
@@ -77,12 +100,12 @@ export const setupSocket = (server) => {
           messageText
         });
 
-        const receiverSocketId = userSocketMap.get(receiverId);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receiveMessage", savedMsg);
+        const receiverSocketIds = userSocketMap.get(receiverId);
+        if (receiverSocketIds?.size) {
+          io.to([...receiverSocketIds]).emit("receiveMessage", savedMsg);
           const unreadSummary = await messageService.getUnreadSummary(receiverId, senderId);
-          io.to(receiverSocketId).emit("chatUnreadUpdated", unreadSummary);
-          console.log(`[Real-time Sent] Sent to User Socket: ${receiverSocketId}`);
+          io.to([...receiverSocketIds]).emit("chatUnreadUpdated", unreadSummary);
+          console.log(`[Real-time Sent] Sent to ${receiverSocketIds.size} user socket(s).`);
         } else {
           console.log(`[Receiver Offline] User ${receiverId} is offline. Message saved to DB.`);
         }
@@ -96,7 +119,7 @@ export const setupSocket = (server) => {
 
     socket.on("disconnect", () => {
       if (socket.userId) {
-        userSocketMap.delete(socket.userId);
+        removeUserSocket(socket.userId, socket.id);
         console.log(`[Socket Disconnected] User: ${socket.userId} (Socket: ${socket.id})`);
       }
     });

@@ -89,10 +89,14 @@ BEGIN
     bank_name     NVARCHAR(100)  NULL,
     bank_account_no VARCHAR(50)  NULL,
     bank_account_holder NVARCHAR(150) NULL,
-    status        VARCHAR(30)    NOT NULL DEFAULT 'active',
+    status        VARCHAR(30)    NOT NULL DEFAULT 'pending',
     created_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
-    updated_at    DATETIME2      NOT NULL DEFAULT GETDATE()
+    updated_at    DATETIME2      NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT CK_Sellers_status_allowed
+      CHECK (status IN ('pending', 'active', 'rejected', 'suspended'))
   );
+  CREATE INDEX IX_Sellers_status_created_at
+    ON Sellers(status, created_at DESC);
   PRINT '[✓] Table Sellers created';
 END
 GO
@@ -474,6 +478,108 @@ BEGIN
 END
 GO
 
+-- Seller wallet and withdrawal ledger. WalletTransactions is append-only in application code.
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ShopWallets')
+BEGIN
+  CREATE TABLE ShopWallets (
+    id                         VARCHAR(50)   NOT NULL PRIMARY KEY,
+    seller_id                  VARCHAR(50)   NOT NULL REFERENCES Sellers(id) ON DELETE NO ACTION,
+    available_balance          DECIMAL(18,2) NOT NULL DEFAULT 0,
+    pending_balance            DECIMAL(18,2) NOT NULL DEFAULT 0,
+    withdrawal_hold_balance    DECIMAL(18,2) NOT NULL DEFAULT 0,
+    withdrawn_total            DECIMAL(18,2) NOT NULL DEFAULT 0,
+    lifetime_earnings          DECIMAL(18,2) NOT NULL DEFAULT 0,
+    created_at                 DATETIME2     NOT NULL DEFAULT GETDATE(),
+    updated_at                 DATETIME2     NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT CK_ShopWallets_non_negative CHECK (
+      available_balance >= 0 AND pending_balance >= 0
+      AND withdrawal_hold_balance >= 0 AND withdrawn_total >= 0
+      AND lifetime_earnings >= 0
+    )
+  );
+  CREATE UNIQUE INDEX UX_ShopWallets_seller_id ON ShopWallets(seller_id);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'WalletTransactions')
+BEGIN
+  CREATE TABLE WalletTransactions (
+    id                 VARCHAR(50)    NOT NULL PRIMARY KEY,
+    wallet_id          VARCHAR(50)    NOT NULL REFERENCES ShopWallets(id) ON DELETE NO ACTION,
+    seller_id          VARCHAR(50)    NOT NULL REFERENCES Sellers(id) ON DELETE NO ACTION,
+    type               VARCHAR(30)    NOT NULL,
+    amount             DECIMAL(18,2)  NOT NULL CHECK (amount > 0),
+    reference_type     VARCHAR(20)    NOT NULL,
+    reference_id       VARCHAR(50)    NOT NULL,
+    idempotency_key    VARCHAR(150)   NOT NULL UNIQUE,
+    available_at       DATETIME2      NULL,
+    description        NVARCHAR(500)  NULL,
+    created_at         DATETIME2      NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT CK_WalletTransactions_type CHECK (type IN (
+      'sale_pending', 'sale_released', 'sale_reversed',
+      'withdrawal_hold', 'withdrawal_approved',
+      'withdrawal_rejected', 'withdrawal_cancelled'
+    )),
+    CONSTRAINT CK_WalletTransactions_reference_type CHECK (
+      reference_type IN ('order_item', 'return', 'withdrawal')
+    )
+  );
+  CREATE INDEX IX_WalletTransactions_seller_created
+    ON WalletTransactions(seller_id, created_at DESC);
+  CREATE INDEX IX_WalletTransactions_wallet_type_created
+    ON WalletTransactions(wallet_id, type, created_at DESC);
+  CREATE INDEX IX_WalletTransactions_reference
+    ON WalletTransactions(reference_type, reference_id);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'WithdrawalRequests')
+BEGIN
+  CREATE TABLE WithdrawalRequests (
+    id                    VARCHAR(50)    NOT NULL PRIMARY KEY,
+    seller_id             VARCHAR(50)    NOT NULL REFERENCES Sellers(id) ON DELETE NO ACTION,
+    amount                DECIMAL(18,2)  NOT NULL CHECK (amount > 0),
+    status                VARCHAR(20)    NOT NULL DEFAULT 'pending',
+    bank_name             NVARCHAR(100)  NOT NULL,
+    bank_account_no       VARCHAR(50)    NOT NULL,
+    bank_account_holder   NVARCHAR(150)  NOT NULL,
+    seller_note           NVARCHAR(500)  NULL,
+    admin_note            NVARCHAR(500)  NULL,
+    processed_by          VARCHAR(50)    NULL REFERENCES Users(id) ON DELETE NO ACTION,
+    requested_at          DATETIME2      NOT NULL DEFAULT GETDATE(),
+    processed_at          DATETIME2      NULL,
+    CONSTRAINT CK_WithdrawalRequests_status CHECK (
+      status IN ('pending', 'approved', 'rejected', 'cancelled')
+    )
+  );
+  CREATE INDEX IX_WithdrawalRequests_seller_status_requested
+    ON WithdrawalRequests(seller_id, status, requested_at DESC);
+  CREATE INDEX IX_WithdrawalRequests_status_requested
+    ON WithdrawalRequests(status, requested_at ASC);
+END
+GO
+
+INSERT INTO ShopWallets (id, seller_id)
+SELECT LEFT(CONCAT('wallet_', REPLACE(CONVERT(VARCHAR(36), NEWID()), '-', '')), 50), seller.id
+FROM Sellers seller
+WHERE seller.status = 'active'
+  AND NOT EXISTS (SELECT 1 FROM ShopWallets wallet WHERE wallet.seller_id = seller.id);
+GO
+
+CREATE OR ALTER TRIGGER TR_Sellers_CreateWallet_OnActive
+ON Sellers
+AFTER INSERT, UPDATE
+AS
+BEGIN
+  SET NOCOUNT ON;
+  INSERT INTO ShopWallets (id, seller_id)
+  SELECT LEFT(CONCAT('wallet_', REPLACE(CONVERT(VARCHAR(36), NEWID()), '-', '')), 50), seller.id
+  FROM inserted seller
+  WHERE seller.status = 'active'
+    AND NOT EXISTS (SELECT 1 FROM ShopWallets wallet WHERE wallet.seller_id = seller.id);
+END
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Payments')
 BEGIN
   CREATE TABLE Payments (
@@ -577,5 +683,5 @@ GO
 
 PRINT '';
 PRINT '============================================================';
-PRINT '  ✅  E-Com FPT Schema applied successfully! (27 tables)';
+PRINT '  ✅  E-Com FPT Schema applied successfully!';
 PRINT '============================================================';

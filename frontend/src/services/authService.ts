@@ -63,37 +63,44 @@ export const authService = {
   },
 
   forgotPassword: async (email: string): Promise<AuthResponse> => {
-    return await API.post<AuthResponse>('/auth/forgot-password', { email }) as any;
+    return (await API.post<AuthResponse>('/auth/forgot-password', { email })) as any;
   },
 
   verifyOtp: async (email: string, otp: string): Promise<AuthResponse> => {
-    return await API.post<AuthResponse>('/auth/verify-otp', { email, otp }) as any;
+    return (await API.post<AuthResponse>('/auth/verify-otp', { email, otp })) as any;
   },
 
   resetPassword: async (email: string, otp: string, newPassword: string): Promise<AuthResponse> => {
-    return await API.post<AuthResponse>('/auth/reset-password', { email, otp, newPassword }) as any;
+    return (await API.post<AuthResponse>('/auth/reset-password', {
+      email,
+      otp,
+      newPassword,
+    })) as any;
   },
 
   updateProfile: async (
-    name: string, 
-    phone: string, 
-    avatarUrl?: string, 
-    bio?: string, 
-    country?: string, 
-    timezone?: string
+    name: string,
+    phone: string,
+    avatarUrl?: string,
+    bio?: string,
+    country?: string,
+    timezone?: string,
   ): Promise<User> => {
-    const response = await API.put<{ status: string; data: { user: User } }>('/auth/update-profile', { 
-      name, 
-      phone_number: phone, 
-      avatar_url: avatarUrl,
-      bio,
-      country,
-      timezone
-    }) as any;
+    const response = (await API.put<{ status: string; data: { user: User } }>(
+      '/auth/update-profile',
+      {
+        name,
+        phone_number: phone,
+        avatar_url: avatarUrl,
+        bio,
+        country,
+        timezone,
+      },
+    )) as any;
 
     const user = response.data?.user;
     if (!user || !user.id || !user.name || !user.email) {
-      throw new Error("Không nhận được dữ liệu phản hồi người dùng hợp lệ từ máy chủ.");
+      throw new Error('Không nhận được dữ liệu phản hồi người dùng hợp lệ từ máy chủ.');
     }
 
     localStorage.setItem('ecom_user', JSON.stringify(user));
@@ -104,5 +111,5 @@ export const authService = {
     const response: any = await API.post('/auth/upload', { image: base64Image });
     const data = response.data || response;
     return data.secure_url;
-  }
+  },
 };

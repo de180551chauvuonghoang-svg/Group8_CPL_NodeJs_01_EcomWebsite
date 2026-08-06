@@ -1,137 +1,225 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   Archive,
-  DollarSign,
-  FileText,
-  Image,
+  Image as ImageIcon,
   Loader2,
   Package,
   Pencil,
   Plus,
   Search,
   Trash2,
-  X,
-  Zap
+  Warehouse,
+  Zap,
 } from 'lucide-react';
-import { sellerService } from '../services/sellerService';
-import { SellerFlashSale, SellerProduct } from '../types';
+import InventoryAdjustModal, {
+  type InventoryVariantTarget,
+} from '../components/inventory/InventoryAdjustModal';
+import StockThresholdEditor from '../components/inventory/StockThresholdEditor';
+import SellerFilterBar from '../components/seller/SellerFilterBar';
+import SellerPageHeader from '../components/seller/SellerPageHeader';
+import SellerPagination from '../components/seller/SellerPagination';
+import SellerStatePanel from '../components/seller/SellerStatePanel';
+import DeleteProductDialog from '../components/seller/products/DeleteProductDialog';
+import FlashSaleDialog from '../components/seller/products/FlashSaleDialog';
+import ProductFormDialog, {
+  type ProductFormValues,
+} from '../components/seller/products/ProductFormDialog';
+import { sellerService, type SellerProductPayload } from '../services/sellerService';
+import type { Pagination, ProductImage, SellerFlashSale, SellerProduct } from '../types';
+import { isNonNegativeInteger, isPositivePrice } from '../utils/sellerValidation';
 
-type FormData = {
-  name: string;
-  price: string;
-  description: string;
-  image: string;
-  stock: string;
-  categoryId: string;
-  isActive: boolean;
-};
+type ProductForm = ProductFormValues;
 
-const defaultForm: FormData = {
+const EMPTY_PAGINATION: Pagination = { page: 1, limit: 12, total: 0, total_pages: 0 };
+
+const EMPTY_FORM: ProductForm = {
   name: '',
   price: '',
   description: '',
-  image: '',
-  stock: '',
+  stock: '0',
+  stockReason: '',
+  sku: '',
+  lowStockThreshold: '5',
   categoryId: '',
-  isActive: true
+  isActive: true,
+  images: [],
+};
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Tất cả trạng thái' },
+  { value: 'active', label: 'Đang bán' },
+  { value: 'inactive', label: 'Đã ẩn' },
+  { value: 'low_stock', label: 'Sắp hết hàng' },
+  { value: 'out_of_stock', label: 'Hết hàng' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'created_at:desc', label: 'Mới cập nhật' },
+  { value: 'name:asc', label: 'Tên A-Z' },
+  { value: 'price:asc', label: 'Giá thấp đến cao' },
+  { value: 'price:desc', label: 'Giá cao đến thấp' },
+  { value: 'stock:asc', label: 'Tồn kho thấp trước' },
+];
+
+const getDefaultVariant = (product: SellerProduct) =>
+  product.default_variant || product.variants?.[0] || null;
+
+const normalizeProductImages = (product: SellerProduct): ProductImage[] => {
+  if (product.images?.length) {
+    return product.images.map((image, index) => ({
+      url: image.url,
+      publicId: image.publicId || null,
+      isPrimary: image.isPrimary ?? index === 0,
+      sortOrder: image.sortOrder ?? index,
+    }));
+  }
+  return product.image_url ? [{ url: product.image_url, isPrimary: true, sortOrder: 0 }] : [];
 };
 
 const isSaleRunning = (sale: SellerFlashSale) => {
   const now = Date.now();
-  return sale.status === 'active'
-    && new Date(sale.starts_at).getTime() <= now
-    && new Date(sale.ends_at).getTime() >= now;
+  return (
+    sale.status === 'active' &&
+    new Date(sale.starts_at).getTime() <= now &&
+    new Date(sale.ends_at).getTime() >= now
+  );
 };
 
-const isSaleUpcomingOrRunning = (sale: SellerFlashSale) => {
-  return sale.status === 'active' && new Date(sale.ends_at).getTime() >= Date.now();
+const isSaleUpcomingOrRunning = (sale: SellerFlashSale) =>
+  sale.status === 'active' && new Date(sale.ends_at).getTime() >= Date.now();
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+
+const localDateTimeValue = (date: Date) => {
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return offsetDate.toISOString().slice(0, 16);
 };
 
 export default function SellerProducts() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const search = searchParams.get('search') || '';
+  const categoryId = searchParams.get('categoryId') || 'all';
+  const status =
+    searchParams.get('status') ||
+    (searchParams.get('filter') === 'low-stock' ? 'low_stock' : 'all');
+  const sort = searchParams.get('sort') || 'created_at:desc';
+  const [sortBy, sortOrder] = sort.split(':') as [string, 'asc' | 'desc'];
+
+  const [searchDraft, setSearchDraft] = useState(search);
   const [products, setProducts] = useState<SellerProduct[]>([]);
+  const [pagination, setPagination] = useState<Pagination>(EMPTY_PAGINATION);
   const [flashSales, setFlashSales] = useState<SellerFlashSale[]>([]);
-  const [searchParams] = useSearchParams();
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState<SellerProduct | null>(null);
-  const [form, setForm] = useState<FormData>(defaultForm);
+  const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SellerProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [adjustTarget, setAdjustTarget] = useState<InventoryVariantTarget | null>(null);
+
   const [flashTarget, setFlashTarget] = useState<SellerProduct | null>(null);
   const [flashForm, setFlashForm] = useState({ salePrice: '', startsAt: '', endsAt: '' });
   const [flashSubmitting, setFlashSubmitting] = useState(false);
   const [stoppingSaleId, setStoppingSaleId] = useState<string | null>(null);
 
-  const loadProducts = async () => {
+  const updateQuery = (updates: Record<string, string | number | null>) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '' || value === 'all') next.delete(key);
+      else next.set(key, String(value));
+    });
+    if (!('page' in updates)) next.set('page', '1');
+    next.delete('filter');
+    setSearchParams(next);
+  };
+
+  const loadProducts = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const [productData, saleData] = await Promise.all([
-        sellerService.getProducts(),
-        sellerService.getFlashSales().catch(() => []),
-      ]);
-      setProducts(Array.isArray(productData) ? productData : []);
-      setFlashSales(Array.isArray(saleData) ? saleData : []);
-    } catch {
+      const result = await sellerService.getProductsPage({
+        page,
+        limit: 12,
+        search: search || undefined,
+        categoryId: categoryId === 'all' ? undefined : categoryId,
+        status,
+        sortBy,
+        sortOrder,
+      });
+      setProducts(result.products);
+      setPagination(result.pagination);
+    } catch (requestError: any) {
       setProducts([]);
-      setFlashSales([]);
+      setPagination(EMPTY_PAGINATION);
+      setError(requestError?.data?.message || requestError?.message || 'Không thể tải sản phẩm.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [categoryId, page, search, sortBy, sortOrder, status]);
 
-  useEffect(() => {
-    loadProducts();
-    sellerService.getCategories()
-      .then(data => setCategories(Array.isArray(data) ? data : []))
-      .catch(() => setCategories([]));
+  const loadFlashSales = useCallback(async () => {
+    const data = await sellerService.getFlashSales().catch(() => []);
+    setFlashSales(Array.isArray(data) ? data : []);
   }, []);
 
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    void loadFlashSales();
+    sellerService
+      .getCategories()
+      .then((data) => setCategories(Array.isArray(data) ? data : []))
+      .catch(() => setCategories([]));
+  }, [loadFlashSales]);
+
+  useEffect(() => setSearchDraft(search), [search]);
+
   const saleByProduct = useMemo(() => {
-    const map = new Map<string, SellerFlashSale>();
+    const result = new Map<string, SellerFlashSale>();
     flashSales
       .filter(isSaleUpcomingOrRunning)
-      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-      .forEach(sale => {
-        if (!map.has(sale.product_id)) map.set(sale.product_id, sale);
+      .sort(
+        (first, second) =>
+          new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime(),
+      )
+      .forEach((sale) => {
+        if (!result.has(sale.product_id)) result.set(sale.product_id, sale);
       });
-    return map;
+    return result;
   }, [flashSales]);
-
-  const filtered = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = searchParams.get('filter') === 'low-stock'
-      ? (product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5
-      : true;
-    return matchesSearch && matchesFilter;
-  });
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 
   const openCreate = () => {
     setEditProduct(null);
-    setForm(defaultForm);
+    setForm(EMPTY_FORM);
     setError('');
     setShowModal(true);
   };
 
   const openEdit = (product: SellerProduct) => {
+    const variant = getDefaultVariant(product);
     setEditProduct(product);
     setForm({
       name: product.name,
       price: String(product.base_price),
       description: product.description || '',
-      image: product.image_url || '',
-      stock: product.stock_qty != null ? String(product.stock_qty) : '',
+      stock: String(variant?.stock_qty ?? product.stock_qty ?? 0),
+      stockReason: '',
+      sku: variant?.sku || '',
+      lowStockThreshold: String(variant?.low_stock_threshold ?? 5),
       categoryId: product.category_id || '',
-      isActive: product.is_active
+      isActive: product.is_active,
+      images: normalizeProductImages(product),
     });
     setError('');
     setShowModal(true);
@@ -139,48 +227,88 @@ export default function SellerProducts() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!form.name.trim() || !form.price || !form.categoryId) {
-      setError('Tên sản phẩm, giá và danh mục là bắt buộc.');
+    const sku = form.sku.trim().toUpperCase();
+    const stock = Number(form.stock);
+    const threshold = Number(form.lowStockThreshold);
+
+    if (!form.name.trim() || !form.price || !form.categoryId || !sku) {
+      setError('Tên sản phẩm, giá, danh mục và SKU là bắt buộc.');
       return;
     }
+    if (!isPositivePrice(form.price)) {
+      setError('Giá sản phẩm phải là số lớn hơn 0.');
+      return;
+    }
+    if (!isNonNegativeInteger(form.stock)) {
+      setError('Số lượng tồn kho phải là số nguyên không âm.');
+      return;
+    }
+    if (!/^[A-Z0-9._-]{3,100}$/.test(sku)) {
+      setError('SKU cần 3-100 ký tự, chỉ gồm chữ, số, dấu chấm, gạch dưới hoặc gạch ngang.');
+      return;
+    }
+    if (!Number.isInteger(threshold) || threshold < 0 || threshold > 1_000_000) {
+      setError('Ngưỡng cảnh báo phải là số nguyên từ 0 đến 1.000.000.');
+      return;
+    }
+    if (!form.images.length) {
+      setError('Vui lòng tải ít nhất một ảnh sản phẩm.');
+      return;
+    }
+
+    const oldStock = editProduct ? (getDefaultVariant(editProduct)?.stock_qty ?? 0) : 0;
+    const stockChanged = Boolean(editProduct) && stock !== oldStock;
+    if (stockChanged && (form.stockReason.trim().length < 3 || form.stockReason.length > 255)) {
+      setError('Lý do thay đổi tồn kho phải có từ 3 đến 255 ký tự.');
+      return;
+    }
+
+    const payload: SellerProductPayload = {
+      name: form.name.trim(),
+      price: Number(form.price),
+      categoryId: form.categoryId,
+      description: form.description.trim(),
+      sku,
+      stock,
+      lowStockThreshold: threshold,
+      isActive: form.isActive,
+      stockReason: stockChanged ? form.stockReason.trim() : undefined,
+      images: form.images.map((image, index) => ({
+        url: image.url,
+        publicId: image.publicId || null,
+        isPrimary: image.isPrimary ?? index === 0,
+        sortOrder: index,
+      })),
+    };
 
     setSubmitting(true);
     setError('');
     try {
-      const payload = {
-        name: form.name.trim(),
-        price: Number(form.price),
-        description: form.description,
-        image: form.image || undefined,
-        stock: form.stock ? Number(form.stock) : editProduct ? undefined : 0,
-        categoryId: form.categoryId,
-        isActive: form.isActive
-      };
-
-      if (editProduct) {
-        await sellerService.updateProduct(editProduct.id, payload);
-      } else {
-        await sellerService.createProduct(payload);
-      }
+      if (editProduct) await sellerService.updateProduct(editProduct.id, payload);
+      else await sellerService.createProduct(payload);
       setShowModal(false);
-      loadProducts();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra.');
+      await loadProducts();
+    } catch (requestError: any) {
+      setError(
+        requestError?.data?.message ||
+          requestError?.response?.data?.message ||
+          requestError?.message ||
+          'Không thể lưu sản phẩm.',
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async () => {
+  const deleteProduct = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    setError('');
     try {
       await sellerService.deleteProduct(deleteTarget.id);
       setDeleteTarget(null);
-      loadProducts();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Xóa thất bại.');
+      await loadProducts();
+    } catch (requestError: any) {
+      setError(requestError?.data?.message || requestError?.message || 'Không thể xóa sản phẩm.');
     } finally {
       setDeleting(false);
     }
@@ -188,27 +316,24 @@ export default function SellerProducts() {
 
   const openFlashSale = (product: SellerProduct) => {
     const now = new Date();
-    const start = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    const endDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const end = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     setFlashTarget(product);
-    setFlashForm({ salePrice: '', startsAt: start, endsAt: end });
+    setFlashForm({
+      salePrice: '',
+      startsAt: localDateTimeValue(now),
+      endsAt: localDateTimeValue(tomorrow),
+    });
     setError('');
   };
 
   const createFlashSale = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!flashTarget) return;
-
     const originalPrice = Number(flashTarget.base_price);
     const salePrice = Number(flashForm.salePrice);
 
-    if (!salePrice || salePrice <= 0) {
-      setError('Giá sale phải lớn hơn 0.');
-      return;
-    }
-    if (salePrice >= originalPrice) {
-      setError('Giá sale phải nhỏ hơn giá gốc.');
+    if (!Number.isFinite(salePrice) || salePrice <= 0 || salePrice >= originalPrice) {
+      setError('Giá sale phải lớn hơn 0 và nhỏ hơn giá gốc.');
       return;
     }
     if (!flashForm.startsAt || !flashForm.endsAt) {
@@ -230,12 +355,12 @@ export default function SellerProducts() {
         salePrice,
         startsAt: new Date(flashForm.startsAt).toISOString(),
         endsAt: new Date(flashForm.endsAt).toISOString(),
-        status: 'active'
+        status: 'active',
       });
       setFlashTarget(null);
-      loadProducts();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Không tạo được flash sale.');
+      await Promise.all([loadProducts(), loadFlashSales()]);
+    } catch (requestError: any) {
+      setError(requestError?.data?.message || requestError?.message || 'Không thể tạo flash sale.');
     } finally {
       setFlashSubmitting(false);
     }
@@ -245,262 +370,344 @@ export default function SellerProducts() {
     setStoppingSaleId(sale.id);
     try {
       await sellerService.deleteFlashSale(sale.id);
-      setFlashSales(prev => prev.map(item => item.id === sale.id ? { ...item, status: 'inactive' } : item));
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Không ngừng được flash sale.');
+      await loadFlashSales();
+    } catch (requestError: any) {
+      setError(
+        requestError?.data?.message || requestError?.message || 'Không thể ngừng flash sale.',
+      );
     } finally {
       setStoppingSaleId(null);
     }
   };
 
   return (
-    <div className="min-h-screen bg-surface p-6 lg:p-8">
+    <div className="min-h-screen bg-surface p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-on-surface">Quản lý sản phẩm</h1>
-            <p className="mt-1 text-sm text-on-surface-variant">{products.length} sản phẩm trong cửa hàng</p>
-          </div>
-          <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={openCreate} className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25">
-            <Plus size={18} />
-            Thêm sản phẩm
-          </motion.button>
-        </div>
+        <SellerPageHeader
+          icon={Package}
+          eyebrow="Danh mục bán"
+          title="Quản lý sản phẩm"
+          description={`${pagination.total.toLocaleString('vi-VN')} sản phẩm trong cửa hàng`}
+          actions={
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary/90"
+            >
+              <Plus size={18} />
+              Thêm sản phẩm
+            </button>
+          }
+        />
 
-        <div className="relative mb-6">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm sản phẩm..."
-            value={search}
-            onChange={event => setSearch(event.target.value)}
-            className="w-full rounded-2xl border-2 border-outline-variant/50 bg-surface-container py-3.5 pl-11 pr-5 text-sm text-on-surface outline-none transition focus:border-primary/50"
-          />
-        </div>
+        <section className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface-container-lowest">
+          <SellerFilterBar
+            className="grid-cols-1 md:grid-cols-[minmax(220px,1fr)_180px_180px_180px]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              updateQuery({ search: searchDraft.trim() || null });
+            }}
+          >
+            <label className="relative block">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
+                size={17}
+              />
+              <input
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
+                placeholder="Tìm tên sản phẩm hoặc SKU"
+                className="h-11 w-full rounded-md border border-outline-variant bg-surface-container pl-10 pr-3 text-sm outline-none focus:border-primary"
+              />
+            </label>
+            <select
+              value={status}
+              onChange={(event) => updateQuery({ status: event.target.value })}
+              className="h-11 rounded-md border border-outline-variant bg-surface-container px-3 text-sm outline-none focus:border-primary"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={categoryId}
+              onChange={(event) => updateQuery({ categoryId: event.target.value })}
+              className="h-11 rounded-md border border-outline-variant bg-surface-container px-3 text-sm outline-none focus:border-primary"
+            >
+              <option value="all">Tất cả danh mục</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sort}
+              onChange={(event) => updateQuery({ sort: event.target.value })}
+              className="h-11 rounded-md border border-outline-variant bg-surface-container px-3 text-sm outline-none focus:border-primary"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </SellerFilterBar>
 
-        {loading ? (
-          <div className="flex h-48 items-center justify-center">
-            <Loader2 size={32} className="animate-spin text-primary" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-outline-variant bg-surface-container-lowest/50 py-20 text-center">
-            <Package size={48} className="mx-auto mb-4 text-on-surface-variant/30" />
-            <h3 className="font-bold text-on-surface">Chưa có sản phẩm nào</h3>
-            <p className="mt-1 text-sm text-on-surface-variant">Nhấn "Thêm sản phẩm" để bắt đầu</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((product, index) => {
-              const sale = saleByProduct.get(product.id);
-              const running = sale ? isSaleRunning(sale) : false;
-              const stock = product.stock_qty ?? 0;
-              return (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.04 }}
-                  className="group overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-container-lowest/80 backdrop-blur-xl transition hover:border-primary/30 hover:shadow-lg"
-                >
-                  <div className="relative h-40 overflow-hidden bg-surface-container">
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Image size={32} className="text-on-surface-variant/30" />
-                      </div>
-                    )}
-                    {sale && (
-                      <span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-black uppercase text-white ${running ? 'bg-error' : 'bg-warning'}`}>
-                        {running ? 'Đang sale' : 'Sắp sale'}
+          {error && !showModal && !flashTarget && (
+            <div className="flex items-center gap-2 border-b border-error/20 bg-error/5 px-5 py-3 text-sm font-semibold text-error">
+              <AlertTriangle size={17} /> {error}
+            </div>
+          )}
+
+          {loading ? (
+            <SellerStatePanel state="loading" />
+          ) : products.length === 0 ? (
+            <SellerStatePanel
+              state="empty"
+              icon={Package}
+              title="Không có sản phẩm phù hợp"
+              description="Thử thay đổi bộ lọc hoặc thêm sản phẩm mới cho cửa hàng."
+              actionLabel="Thêm sản phẩm"
+              onAction={openCreate}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product, index) => {
+                const variant = getDefaultVariant(product);
+                const stock = variant?.stock_qty ?? product.stock_qty ?? 0;
+                const threshold = variant?.low_stock_threshold ?? 5;
+                const sale = saleByProduct.get(product.id);
+                const running = sale ? isSaleRunning(sale) : false;
+                const primaryImage =
+                  product.images?.find((image) => image.isPrimary)?.url ||
+                  product.images?.[0]?.url ||
+                  product.image_url;
+
+                return (
+                  <motion.article
+                    key={product.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: Math.min(index * 0.03, 0.18) }}
+                    className="overflow-hidden rounded-lg border border-outline-variant/40 bg-surface"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden bg-surface-container">
+                      {primaryImage ? (
+                        <img
+                          src={primaryImage}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-on-surface-variant/40">
+                          <ImageIcon size={34} />
+                        </div>
+                      )}
+                      {sale && (
+                        <span
+                          className={`absolute left-3 top-3 rounded-md px-2 py-1 text-[10px] font-black uppercase text-white ${running ? 'bg-error' : 'bg-warning'}`}
+                        >
+                          {running ? 'Đang sale' : 'Sắp sale'}
+                        </span>
+                      )}
+                      <span
+                        className={`absolute right-3 top-3 rounded-md px-2 py-1 text-[10px] font-black ${product.is_active ? 'bg-success/90 text-white' : 'bg-slate-800/80 text-white'}`}
+                      >
+                        {product.is_active ? 'Đang bán' : 'Đã ẩn'}
                       </span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="mb-1 line-clamp-2 text-sm font-bold leading-tight text-on-surface">{product.name}</h3>
-                    <div className="flex flex-wrap items-end gap-2">
-                      {sale && running ? (
-                        <>
-                          <p className="text-lg font-black text-error">{formatCurrency(Number(sale.sale_price))}</p>
-                          <p className="pb-0.5 text-xs font-semibold text-on-surface-variant line-through">{formatCurrency(product.base_price)}</p>
-                        </>
-                      ) : (
-                        <p className="text-lg font-black text-primary">{formatCurrency(product.base_price)}</p>
-                      )}
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-surface-container px-3 py-2">
-                        <p className="text-[10px] font-bold uppercase text-on-surface-variant">Tồn kho</p>
-                        <p className={`mt-0.5 text-sm font-black ${stock <= 5 ? 'text-warning' : 'text-on-surface'}`}>{stock} SP</p>
-                      </div>
-                      <div className="rounded-xl bg-surface-container px-3 py-2">
-                        <p className="text-[10px] font-bold uppercase text-on-surface-variant">Trạng thái</p>
-                        <p className={`mt-0.5 text-sm font-black ${product.is_active ? 'text-success' : 'text-on-surface-variant'}`}>{product.is_active ? 'Đang bán' : 'Đã ẩn'}</p>
-                      </div>
-                    </div>
-
-                    {sale && (
-                      <p className="mt-2 text-xs font-semibold text-on-surface-variant">
-                        Sale đến {new Date(sale.ends_at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                    <div className="p-4">
+                      <p className="truncate text-xs font-semibold text-on-surface-variant">
+                        {product.category_name || 'Chưa phân loại'} ·{' '}
+                        {variant?.sku || 'Chưa có SKU'}
                       </p>
-                    )}
+                      <h2 className="mt-1 line-clamp-2 min-h-10 text-sm font-black text-on-surface">
+                        {product.name}
+                      </h2>
+                      <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                        <strong className={running ? 'text-error' : 'text-primary'}>
+                          {formatCurrency(running ? Number(sale?.sale_price) : product.base_price)}
+                        </strong>
+                        {running && (
+                          <span className="text-xs text-on-surface-variant line-through">
+                            {formatCurrency(product.base_price)}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="mt-3 flex gap-2">
-                      {sale ? (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => stopFlashSale(sale)} disabled={stoppingSaleId === sale.id} className="flex items-center justify-center gap-1.5 rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-xs font-semibold text-error transition hover:bg-error/20 disabled:opacity-60">
-                          {stoppingSaleId === sale.id ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-                          Ngừng sale
-                        </motion.button>
-                      ) : (
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => openFlashSale(product)} className="flex items-center justify-center gap-1.5 rounded-xl border border-warning/20 bg-warning/10 px-3 py-2 text-xs font-semibold text-warning transition hover:bg-warning/20">
-                          <Zap size={13} />
-                          Sale
-                        </motion.button>
-                      )}
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => openEdit(product)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-outline-variant bg-surface-container py-2 text-xs font-semibold text-on-surface transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary">
-                        <Pencil size={13} />
-                        Sửa
-                      </motion.button>
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setDeleteTarget(product); setError(''); }} className="flex items-center justify-center rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-xs font-semibold text-error transition hover:bg-error/20">
-                        <Trash2 size={13} />
-                      </motion.button>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="rounded-md bg-surface-container px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase text-on-surface-variant">
+                            Tồn kho
+                          </p>
+                          <p
+                            className={`mt-1 text-sm font-black ${stock === 0 ? 'text-error' : stock <= threshold ? 'text-warning' : 'text-on-surface'}`}
+                          >
+                            {stock} sản phẩm
+                          </p>
+                        </div>
+                        <div className="rounded-md bg-surface-container px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase text-on-surface-variant">
+                            Cảnh báo
+                          </p>
+                          <div className="mt-1">
+                            {variant ? (
+                              <StockThresholdEditor
+                                productId={product.id}
+                                variantId={variant.id}
+                                value={threshold}
+                                onUpdated={loadProducts}
+                              />
+                            ) : (
+                              <span className="text-xs text-on-surface-variant">Chưa có</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2 border-t border-outline-variant/40 pt-3">
+                        <IconButton
+                          title="Sửa sản phẩm"
+                          onClick={() => openEdit(product)}
+                          icon={Pencil}
+                        />
+                        {variant && (
+                          <IconButton
+                            title="Điều chỉnh kho"
+                            onClick={() =>
+                              setAdjustTarget({
+                                variantId: variant.id,
+                                productId: product.id,
+                                productName: product.name,
+                                sku: variant.sku,
+                                stockQty: stock,
+                              })
+                            }
+                            icon={Warehouse}
+                          />
+                        )}
+                        {sale ? (
+                          <button
+                            type="button"
+                            disabled={stoppingSaleId === sale.id}
+                            onClick={() => void stopFlashSale(sale)}
+                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md border border-warning/40 px-3 text-xs font-bold text-warning disabled:opacity-50"
+                          >
+                            {stoppingSaleId === sale.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Archive size={14} />
+                            )}
+                            Ngừng sale
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openFlashSale(product)}
+                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md bg-error px-3 text-xs font-bold text-white"
+                          >
+                            <Zap size={14} /> Flash sale
+                          </button>
+                        )}
+                        <IconButton
+                          title="Xóa sản phẩm"
+                          onClick={() => setDeleteTarget(product)}
+                          icon={Trash2}
+                          danger
+                        />
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+                  </motion.article>
+                );
+              })}
+            </div>
+          )}
+
+          <SellerPagination
+            page={pagination.page}
+            totalPages={pagination.total_pages}
+            total={pagination.total}
+            label="sản phẩm"
+            loading={loading}
+            onPageChange={(nextPage) => updateQuery({ page: nextPage })}
+          />
+        </section>
       </div>
 
       <AnimatePresence>
         {showModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={event => { if (event.target === event.currentTarget) setShowModal(false); }}>
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-2xl">
-              <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-lg font-black text-on-surface">{editProduct ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}</h2>
-                <button onClick={() => setShowModal(false)} className="rounded-xl p-2 transition hover:bg-surface-container">
-                  <X size={20} className="text-on-surface-variant" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {[
-                  { id: 'name', icon: FileText, label: 'Tên sản phẩm *', type: 'text', placeholder: 'VD: Chuột gaming' },
-                  { id: 'price', icon: DollarSign, label: 'Giá (VND) *', type: 'number', placeholder: 'VD: 4500000' },
-                  { id: 'stock', icon: Archive, label: 'Số lượng tồn kho', type: 'number', placeholder: 'VD: 50' },
-                  { id: 'image', icon: Image, label: 'Link ảnh sản phẩm', type: 'url', placeholder: 'https://...' }
-                ].map(({ id, icon: Icon, label, type, placeholder }) => (
-                  <div key={id} className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-sm font-semibold text-on-surface">
-                      <Icon size={14} className="text-primary" />
-                      {label}
-                    </label>
-                    <input type={type} value={form[id as keyof FormData] as string} onChange={event => setForm(previous => ({ ...previous, [id]: event.target.value }))} placeholder={placeholder} disabled={submitting} className="w-full rounded-xl border-2 border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary/50" />
-                  </div>
-                ))}
-
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-sm font-semibold text-on-surface">
-                    <Package size={14} className="text-primary" />
-                    Danh mục *
-                  </label>
-                  <select value={form.categoryId} onChange={event => setForm(previous => ({ ...previous, categoryId: event.target.value }))} disabled={submitting} className="w-full rounded-xl border-2 border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary/50">
-                    <option value="">Chọn danh mục</option>
-                    {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                </div>
-
-                <label className="flex items-center justify-between rounded-xl bg-surface-container px-4 py-3 text-sm font-semibold text-on-surface">
-                  <span>Hiển thị sản phẩm</span>
-                  <input type="checkbox" checked={form.isActive} onChange={event => setForm(previous => ({ ...previous, isActive: event.target.checked }))} disabled={submitting} className="h-4 w-4 accent-primary" />
-                </label>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-on-surface">Mô tả</label>
-                  <textarea value={form.description} onChange={event => setForm(previous => ({ ...previous, description: event.target.value }))} placeholder="Mô tả chi tiết sản phẩm..." disabled={submitting} rows={3} className="w-full resize-none rounded-xl border-2 border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary/50" />
-                </div>
-
-                {error && <p className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error"><AlertTriangle size={14} />{error}</p>}
-
-                <motion.button type="submit" disabled={submitting} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 font-bold text-white shadow-lg disabled:opacity-60">
-                  {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                  {editProduct ? 'Lưu thay đổi' : 'Tạo sản phẩm'}
-                </motion.button>
-              </form>
-            </motion.div>
-          </motion.div>
+          <ProductFormDialog
+            editProduct={editProduct}
+            form={form}
+            categories={categories}
+            originalStock={editProduct ? (getDefaultVariant(editProduct)?.stock_qty ?? 0) : 0}
+            submitting={submitting}
+            error={error}
+            onFormChange={setForm}
+            onSubmit={handleSubmit}
+            onClose={() => !submitting && setShowModal(false)}
+          />
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {flashTarget && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={event => { if (event.target === event.currentTarget) setFlashTarget(null); }}>
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="w-full max-w-md rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 shadow-2xl">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-black text-on-surface">Tạo flash sale</h2>
-                  <p className="mt-1 line-clamp-1 text-sm text-on-surface-variant">{flashTarget.name}</p>
-                </div>
-                <button onClick={() => setFlashTarget(null)} className="rounded-xl p-2 transition hover:bg-surface-container">
-                  <X size={20} className="text-on-surface-variant" />
-                </button>
-              </div>
-
-              <form onSubmit={createFlashSale} className="space-y-4">
-                <div className="rounded-2xl border border-outline-variant/50 bg-surface-container p-4">
-                  <p className="text-xs font-semibold uppercase text-on-surface-variant">Giá gốc</p>
-                  <p className="mt-1 text-xl font-black text-on-surface">{formatCurrency(flashTarget.base_price)}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-on-surface">Giá sale *</label>
-                  <input type="number" min="1" value={flashForm.salePrice} onChange={event => setFlashForm(previous => ({ ...previous, salePrice: event.target.value }))} placeholder="VD: 990000" disabled={flashSubmitting} className="w-full rounded-xl border-2 border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary/50" />
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-on-surface">Bắt đầu *</label>
-                    <input type="datetime-local" value={flashForm.startsAt} onChange={event => setFlashForm(previous => ({ ...previous, startsAt: event.target.value }))} disabled={flashSubmitting} className="w-full rounded-xl border-2 border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary/50" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-semibold text-on-surface">Kết thúc *</label>
-                    <input type="datetime-local" value={flashForm.endsAt} onChange={event => setFlashForm(previous => ({ ...previous, endsAt: event.target.value }))} disabled={flashSubmitting} className="w-full rounded-xl border-2 border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary/50" />
-                  </div>
-                </div>
-                {error && <p className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/10 px-3 py-2 text-sm text-error"><AlertTriangle size={14} />{error}</p>}
-                <div className="flex gap-3">
-                  <button type="button" onClick={() => setFlashTarget(null)} disabled={flashSubmitting} className="flex-1 rounded-2xl border-2 border-outline-variant py-3 text-sm font-semibold text-on-surface-variant transition hover:bg-surface-container">Hủy</button>
-                  <motion.button type="submit" disabled={flashSubmitting} whileTap={{ scale: 0.95 }} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-warning py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60">
-                    {flashSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
-                    Tạo sale
-                  </motion.button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
+          <FlashSaleDialog
+            product={flashTarget}
+            form={flashForm}
+            submitting={flashSubmitting}
+            error={error}
+            minStart={localDateTimeValue(new Date())}
+            onFormChange={setFlashForm}
+            onSubmit={createFlashSale}
+            onClose={() => !flashSubmitting && setFlashTarget(null)}
+          />
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {deleteTarget && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-sm rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-6 text-center shadow-2xl">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-error/10">
-                <Trash2 size={24} className="text-error" />
-              </div>
-              <h3 className="mb-2 text-lg font-black text-on-surface">Xác nhận xóa?</h3>
-              <p className="mb-6 text-sm text-on-surface-variant">Bạn sắp xóa <span className="font-bold text-on-surface">"{deleteTarget.name}"</span>. Hành động này không thể hoàn tác.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="flex-1 rounded-2xl border-2 border-outline-variant py-3 text-sm font-semibold text-on-surface-variant transition hover:bg-surface-container">Hủy</button>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={handleDelete} disabled={deleting} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-error py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60">
-                  {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  Xóa
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <DeleteProductDialog
+            product={deleteTarget}
+            deleting={deleting}
+            onClose={() => !deleting && setDeleteTarget(null)}
+            onConfirm={() => void deleteProduct()}
+          />
         )}
       </AnimatePresence>
+
+      <InventoryAdjustModal
+        variant={adjustTarget}
+        onClose={() => setAdjustTarget(null)}
+        onAdjusted={async () => {
+          await loadProducts();
+          setError('');
+        }}
+      />
     </div>
+  );
+}
+
+function IconButton({
+  title,
+  icon: Icon,
+  onClick,
+  danger = false,
+}: {
+  title: string;
+  icon: typeof Pencil;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={`flex h-9 w-9 items-center justify-center rounded-md border transition ${danger ? 'border-error/30 text-error hover:bg-error/5' : 'border-outline-variant text-on-surface-variant hover:border-primary/40 hover:text-primary'}`}
+    >
+      <Icon size={15} />
+    </button>
   );
 }

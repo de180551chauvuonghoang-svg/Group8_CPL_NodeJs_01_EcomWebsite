@@ -1,4 +1,44 @@
 import API from './api';
+import {
+  AnalyticsPeriod,
+  CouponStatsQuery,
+  FulfillmentStatus,
+  OrderTimelineData,
+  SellerDashboardAnalytics,
+  SellerCouponStatsData,
+  Pagination,
+  ProductImage,
+  SellerCoupon,
+  SellerDashboardTasks,
+  SellerApplication,
+  SellerListQuery,
+  SellerOrder,
+  SellerProduct,
+} from '../types';
+
+export interface SellerOrderItemUpdateResult {
+  id: string;
+  fulfillment_status: FulfillmentStatus;
+  changed: boolean;
+  tracking_code?: string | null;
+  shipping_label_url?: string | null;
+  cancel_reason?: string | null;
+}
+
+const emptyPagination: Pagination = { page: 1, limit: 20, total: 0, total_pages: 0 };
+
+export interface SellerProductPayload {
+  name: string;
+  price: number;
+  categoryId: string;
+  description?: string;
+  sku: string;
+  stock: number;
+  lowStockThreshold: number;
+  isActive?: boolean;
+  stockReason?: string;
+  images: ProductImage[];
+}
 
 export const sellerService = {
   registerSeller: async (
@@ -6,7 +46,7 @@ export const sellerService = {
     shopPhone: string,
     shopAddress: string,
     description?: string,
-    extra?: Record<string, string>
+    extra?: Record<string, string>,
   ) => {
     const response: any = await API.post('/seller/register', {
       shopName,
@@ -18,11 +58,12 @@ export const sellerService = {
     const data = response.data || response;
     const actualData = data.data || data;
 
-    if (actualData.accessToken) {
-      localStorage.setItem('ecom_token', actualData.accessToken);
-      localStorage.setItem('ecom_user', JSON.stringify(actualData.user));
-    }
-    return actualData;
+    return actualData.application as SellerApplication;
+  },
+
+  getSellerApplication: async (): Promise<SellerApplication | null> => {
+    const response: any = await API.get('/seller/application');
+    return response.data?.application ?? response.application ?? null;
   },
 
   getSellerProfile: async () => {
@@ -45,7 +86,34 @@ export const sellerService = {
     return response.data || response;
   },
 
-  getProducts: async () => {
+  getDashboardAnalytics: async (query: {
+    period: AnalyticsPeriod;
+    from?: string;
+    to?: string;
+  }): Promise<SellerDashboardAnalytics> => {
+    const response: any = await API.get('/seller/dashboard-analytics', {
+      params: query,
+    });
+    return response.data || response;
+  },
+
+  getDashboardTasks: async (): Promise<SellerDashboardTasks> => {
+    const response: any = await API.get('/seller/dashboard-tasks');
+    return response.data || response;
+  },
+
+  getProductsPage: async (
+    query: SellerListQuery = {},
+  ): Promise<{ products: SellerProduct[]; pagination: Pagination }> => {
+    const response: any = await API.get('/seller/products', { params: query });
+    const data = response.data || response;
+    return {
+      products: data.products || [],
+      pagination: data.pagination || emptyPagination,
+    };
+  },
+
+  getProducts: async (): Promise<SellerProduct[]> => {
     const response: any = await API.get('/seller/products');
     return response.data?.products || response.products || [];
   },
@@ -55,28 +123,12 @@ export const sellerService = {
     return response.data?.categories || response.categories || [];
   },
 
-  createProduct: async (productData: {
-    name: string;
-    price: number;
-    description?: string;
-    categoryId?: string;
-    image?: string;
-    stock?: number;
-    isActive?: boolean;
-  }) => {
+  createProduct: async (productData: SellerProductPayload) => {
     const response: any = await API.post('/seller/products', productData);
     return response.data?.product || response.product;
   },
 
-  updateProduct: async (productId: string, productData: {
-    name?: string;
-    price?: number;
-    description?: string;
-    categoryId?: string;
-    image?: string;
-    stock?: number;
-    isActive?: boolean;
-  }) => {
+  updateProduct: async (productId: string, productData: Partial<SellerProductPayload>) => {
     const response: any = await API.put(`/seller/products/${productId}`, productData);
     return response;
   },
@@ -86,24 +138,59 @@ export const sellerService = {
     return response;
   },
 
-  getOrders: async () => {
+  getOrdersPage: async (
+    query: SellerListQuery = {},
+  ): Promise<{ orders: SellerOrder[]; pagination: Pagination }> => {
+    const response: any = await API.get('/seller/orders', { params: query });
+    const data = response.data || response;
+    return {
+      orders: data.orders || [],
+      pagination: data.pagination || emptyPagination,
+    };
+  },
+
+  getOrders: async (): Promise<SellerOrder[]> => {
     const response: any = await API.get('/seller/orders');
     return response.data?.orders || response.orders || [];
   },
 
-  updateOrderItem: async (itemId: string, data: {
-    fulfillmentStatus: string;
-    trackingCode?: string;
-    shippingLabelUrl?: string;
-    cancelReason?: string;
-  }) => {
+  updateOrderItem: async (
+    itemId: string,
+    data: {
+      fulfillmentStatus: FulfillmentStatus;
+      trackingCode?: string | null;
+      shippingLabelUrl?: string | null;
+      cancelReason?: string | null;
+    },
+  ): Promise<SellerOrderItemUpdateResult> => {
     const response: any = await API.patch(`/seller/orders/items/${itemId}`, data);
-    return response;
+    return response.data?.orderItem || response.orderItem;
   },
 
-  getCoupons: async () => {
+  getOrderTimeline: async (orderId: string): Promise<OrderTimelineData> => {
+    const response: any = await API.get(`/seller/orders/${orderId}/timeline`);
+    return response.data?.data || response.data;
+  },
+
+  getCouponsPage: async (
+    query: SellerListQuery = {},
+  ): Promise<{ coupons: SellerCoupon[]; pagination: Pagination }> => {
+    const response: any = await API.get('/seller/coupons', { params: query });
+    const data = response.data || response;
+    return {
+      coupons: data.coupons || [],
+      pagination: data.pagination || emptyPagination,
+    };
+  },
+
+  getCoupons: async (): Promise<SellerCoupon[]> => {
     const response: any = await API.get('/seller/coupons');
     return response.data?.coupons || response.coupons || [];
+  },
+
+  getCouponStats: async (query: CouponStatsQuery): Promise<SellerCouponStatsData> => {
+    const response: any = await API.get('/seller/coupons/stats', { params: query });
+    return response.data || response;
   },
 
   createCoupon: async (data: {
@@ -121,7 +208,10 @@ export const sellerService = {
     return response.data?.coupon || response.coupon;
   },
 
-  updateCoupon: async (couponId: string, data: { isActive?: boolean; startsAt?: string; expiresAt?: string }) => {
+  updateCoupon: async (
+    couponId: string,
+    data: { isActive?: boolean; startsAt?: string; expiresAt?: string },
+  ) => {
     const response: any = await API.patch(`/seller/coupons/${couponId}`, data);
     return response;
   },
@@ -149,15 +239,18 @@ export const sellerService = {
     return response.data?.flashSale || response.flashSale;
   },
 
-  updateFlashSale: async (id: string, data: {
-    productId?: string;
-    variantId?: string | null;
-    originalPrice?: number;
-    salePrice?: number;
-    startsAt?: string;
-    endsAt?: string;
-    status?: 'active' | 'inactive';
-  }) => {
+  updateFlashSale: async (
+    id: string,
+    data: {
+      productId?: string;
+      variantId?: string | null;
+      originalPrice?: number;
+      salePrice?: number;
+      startsAt?: string;
+      endsAt?: string;
+      status?: 'active' | 'inactive';
+    },
+  ) => {
     const response: any = await API.patch(`/seller/flash-sales/${id}`, data);
     return response.data?.flashSale || response.flashSale;
   },

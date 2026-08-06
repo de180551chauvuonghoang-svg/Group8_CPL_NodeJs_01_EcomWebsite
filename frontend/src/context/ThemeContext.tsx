@@ -29,14 +29,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('ecom_theme', theme);
   }, [theme]);
 
-  const toggleTheme = () =>
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = () => {

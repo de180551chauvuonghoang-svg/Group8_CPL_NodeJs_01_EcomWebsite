@@ -1,11 +1,45 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
 import { motion } from 'framer-motion';
 import { authService } from '../services/authService';
 import AddressBook from '../components/profile/AddressBook';
+import CustomerOrderCard from '../components/orders/CustomerOrderCard';
+import ReturnRequestModal from '../components/orders/ReturnRequestModal';
 import { paymentService, UserOrder } from '../services/paymentService';
+import ReviewFormModal from '../components/reviews/ReviewFormModal';
+import { reviewService } from '../services/reviewService';
+import { MyReview, ReviewableItem } from '../types';
+import { getReviewErrorMessage } from '../utils/reviewErrors';
+import { returnService } from '../services/returnService';
+import type { CustomerOrderItem, ReturnRequest } from '../types';
+
+const getAllMyReviews = async () => {
+  const firstPage = await reviewService.getMyReviews({ page: 1, limit: 50 });
+  const totalPages = Number(firstPage.pagination?.total_pages || 1);
+  if (totalPages <= 1) return firstPage.reviews;
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      reviewService.getMyReviews({ page: index + 2, limit: 50 }),
+    ),
+  );
+  return [firstPage, ...remainingPages].flatMap((page) => page.reviews);
+};
+
+const getAllMyReturns = async () => {
+  const firstPage = await returnService.getMine({ page: 1, limit: 50 });
+  const totalPages = Number(firstPage.pagination?.total_pages || 1);
+  if (totalPages <= 1) return firstPage.returns;
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      returnService.getMine({ page: index + 2, limit: 50 }),
+    ),
+  );
+  return [firstPage, ...remainingPages].flatMap((page) => page.returns);
+};
 
 export default function Profile() {
   const auth = useContext(AuthContext);
@@ -38,6 +72,41 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [reviewableItems, setReviewableItems] = useState<ReviewableItem[]>([]);
+  const [myReviews, setMyReviews] = useState<MyReview[]>([]);
+  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
+  const [reviewablesLoading, setReviewablesLoading] = useState(false);
+  const [returnsLoading, setReturnsLoading] = useState(false);
+  const [selectedReviewItem, setSelectedReviewItem] = useState<ReviewableItem | null>(null);
+  const [selectedExistingReview, setSelectedExistingReview] = useState<MyReview | null>(null);
+  const [selectedReturnItem, setSelectedReturnItem] = useState<CustomerOrderItem | null>(null);
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+  const reviewableItemsById = useMemo(
+    () => new Map(reviewableItems.map((item) => [item.order_item_id, item])),
+    [reviewableItems],
+  );
+  const myReviewsByItemId = useMemo(
+    () =>
+      new Map(
+        myReviews.flatMap((review) =>
+          review.order_item_id ? ([[review.order_item_id, review]] as const) : [],
+        ),
+      ),
+    [myReviews],
+  );
+  const returnsByItemId = useMemo(
+    () => new Map(returnRequests.map((request) => [request.order_item_id, request])),
+    [returnRequests],
+  );
+
+  const refreshReviewData = useCallback(async () => {
+    const [reviewableData, reviewData] = await Promise.all([
+      reviewService.getReviewableItems(),
+      getAllMyReviews(),
+    ]);
+    setReviewableItems(reviewableData);
+    setMyReviews(reviewData);
+  }, []);
 
   // Sync state with logged in user
   useEffect(() => {
@@ -48,7 +117,10 @@ export default function Profile() {
       setName(user.name || '');
       setEmail(user.email || '');
       setPhone(user.phone_number || '');
-      setAvatarUrl(user.avatar_url || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDhH6M7taxWH1fH8jTLXjRXGASClEEtDR2CeN1In1IG7iwj64RxGDXue_IrlAPsCh41fcDvOX2I0Y5f1uqquYN8sj-82ClnMvoTNMJUiR0vgoRIFfmu1IL2QzFIFxE-VtnptRxpbOCPz8UXctOdWuPrMrdikuSt8hWHnj0pMEtwfY_X2BVQw9jHTwuIeohbkOIiyDL6muCfSyf8AQug9Zm-78TqSIfnEjCyMBV52LNRsPfZpq9fldsRuAOW9wiGUUhzBuM0rXTpKIXR');
+      setAvatarUrl(
+        user.avatar_url ||
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuDhH6M7taxWH1fH8jTLXjRXGASClEEtDR2CeN1In1IG7iwj64RxGDXue_IrlAPsCh41fcDvOX2I0Y5f1uqquYN8sj-82ClnMvoTNMJUiR0vgoRIFfmu1IL2QzFIFxE-VtnptRxpbOCPz8UXctOdWuPrMrdikuSt8hWHnj0pMEtwfY_X2BVQw9jHTwuIeohbkOIiyDL6muCfSyf8AQug9Zm-78TqSIfnEjCyMBV52LNRsPfZpq9fldsRuAOW9wiGUUhzBuM0rXTpKIXR',
+      );
       setBio(user.bio || '');
     }
   }, [user, isAuthenticated, loading, navigate]);
@@ -57,11 +129,64 @@ export default function Profile() {
   useEffect(() => {
     if (activeTab !== 'orders') return;
     setOrdersLoading(true);
-    paymentService.getUserOrders()
-      .then(setOrders)
-      .catch(() => setOrders([]))
-      .finally(() => setOrdersLoading(false));
+    setReviewablesLoading(true);
+    setReturnsLoading(true);
+
+    Promise.allSettled([
+      paymentService.getUserOrders(),
+      reviewService.getReviewableItems(),
+      getAllMyReviews(),
+      getAllMyReturns(),
+    ]).then(([ordersResult, reviewableResult, myReviewsResult, returnsResult]) => {
+      setOrders(ordersResult.status === 'fulfilled' ? ordersResult.value : []);
+      setReviewableItems(reviewableResult.status === 'fulfilled' ? reviewableResult.value : []);
+      setMyReviews(myReviewsResult.status === 'fulfilled' ? myReviewsResult.value : []);
+      setReturnRequests(returnsResult.status === 'fulfilled' ? returnsResult.value : []);
+      if (reviewableResult.status === 'rejected' || myReviewsResult.status === 'rejected') {
+        setErrorMsg('Không thể tải đầy đủ dữ liệu đánh giá. Vui lòng tải lại trang.');
+      }
+      setOrdersLoading(false);
+      setReviewablesLoading(false);
+      setReturnsLoading(false);
+    });
   }, [activeTab]);
+
+  const handleReturnSubmitted = async () => {
+    setReturnRequests(await getAllMyReturns());
+    setSuccessMsg('Yêu cầu trả hàng đã được gửi đến shop.');
+  };
+
+  const handleReviewSubmitted = async () => {
+    setSelectedReviewItem(null);
+    setSelectedExistingReview(null);
+    try {
+      await refreshReviewData();
+      setSuccessMsg('Đánh giá của bạn đã được lưu.');
+    } catch (error) {
+      setErrorMsg(
+        getReviewErrorMessage(error, 'Đã lưu đánh giá nhưng chưa thể tải lại danh sách.'),
+      );
+    }
+  };
+
+  const handleDeleteReview = async (review: MyReview) => {
+    const confirmed = window.confirm(
+      `Xóa đánh giá cho “${review.product_name}”? Bạn có thể đánh giá lại sau khi xóa.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingReviewId(review.id);
+    setErrorMsg('');
+    try {
+      await reviewService.deleteReview(review.id);
+      await refreshReviewData();
+      setSuccessMsg('Đã xóa đánh giá. Bạn có thể đánh giá lại sản phẩm.');
+    } catch (error) {
+      setErrorMsg(getReviewErrorMessage(error, 'Không thể xóa đánh giá. Vui lòng thử lại.'));
+    } finally {
+      setDeletingReviewId(null);
+    }
+  };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -111,7 +236,9 @@ export default function Profile() {
   };
 
   const handleRemoveAvatar = () => {
-    setAvatarUrl('https://lh3.googleusercontent.com/aida-public/AB6AXuDhH6M7taxWH1fH8jTLXjRXGASClEEtDR2CeN1In1IG7iwj64RxGDXue_IrlAPsCh41fcDvOX2I0Y5f1uqquYN8sj-82ClnMvoTNMJUiR0vgoRIFfmu1IL2QzFIFxE-VtnptRxpbOCPz8UXctOdWuPrMrdikuSt8hWHnj0pMEtwfY_X2BVQw9jHTwuIeohbkOIiyDL6muCfSyf8AQug9Zm-78TqSIfnEjCyMBV52LNRsPfZpq9fldsRuAOW9wiGUUhzBuM0rXTpKIXR');
+    setAvatarUrl(
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuDhH6M7taxWH1fH8jTLXjRXGASClEEtDR2CeN1In1IG7iwj64RxGDXue_IrlAPsCh41fcDvOX2I0Y5f1uqquYN8sj-82ClnMvoTNMJUiR0vgoRIFfmu1IL2QzFIFxE-VtnptRxpbOCPz8UXctOdWuPrMrdikuSt8hWHnj0pMEtwfY_X2BVQw9jHTwuIeohbkOIiyDL6muCfSyf8AQug9Zm-78TqSIfnEjCyMBV52LNRsPfZpq9fldsRuAOW9wiGUUhzBuM0rXTpKIXR',
+    );
     setSuccessMsg('Đã gỡ ảnh đại diện! Hãy nhấn "Lưu thay đổi" để áp dụng.');
   };
 
@@ -149,13 +276,14 @@ export default function Profile() {
   return (
     <div className="bg-background text-on-surface min-h-screen">
       <main className="pt-8 pb-16 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full flex flex-col lg:flex-row gap-gutter">
-
         {/* Side Navigation Shell - Centralized glass style applied */}
         <aside className="w-full lg:w-64 flex-shrink-0">
           <div className="glass-panel p-6 shadow-xl space-y-2 sticky top-28 transition-all duration-300">
             <div className="mb-8 px-2">
               <h2 className="font-headline-md text-title-lg font-black text-primary">Cài đặt</h2>
-              <p className="font-label-md text-xs text-on-surface-variant">Quản lý tài khoản của bạn</p>
+              <p className="font-label-md text-xs text-on-surface-variant">
+                Quản lý tài khoản của bạn
+              </p>
             </div>
             <nav className="space-y-1">
               <button
@@ -179,15 +307,24 @@ export default function Profile() {
                 <span className="material-symbols-outlined text-[20px]">receipt_long</span>
                 <span className="font-label-md text-sm">Đơn hàng</span>
               </button>
-              <a className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1" href="#security">
+              <a
+                className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1"
+                href="#security"
+              >
                 <span className="material-symbols-outlined text-[20px]">security</span>
                 <span className="font-label-md text-sm">Bảo mật</span>
               </a>
-              <a className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1" href="#notifications">
+              <a
+                className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1"
+                href="#notifications"
+              >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
                 <span className="font-label-md text-sm">Thông báo</span>
               </a>
-              <a className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1" href="#payments">
+              <a
+                className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-transform hover:translate-x-1"
+                href="#payments"
+              >
                 <span className="material-symbols-outlined text-[20px]">payments</span>
                 <span className="font-label-md text-sm">Thanh toán</span>
               </a>
@@ -205,9 +342,12 @@ export default function Profile() {
         <section className="flex-grow space-y-8">
           {/* Header Section */}
           <div className="space-y-2">
-            <h1 className="font-headline-lg text-headline-md text-on-surface font-extrabold">Thông tin cá nhân</h1>
+            <h1 className="font-headline-lg text-headline-md text-on-surface font-extrabold">
+              Thông tin cá nhân
+            </h1>
             <p className="font-body-lg text-body-md text-on-surface-variant">
-              Cập nhật ảnh đại diện và thông tin cơ bản để cá nhân hóa trải nghiệm của bạn trên Volitify.
+              Cập nhật ảnh đại diện và thông tin cơ bản để cá nhân hóa trải nghiệm của bạn trên
+              Volitify.
             </p>
           </div>
 
@@ -239,14 +379,15 @@ export default function Profile() {
           {activeTab === 'profile' ? (
             <div className="glass-panel p-8 lg:p-12 shadow-xl">
               <form className="space-y-12" onSubmit={handleSubmit}>
-
                 {/* Avatar Section */}
                 <div className="flex flex-col md:flex-row items-center gap-8 pb-12 border-b border-outline-variant/30">
                   <div className="relative group">
                     <div className="w-32 h-32 rounded-3xl overflow-hidden shadow-lg border-2 border-white ring-4 ring-primary/5">
                       {uploading ? (
                         <div className="w-full h-full bg-surface-container-low flex flex-col items-center justify-center gap-2">
-                          <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+                          <span className="material-symbols-outlined text-primary text-3xl animate-spin">
+                            sync
+                          </span>
                           <span className="text-[10px] text-primary font-bold">Đang tải...</span>
                         </div>
                       ) : (
@@ -262,7 +403,9 @@ export default function Profile() {
                       htmlFor="avatar-file-input"
                       className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl flex items-center justify-center cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-white text-3xl">photo_camera</span>
+                      <span className="material-symbols-outlined text-white text-3xl">
+                        photo_camera
+                      </span>
                     </label>
                   </div>
 
@@ -276,8 +419,12 @@ export default function Profile() {
                   />
 
                   <div className="space-y-4 text-center md:text-left">
-                    <h3 className="font-title-lg text-title-lg text-on-surface font-bold">Ảnh đại diện của bạn</h3>
-                    <p className="font-body-md text-xs text-on-surface-variant">PNG hoặc JPG. Tối đa 4MB.</p>
+                    <h3 className="font-title-lg text-title-lg text-on-surface font-bold">
+                      Ảnh đại diện của bạn
+                    </h3>
+                    <p className="font-body-md text-xs text-on-surface-variant">
+                      PNG hoặc JPG. Tối đa 4MB.
+                    </p>
                     <div className="flex flex-wrap justify-center md:justify-start gap-4">
                       <button
                         onClick={() => document.getElementById('avatar-file-input')?.click()}
@@ -302,7 +449,9 @@ export default function Profile() {
                 {/* Personal Info Form - Centralized glass inputs applied */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Họ và tên</label>
+                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">
+                      Họ và tên
+                    </label>
                     <input
                       className="glass-input"
                       type="text"
@@ -313,20 +462,21 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Email (Đã xác minh)</label>
+                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">
+                      Email (Đã xác minh)
+                    </label>
                     <div className="relative">
-                      <input
-                        className="glass-input"
-                        disabled
-                        type="email"
-                        value={email}
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary font-fill">verified</span>
+                      <input className="glass-input" disabled type="email" value={email} />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary font-fill">
+                        verified
+                      </span>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Số điện thoại</label>
+                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">
+                      Số điện thoại
+                    </label>
                     <input
                       className="glass-input"
                       type="tel"
@@ -336,7 +486,9 @@ export default function Profile() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">Tiểu sử</label>
+                    <label className="font-label-md text-xs text-on-surface-variant font-bold ml-2 block">
+                      Tiểu sử
+                    </label>
                     <textarea
                       className="glass-input h-32 py-4 resize-none"
                       placeholder=""
@@ -371,7 +523,9 @@ export default function Profile() {
           ) : (
             /* ── ORDERS TAB ── */
             <div className="space-y-4">
-              <h2 className="text-xl font-black" style={{ fontFamily: 'Outfit, sans-serif' }}>Lịch sử đơn hàng</h2>
+              <h2 className="text-xl font-black" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                Lịch sử đơn hàng
+              </h2>
               {ordersLoading ? (
                 <div className="flex items-center gap-3 text-on-surface-variant py-8">
                   <span className="material-symbols-outlined animate-spin text-primary">sync</span>
@@ -379,63 +533,57 @@ export default function Profile() {
                 </div>
               ) : orders.length === 0 ? (
                 <div className="text-center py-16">
-                  <span className="material-symbols-outlined text-[56px] text-on-surface-variant/30" style={{ fontVariationSettings: "'FILL' 1" }}>shopping_bag</span>
+                  <span
+                    className="material-symbols-outlined text-[56px] text-on-surface-variant/30"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    shopping_bag
+                  </span>
                   <p className="mt-4 text-on-surface-variant">Bạn chưa có đơn hàng nào</p>
                 </div>
               ) : (
-                orders.map((order, i) => {
-                  const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
-                  const STATUS: Record<string, { label: string; bg: string; text: string }> = {
-                    pending: { label: 'Chờ xử lý', bg: 'bg-amber-50', text: 'text-amber-600' },
-                    confirmed: { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    processing: { label: 'Đang xử lý', bg: 'bg-blue-50', text: 'text-blue-600' },
-                    shipped: { label: 'Đang giao', bg: 'bg-indigo-50', text: 'text-indigo-600' },
-                    delivered: { label: 'Đã giao', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    cancelled: { label: 'Đã hủy', bg: 'bg-rose-50', text: 'text-rose-600' },
-                  };
-                  const s = STATUS[order.status] || { label: order.status, bg: 'bg-slate-50', text: 'text-slate-600' };
-                  const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method === 'qr' ? 'Chuyển khoản VietQR' : order.payment_method;
-                  return (
-                    <motion.div
-                      key={order.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.06 }}
-                      className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-200 text-slate-700"
-                    >
-                      <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Mã đơn hàng</p>
-                          <p className="font-mono font-bold text-sm text-blue-600">#{order.id.toUpperCase()}</p>
-                        </div>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Tổng tiền</p>
-                          <p className="font-black text-blue-600 text-base">{fmt(order.total)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Thanh toán</p>
-                          <p className="font-bold text-slate-700">{pm}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 mb-1">Ngày đặt hàng</p>
-                          <p className="font-bold text-slate-700">{new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
-                        </div>
-                        <div className="col-span-2 sm:col-span-3">
-                          <p className="text-xs text-slate-400 mb-1">Địa chỉ giao hàng</p>
-                          <p className="text-xs font-medium text-slate-600">{order.shipping_address}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })
+                orders.map((order, index) => (
+                  <CustomerOrderCard
+                    key={order.id}
+                    order={order}
+                    index={index}
+                    reviewableItems={reviewableItemsById}
+                    myReviews={myReviewsByItemId}
+                    returnsByItemId={returnsByItemId}
+                    reviewsReady={!reviewablesLoading}
+                    returnsReady={!returnsLoading}
+                    onReview={(item) => {
+                      setSelectedExistingReview(null);
+                      setSelectedReviewItem(item);
+                    }}
+                    onEditReview={(review) => {
+                      setSelectedReviewItem(null);
+                      setSelectedExistingReview(review);
+                    }}
+                    onDeleteReview={handleDeleteReview}
+                    onReturn={setSelectedReturnItem}
+                    deletingReviewId={deletingReviewId}
+                  />
+                ))
               )}
             </div>
           )}
         </section>
       </main>
+      <ReviewFormModal
+        item={selectedReviewItem}
+        existingReview={selectedExistingReview}
+        onClose={() => {
+          setSelectedReviewItem(null);
+          setSelectedExistingReview(null);
+        }}
+        onSubmitted={handleReviewSubmitted}
+      />
+      <ReturnRequestModal
+        item={selectedReturnItem}
+        onClose={() => setSelectedReturnItem(null)}
+        onSubmitted={handleReturnSubmitted}
+      />
     </div>
   );
 }

@@ -43,7 +43,7 @@ const assertSellerProduct = async (sellerId, productId, variantId = null) => {
     .query(`
       SELECT TOP 1 p.id, pv.id AS variant_id, COALESCE(pv.price, p.base_price) AS current_price
       FROM Products p
-      LEFT JOIN ProductVariants pv ON pv.product_id = p.id
+      LEFT JOIN ProductVariants pv ON pv.product_id = p.id AND pv.is_default = 1
       WHERE p.id = @productId
         AND p.seller_id = @sellerId
         AND (@variantId IS NULL OR pv.id = @variantId)
@@ -90,7 +90,12 @@ const assertNoActiveOverlap = async (sellerId, payload, excludeId = null) => {
 export const flashSaleService = {
   createFlashSale: async (sellerId, data) => {
     const payload = validateFlashSalePayload(data);
-    await assertSellerProduct(sellerId, payload.productId, payload.variantId);
+    const product = await assertSellerProduct(sellerId, payload.productId, payload.variantId);
+    payload.variantId = product.variant_id;
+    payload.originalPrice = Number(product.current_price);
+    if (payload.salePrice >= payload.originalPrice) {
+      throw new Error("salePrice phai nho hon gia hien tai trong he thong.");
+    }
     await assertNoActiveOverlap(sellerId, payload);
 
     const id = `fs_${Math.random().toString(36).substr(2, 9)}`;
@@ -153,7 +158,12 @@ export const flashSaleService = {
       status: data.status || current.status
     };
     const payload = validateFlashSalePayload(merged);
-    await assertSellerProduct(sellerId, payload.productId, payload.variantId);
+    const product = await assertSellerProduct(sellerId, payload.productId, payload.variantId);
+    payload.variantId = product.variant_id;
+    payload.originalPrice = Number(product.current_price);
+    if (payload.salePrice >= payload.originalPrice) {
+      throw new Error("salePrice phai nho hon gia hien tai trong he thong.");
+    }
     await assertNoActiveOverlap(sellerId, payload, flashSaleId);
 
     await pool.request()
