@@ -44,14 +44,11 @@ const AdminSellerProducts = lazy(() => import('./pages/AdminSellerProducts'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminCategories = lazy(() => import('./pages/AdminCategories'));
-const AdminBrands = lazy(() => import('./pages/AdminBrands'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminInventory = lazy(() => import('./pages/AdminInventory'));
 const AdminUserDetail = lazy(() => import('./pages/AdminUserDetail'));
 const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
 const AdminBanners = lazy(() => import('./pages/AdminBanners'));
-const AdminCoupons = lazy(() => import('./pages/AdminCoupons'));
-const AdminNotifications = lazy(() => import('./pages/AdminNotifications'));
 const AdminAuditLog = lazy(() => import('./pages/AdminAuditLog'));
 
 // Loading spinner component
@@ -251,13 +248,6 @@ function AppContent() {
                   </AdminLayout>
                 </AdminRoute>
               } />
-              <Route path="/admin/brands" element={
-                <AdminRoute>
-                  <AdminLayout>
-                    <AdminBrands />
-                  </AdminLayout>
-                </AdminRoute>
-              } />
               <Route path="/admin/orders" element={
                 <AdminRoute>
                   <AdminLayout>
@@ -290,20 +280,6 @@ function AppContent() {
                 <AdminRoute>
                   <AdminLayout>
                     <AdminBanners />
-                  </AdminLayout>
-                </AdminRoute>
-              } />
-              <Route path="/admin/coupons" element={
-                <AdminRoute>
-                  <AdminLayout>
-                    <AdminCoupons />
-                  </AdminLayout>
-                </AdminRoute>
-              } />
-              <Route path="/admin/notifications" element={
-                <AdminRoute>
-                  <AdminLayout>
-                    <AdminNotifications />
                   </AdminLayout>
                 </AdminRoute>
               } />

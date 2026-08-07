@@ -25,12 +25,9 @@ const navItems = [
   { to: '/admin/users', label: 'Người dùng', icon: Users },
   { to: '/admin/sellers', label: 'Người bán', icon: Store },
   { to: '/admin/categories', label: 'Danh mục', icon: FolderTree },
-  { to: '/admin/brands', label: 'Thương hiệu', icon: Tag },
   { to: '/admin/inventory', label: 'Kho hàng', icon: PackageSearch },
   { to: '/admin/transactions', label: 'Giao dịch', icon: CreditCard },
   { to: '/admin/banners', label: 'Banner', icon: ImageIcon },
-  { to: '/admin/coupons', label: 'Voucher', icon: Ticket },
-  { to: '/admin/notifications', label: 'Email/Thông báo', icon: Mail },
   { to: '/admin/audit-logs', label: 'Nhật ký', icon: History },
   { to: '/admin/reports', label: 'Báo cáo', icon: FileBarChart },
 ];
