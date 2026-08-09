@@ -1,10 +1,11 @@
-import React, { useMemo, useState, useContext } from 'react';
+import React, { useMemo, useState, useContext, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CreditCard, Gift, Minus, Plus, ShieldCheck, ShoppingCart, Trash2, Truck, AlertCircle, UserCheck } from 'lucide-react';
+import { ArrowLeft, CreditCard, Gift, Minus, Plus, ShieldCheck, ShoppingCart, Trash2, Truck, AlertCircle, UserCheck, Ticket } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import { addressService } from '../services/addressService';
+import API from '../services/api';
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
@@ -21,6 +22,39 @@ export default function Cart() {
 
   const [profileValidationMsg, setProfileValidationMsg] = useState('');
   const [checkingProfile, setCheckingProfile] = useState(false);
+
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [fetchingCoupons, setFetchingCoupons] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCoupons = async () => {
+      setFetchingCoupons(true);
+      try {
+        const res: any = await API.get('/payments/coupons');
+        const data = res.data?.data || res.data || [];
+        if (isMounted) {
+          setAvailableCoupons(data);
+          // Auto-apply if no promoCode is active and there are items
+          if (!promoCode && cartItems.length > 0 && data.length > 0) {
+            const best = data[0]; // Simple logic: pick the first one
+            setPromoInput(best.code);
+            const result = await applyDiscount(best.code);
+            if (result.ok) {
+              setPromoSuccess(result.message);
+              setPromoError('');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải mã giảm giá', err);
+      } finally {
+        if (isMounted) setFetchingCoupons(false);
+      }
+    };
+    fetchCoupons();
+    return () => { isMounted = false; };
+  }, [promoCode, cartItems.length, applyDiscount]);
 
   const totals = useMemo(() => {
     const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
@@ -41,18 +75,16 @@ export default function Cart() {
       return;
     }
 
-    const u = auth.user;
-    if (!u.phone_number || u.phone_number.trim() === '' || u.phone_number === 'Chưa cập nhật') {
-      setProfileValidationMsg('Vui lòng cập nhật đầy đủ Số điện thoại trong Hồ sơ cá nhân trước khi thực hiện thanh toán.');
-      return;
-    }
-
     setCheckingProfile(true);
     try {
       const addrs = await addressService.getAddresses();
-      const validAddr = addrs.find(a => a.street_address && a.street_address !== 'Chưa cập nhật');
+      const validAddr = addrs.find(a => 
+        a.street_address && a.street_address !== 'Chưa cập nhật' &&
+        a.phone_number && a.phone_number !== 'Chưa cập nhật' &&
+        a.recipient_name && a.recipient_name !== 'Chưa cập nhật'
+      );
       if (!validAddr) {
-        setProfileValidationMsg('Vui lòng thêm Địa chỉ giao hàng chi tiết trong Sổ địa chỉ / Hồ sơ cá nhân trước khi thanh toán.');
+        setProfileValidationMsg('Bạn chưa có địa chỉ giao hàng hợp lệ. Vui lòng thêm địa chỉ (bao gồm người nhận, SĐT và địa chỉ) trong Sổ địa chỉ trước khi thanh toán.');
         setCheckingProfile(false);
         return;
       }
@@ -229,33 +261,81 @@ export default function Cart() {
                   )}
                 </div>
 
-                <form onSubmit={handleApplyPromo} className="space-y-2 border-b border-outline-variant/50 pb-5">
-                  <label htmlFor="promo" className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                    Mã giảm giá
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="promo"
-                      value={promoInput}
-                      onChange={event => {
-                        setPromoInput(event.target.value);
-                        setPromoError('');
-                        setPromoSuccess('');
-                      }}
-                      placeholder="Thử SHOP1"
-                      className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container px-3 text-sm outline-none focus:border-primary"
-                    />
-                    <button
-                      type="submit"
-                      disabled={applyingPromo}
-                      className="h-11 rounded-xl bg-primary px-4 text-sm font-bold text-white disabled:opacity-60"
-                    >
-                      {applyingPromo ? 'Đang áp dụng' : 'Áp dụng'}
-                    </button>
+                <div className="space-y-4 border-b border-outline-variant/50 pb-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
+                      <Ticket size={16} /> Kho Voucher
+                    </h3>
                   </div>
-                  {promoError && <p className="text-xs font-semibold text-error">{promoError}</p>}
-                  {promoSuccess && <p className="text-xs font-semibold text-emerald-600">{promoSuccess}</p>}
-                </form>
+
+                  {fetchingCoupons ? (
+                    <p className="text-xs text-on-surface-variant animate-pulse">Đang tải voucher...</p>
+                  ) : availableCoupons.length > 0 ? (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {availableCoupons.map((c) => (
+                        <div key={c.id} className={`flex items-center justify-between rounded-xl border p-3 transition ${promoCode === c.code ? 'border-primary bg-primary/5' : 'border-outline-variant bg-surface-container-lowest'}`}>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm text-on-surface">{c.code}</span>
+                            <span className="text-xs text-on-surface-variant">
+                              {c.discount_type === 'fixed' ? `Giảm ${formatPrice(Number(c.discount_value))}` : `Giảm ${c.discount_value}%`}
+                              {c.min_order_amount ? ` (Đơn tối thiểu ${formatPrice(Number(c.min_order_amount))})` : ''}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setPromoInput(c.code);
+                              setApplyingPromo(true);
+                              const result = await applyDiscount(c.code);
+                              setApplyingPromo(false);
+                              if (result.ok) {
+                                setPromoSuccess(result.message);
+                                setPromoError('');
+                              } else {
+                                setPromoError(result.message);
+                                setPromoSuccess('');
+                              }
+                            }}
+                            disabled={applyingPromo || promoCode === c.code}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold ${promoCode === c.code ? 'bg-primary text-white cursor-default' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'}`}
+                          >
+                            {promoCode === c.code ? 'Đang dùng' : 'Áp dụng'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-on-surface-variant">Không có voucher nào khả dụng.</p>
+                  )}
+
+                  <form onSubmit={handleApplyPromo} className="space-y-2 pt-4 border-t border-outline-variant/50">
+                    <label htmlFor="promo" className="text-xs font-bold text-on-surface-variant">
+                      Hoặc nhập mã khác
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="promo"
+                        value={promoInput}
+                        onChange={event => {
+                          setPromoInput(event.target.value);
+                          setPromoError('');
+                          setPromoSuccess('');
+                        }}
+                        placeholder="Thử SHOP1"
+                        className="min-w-0 flex-1 rounded-xl border border-outline-variant bg-surface-container px-3 text-sm outline-none focus:border-primary"
+                      />
+                      <button
+                        type="submit"
+                        disabled={applyingPromo}
+                        className="h-11 rounded-xl bg-primary px-4 text-sm font-bold text-white disabled:opacity-60"
+                      >
+                        {applyingPromo ? 'Đang áp dụng' : 'Áp dụng'}
+                      </button>
+                    </div>
+                    {promoError && <p className="text-xs font-semibold text-error">{promoError}</p>}
+                    {promoSuccess && <p className="text-xs font-semibold text-emerald-600">{promoSuccess}</p>}
+                  </form>
+                </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-black">Tổng thanh toán</span>

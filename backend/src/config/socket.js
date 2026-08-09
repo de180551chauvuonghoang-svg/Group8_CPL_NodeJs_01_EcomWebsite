@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { messageService } from "../services/messageService.js";
 
 const userSocketMap = new Map();
+let ioInstance = null;
 
 const getAllowedOrigins = () => {
   const origins = [
@@ -31,6 +32,7 @@ export const setupSocket = (server) => {
       credentials: true
     }
   });
+  ioInstance = io;
 
   ioInstance = io;
 
@@ -109,6 +111,19 @@ export const setupSocket = (server) => {
   });
 
   return io;
+};
+
+export const emitNotificationToUser = (userId, notification) => {
+  if (!ioInstance) return;
+  const socketId = userSocketMap.get(userId);
+  if (socketId) {
+    ioInstance.to(socketId).emit("receiveNotification", notification);
+  }
+};
+
+export const broadcastNotification = (notification) => {
+  if (!ioInstance) return;
+  ioInstance.emit("receiveNotification", notification);
 };
 
 export { userSocketMap };

@@ -1,8 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { AnimatePresence } from 'framer-motion';
+import { useNotifications } from './context/NotificationContext';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useContext, lazy, Suspense } from 'react';
 
 // Layout components (eager loaded — always visible)
@@ -26,6 +29,7 @@ const Products     = lazy(() => import('./pages/Products'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 const ShopPublic    = lazy(() => import('./pages/ShopPublic'));
 const Combos       = lazy(() => import('./pages/Combos'));
+const Wishlist     = lazy(() => import('./pages/Wishlist'));
 
 // Seller Pages
 const BecomeSeller    = lazy(() => import('./pages/BecomeSeller'));
@@ -85,6 +89,11 @@ function SellerRoute({ children }: { children: React.ReactNode }) {
 function AppContent() {
   const location = useLocation();
   const authCtx = useContext(AuthContext);
+  
+  let notifContext = null;
+  try { notifContext = useNotifications(); } catch(e) {}
+  const { showPopup, closePopup } = notifContext || {};
+
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/reset-password';
   const isFullPage  = isAuthPage || location.pathname === '/payment/return';
   const isSellerPage = location.pathname.startsWith('/seller/');
@@ -101,6 +110,8 @@ function AppContent() {
               <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/shops/:id" element={<ShopPublic />} />
               <Route path="/combos" element={<Combos />} />
+              <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
+              
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -179,6 +190,31 @@ function AppContent() {
       {!isFullPage && !isSellerPage && <AIChatWidget />}
       {/* Live Chat Widget: hiển thị cho customer ở mọi trang (trừ auth + seller pages) */}
       {!isFullPage && !isSellerPage && <LiveChatWidget />}
+      
+      {/* Notification Toast */}
+      <AnimatePresence>
+        {showPopup && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-4 left-4 z-50 p-4 bg-surface-container-high rounded-2xl shadow-2xl border border-primary/20 flex gap-3 max-w-sm"
+          >
+            <div className="shrink-0 pt-1">
+              <span className={`material-symbols-outlined text-[24px] ${showPopup.type === 'promotion' ? 'text-error' : 'text-primary'}`}>
+                {showPopup.type === 'promotion' ? 'redeem' : 'inventory_2'}
+              </span>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-on-surface">{showPopup.title}</h4>
+              <p className="text-xs text-on-surface-variant mt-1 line-clamp-2">{showPopup.message}</p>
+            </div>
+            <button onClick={closePopup} className="shrink-0 text-on-surface-variant hover:text-primary p-1">
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -188,9 +224,13 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <CartProvider>
-          <Router>
-            <AppContent />
-          </Router>
+          <WishlistProvider>
+            <NotificationProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </NotificationProvider>
+          </WishlistProvider>
         </CartProvider>
       </AuthProvider>
     </ThemeProvider>

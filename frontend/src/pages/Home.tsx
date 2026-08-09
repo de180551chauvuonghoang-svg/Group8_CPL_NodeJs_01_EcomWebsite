@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { AuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { Product } from '../types';
 import Spinner from '../components/common/Spinner';
 import AIBanner from '../components/home/AIBanner';
@@ -22,10 +23,12 @@ export default function Home() {
     throw new Error('Home must be used within an AuthProvider');
   }
   const { isAuthenticated, user } = auth;
+  const { addToCart } = useCart();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
+  const [addedProducts, setAddedProducts] = useState<Record<string, boolean>>({});
 
   // Read search & category parameters from the URL
   const [searchParams, setSearchParams] = useSearchParams();
@@ -303,7 +306,7 @@ export default function Home() {
                   className="premium-card overflow-hidden flex flex-col group relative"
                 >
                   {/* Image Frame */}
-                  <div className="relative pt-[75%] overflow-hidden bg-surface-container">
+                  <Link to={`/products/${product.id}`} className="relative block pt-[75%] overflow-hidden bg-surface-container">
                     <img
                       src={product.image || '/placeholder.png'}
                       alt={product.name}
@@ -324,13 +327,15 @@ export default function Home() {
                       <Star size={12} className="fill-warning text-warning" />
                       <span>{product.rating}</span>
                     </div>
-                  </div>
+                  </Link>
 
                   {/* Body Details */}
                   <div className="p-6 flex flex-col flex-1">
-                    <h3 className="font-bold text-body-lg text-on-surface group-hover:text-primary transition-colors line-clamp-1 mb-2">
-                      {product.name}
-                    </h3>
+                    <Link to={`/products/${product.id}`}>
+                      <h3 className="font-bold text-body-lg text-on-surface group-hover:text-primary transition-colors line-clamp-1 mb-2">
+                        {product.name}
+                      </h3>
+                    </Link>
                     <p className="text-on-surface-variant text-body-md line-clamp-2 mb-4 h-12">
                       {product.description}
                     </p>
@@ -358,9 +363,24 @@ export default function Home() {
                       <span className="font-display-lg text-primary text-title-lg font-black tracking-tight">
                         ${(product.price || 0).toLocaleString('vi-VN')}
                       </span>
-                      <button className="flex items-center gap-2 px-5 py-2.5 bg-primary/5 hover:bg-primary hover:text-white text-primary font-bold text-xs rounded-xl active:scale-95 transition-all cursor-pointer">
-                        <ShoppingBag size={14} />
-                        <span>Chọn mua</span>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart(product);
+                          setAddedProducts(prev => ({ ...prev, [product.id]: true }));
+                          setTimeout(() => {
+                            setAddedProducts(prev => ({ ...prev, [product.id]: false }));
+                          }, 2000);
+                        }}
+                        className={`flex items-center gap-2 px-5 py-2.5 font-bold text-xs rounded-xl transition-all cursor-pointer ${
+                          addedProducts[product.id]
+                            ? 'bg-green-600 text-white'
+                            : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+                        }`}
+                      >
+                        {addedProducts[product.id] ? <CheckCircle size={14} /> : <ShoppingBag size={14} />}
+                        <span>{addedProducts[product.id] ? 'Đã thêm' : 'Chọn mua'}</span>
                       </button>
                     </div>
                   </div>

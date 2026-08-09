@@ -9,6 +9,7 @@ import {
   handleSepayWebhook,
   checkPaymentStatusPublic,
   simulatePaymentSuccess,
+  getAvailableCoupons,
 } from '../controllers/payment.controller.js';
 
 const router = Router();
@@ -32,6 +33,7 @@ router.post('/simulate-success/:orderId', simulatePaymentSuccess);
 // ─── COD & Coupons ────────────────────────────────────────────────────────────
 router.post('/cod/create', protect, createCODOrder);
 router.post('/coupons/validate', validateCoupon);
+router.get('/coupons', getAvailableCoupons);
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 router.get('/order/:orderId', protect, getOrderStatus);

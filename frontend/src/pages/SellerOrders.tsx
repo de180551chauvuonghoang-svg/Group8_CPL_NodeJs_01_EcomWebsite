@@ -36,6 +36,8 @@ const cleanProductName = (name?: string) => {
 function ItemActions({ item, onDone }: { item: SellerOrderItem; onDone: () => void }) {
   const [loading, setLoading] = useState('');
   const [cancelReason, setCancelReason] = useState('');
+  const [trackingCode, setTrackingCode] = useState(item.tracking_code || '');
+  const [shippingLabelUrl, setShippingLabelUrl] = useState(item.shipping_label_url || '');
   const status = item.fulfillment_status || 'pending_fulfillment';
 
   const updateStatus = async (nextStatus: string) => {
@@ -44,6 +46,8 @@ function ItemActions({ item, onDone }: { item: SellerOrderItem; onDone: () => vo
       await sellerService.updateOrderItem(item.id, {
         fulfillmentStatus: nextStatus,
         cancelReason: nextStatus === 'cancelled' ? cancelReason || 'Seller hủy đơn' : undefined,
+        trackingCode: nextStatus === 'shipping' ? trackingCode : undefined,
+        shippingLabelUrl: nextStatus === 'shipping' ? shippingLabelUrl : undefined,
       });
       onDone();
     } catch (error) {
@@ -65,10 +69,14 @@ function ItemActions({ item, onDone }: { item: SellerOrderItem; onDone: () => vo
         </button>
       )}
       {status === 'ready_to_ship' && (
-        <button onClick={() => updateStatus('shipping')} disabled={!!loading} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-60">
-          {loading === 'shipping' ? <Loader2 size={14} className="animate-spin" /> : <Truck size={14} />}
-          Chuyển giao vận
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+          <input value={trackingCode} onChange={event => setTrackingCode(event.target.value)} placeholder="Mã vận đơn (ví dụ: SPX123...)" className="h-9 min-w-44 rounded-xl border border-outline-variant bg-surface-container px-3 text-xs outline-none focus:border-primary" />
+          <input value={shippingLabelUrl} onChange={event => setShippingLabelUrl(event.target.value)} placeholder="Link tra cứu (không bắt buộc)" className="h-9 min-w-44 rounded-xl border border-outline-variant bg-surface-container px-3 text-xs outline-none focus:border-primary" />
+          <button onClick={() => updateStatus('shipping')} disabled={!!loading || !trackingCode.trim()} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-60">
+            {loading === 'shipping' ? <Loader2 size={14} className="animate-spin" /> : <Truck size={14} />}
+            Giao cho ĐVVC
+          </button>
+        </div>
       )}
       {status === 'shipping' && (
         <button onClick={() => updateStatus('delivered')} disabled={!!loading} className="inline-flex items-center gap-2 rounded-xl bg-success px-3 py-2 text-xs font-bold text-white transition hover:brightness-110 disabled:opacity-60">

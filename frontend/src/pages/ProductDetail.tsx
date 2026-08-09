@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { productService } from '../services/productService';
+import { reviewService, Review } from '../services/reviewService';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { AuthContext } from '../context/AuthContext';
 import { Product } from '../types';
 import { setLiveChatSeller } from '../components/common/LiveChatWidget';
@@ -19,51 +21,90 @@ const buildGallery = (main: string): string[] => {
 };
 
 /* Static specs per category */
+const audioSpecs = {
+  'Kết nối':       'Bluetooth 5.3, LDAC',
+  'Driver':        '40mm Titanium',
+  'Tần số':        '20Hz – 40,000Hz',
+  'ANC':           'Hybrid Active Noise Cancelling',
+  'Thời lượng pin':'40 giờ (ANC bật: 28 giờ)',
+  'Sạc':           'USB-C, 10 phút = 4 giờ nghe',
+  'Trọng lượng':   '250g',
+};
+
+const wearableSpecs = {
+  'Màn hình':      'AMOLED 1.43", 466×466px',
+  'Chip':          'Dual-core ARM Cortex-M33',
+  'Pin':           '14 ngày (chế độ thường)',
+  'GPS':           'Built-in GPS + GLONASS',
+  'Cảm biến':      'SpO2, HR, Stress, Nhiệt độ',
+  'Kháng nước':    '5ATM (50m)',
+  'Tương thích':   'Android 6.0+, iOS 12+',
+};
+
+const electronicsSpecs = {
+  'Màn hình':      'OLED 11", 2560×1600px, 120Hz',
+  'Chip':          'Octa-core 4nm',
+  'RAM':           '12 GB LPDDR5',
+  'Bộ nhớ':        '256 GB UFS 3.1',
+  'Camera':        '13MP + 5MP (selfie)',
+  'Pin':           '10,090 mAh, sạc 45W',
+  'HĐH':           'Android 14',
+};
+
+const computerSpecs = {
+  'Vi xử lý':      'Intel Core i5 / AMD Ryzen 5',
+  'RAM':           '16GB DDR4 3200MHz',
+  'Ổ cứng':        '512GB NVMe SSD',
+  'Màn hình':      '14 inch 2K IPS, sRGB 100%',
+  'Đồ họa':        'Tích hợp / RDNA 2',
+  'Cổng kết nối':  'USB-C, USB-A, HDMI, 3.5mm',
+  'Trọng lượng':   '1.3 kg',
+};
+
+const accessorySpecs = {
+  'Kết nối':       'Wi-Fi 6, Zigbee, Z-Wave, BLE',
+  'Tương thích':   'Google Home, Alexa, Apple Home',
+  'Nguồn':         'DC 5V/2A',
+  'Màu sắc LED':   '16 triệu màu',
+  'Kích thước':    '120×120×25mm',
+  'Trọng lượng':   '220g',
+};
+
+const homeKitchenSpecs = {
+  'Công suất':     '1800W',
+  'Thể tích':      '30 lít',
+  'Nhiệt độ':      '30°C – 230°C',
+  'Chế độ':        'Nướng, Sấy, Tối ưu',
+  'Kết nối':       'Wi-Fi 2.4GHz',
+  'Tính năng':     'Cảm ứng, Hẹn giờ thông minh',
+  'Kích thước':    '48×40×35cm',
+};
+
 const SPECS_BY_CATEGORY: Record<string, Record<string, string>> = {
-  Audio: {
-    'Kết nối':       'Bluetooth 5.3, LDAC',
-    'Driver':        '40mm Titanium',
-    'Tần số':        '20Hz – 40,000Hz',
-    'ANC':           'Hybrid Active Noise Cancelling',
-    'Thời lượng pin':'40 giờ (ANC bật: 28 giờ)',
-    'Sạc':           'USB-C, 10 phút = 4 giờ nghe',
-    'Trọng lượng':   '250g',
-  },
-  Wearables: {
-    'Màn hình':      'AMOLED 1.43", 466×466px',
-    'Chip':          'Dual-core ARM Cortex-M33',
-    'Pin':           '14 ngày (chế độ thường)',
-    'GPS':           'Built-in GPS + GLONASS',
-    'Cảm biến':      'SpO2, HR, Stress, Nhiệt độ',
-    'Kháng nước':    '5ATM (50m)',
-    'Tương thích':   'Android 6.0+, iOS 12+',
-  },
-  Electronics: {
-    'Màn hình':      'OLED 11", 2560×1600px, 120Hz',
-    'Chip':          'Octa-core 4nm',
-    'RAM':           '12 GB LPDDR5',
-    'Bộ nhớ':        '256 GB UFS 3.1',
-    'Camera':        '13MP + 5MP (selfie)',
-    'Pin':           '10,090 mAh, sạc 45W',
-    'HĐH':           'Android 14',
-  },
-  Accessories: {
-    'Kết nối':       'Wi-Fi 6, Zigbee, Z-Wave, BLE',
-    'Tương thích':   'Google Home, Alexa, Apple Home',
-    'Nguồn':         'DC 5V/2A',
-    'Màu sắc LED':   '16 triệu màu',
-    'Kích thước':    '120×120×25mm',
-    'Trọng lượng':   '220g',
-  },
-  'Home & Kitchen': {
-    'Công suất':     '1800W',
-    'Thể tích':      '30 lít',
-    'Nhiệt độ':      '30°C – 230°C',
-    'Chế độ':        'Nướng, Sấy, Tối ưu',
-    'Kết nối':       'Wi-Fi 2.4GHz',
-    'Camera':        'HD 1080p nội thất',
-    'Kích thước':    '48×40×35cm',
-  },
+  'Audio': audioSpecs,
+  'Âm Thanh': audioSpecs,
+  'cat_audio': audioSpecs,
+  
+  'Wearables': wearableSpecs,
+  'Đồng Hồ & Wear': wearableSpecs,
+  'cat_wearables': wearableSpecs,
+  
+  'Electronics': electronicsSpecs,
+  'Điện Tử': electronicsSpecs,
+  'cat_electronics': electronicsSpecs,
+  
+  'Máy Tính': computerSpecs,
+  'cat_computers': computerSpecs,
+  
+  'Accessories': accessorySpecs,
+  'Phụ Kiện': accessorySpecs,
+  'cat_accessories': accessorySpecs,
+  
+  'Home & Kitchen': homeKitchenSpecs,
+  'Nhà Bếp': homeKitchenSpecs,
+  'Gia Dụng': homeKitchenSpecs,
+  'cat_kitchen': homeKitchenSpecs,
+  'cat_home': homeKitchenSpecs,
 };
 
 /* ─── Star Rating Component ─── */
@@ -114,11 +155,13 @@ export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const authCtx = useContext(AuthContext);
   const user = authCtx?.user;
 
   const [product, setProduct]   = useState<Product | null>(null);
   const [related, setRelated]   = useState<Product[]>([]);
+  const [reviews, setReviews]   = useState<Review[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
   const [activeImg, setActiveImg] = useState(0);
@@ -126,6 +169,7 @@ export default function ProductDetail() {
   const [tab, setTab]           = useState<Tab>('description');
   const [added, setAdded]       = useState(false);
   const [boughtNow, setBoughtNow] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, body: '', submitting: false });
 
   /* Fetch product */
   useEffect(() => {
@@ -141,8 +185,15 @@ export default function ProductDetail() {
       try {
         const p = await productService.getById(id);
         setProduct(p);
-        const rel = await productService.getRelated(id, p.category);
+        
+        // Fetch related and reviews in parallel
+        const [rel, revs] = await Promise.all([
+          productService.getRelated(id, p.category),
+          reviewService.getProductReviews(id)
+        ]);
+        
         setRelated(rel);
+        setReviews(revs);
       } catch {
         setError('Không tìm thấy sản phẩm.');
       } finally {
@@ -150,6 +201,29 @@ export default function ProductDetail() {
       }
     })();
   }, [id]);
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !user) return;
+    setReviewForm(prev => ({ ...prev, submitting: true }));
+    try {
+      await reviewService.createReview({
+        productId: id,
+        rating: reviewForm.rating,
+        title: '',
+        body: reviewForm.body
+      });
+      // Refresh reviews
+      const newReviews = await reviewService.getProductReviews(id);
+      setReviews(newReviews);
+      setReviewForm({ rating: 5, body: '', submitting: false });
+      alert("Đánh giá của bạn đã được gửi thành công!");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Có lỗi xảy ra khi gửi đánh giá");
+      setReviewForm(prev => ({ ...prev, submitting: false }));
+    }
+  };
 
   const handleAddToCart = useCallback(() => {
     if (!product) return;
@@ -213,11 +287,17 @@ export default function ProductDetail() {
   );
 
   const gallery    = buildGallery(product.image);
-  const specs      = SPECS_BY_CATEGORY[product.category] ?? {};
-  const rating     = product.rating ?? 0;
-  const reviewCount = product.reviewsCount ?? (rating > 0 ? Math.floor(rating * 18 + 12) : 0);
+  const specs      = product.specifications ?? SPECS_BY_CATEGORY[product.category] ?? {};
+  
+  // Real rating calculations based on fetched reviews
+  const reviewCount = reviews.length;
+  const rating = reviewCount > 0 
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount 
+    : 0;
+  
   const isOutOfStock = product.stock === 0;
   const stockLow   = product.stock > 0 && product.stock <= 5;
+  const isLiked = isInWishlist(product.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -359,6 +439,23 @@ export default function ProductDetail() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleWishlist(product.id);
+                }}
+                className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center transition-all duration-200 border-2
+                  ${isLiked 
+                    ? 'border-error text-error hover:bg-error/10' 
+                    : 'border-outline text-on-surface-variant hover:border-error hover:text-error hover:bg-error/5'
+                  }`}
+                title={isLiked ? "Bỏ yêu thích" : "Yêu thích"}
+              >
+                <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: isLiked ? "'FILL' 1" : "'FILL' 0" }}>
+                  favorite
+                </span>
+              </button>
+              
+              <button
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
                 className={`flex-1 h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200
@@ -492,55 +589,117 @@ export default function ProductDetail() {
               )}
 
               {tab === 'reviews' && (
-                <div className="space-y-4 max-w-xl">
+                <div className="space-y-6 max-w-xl">
                   {/* Summary */}
-                  <div className="flex items-center gap-6 p-5 rounded-2xl bg-surface-container">
-                    <div className="text-center">
-                      <div className="text-5xl font-black text-primary">{rating.toFixed(1)}</div>
-                      <StarRating rating={rating} />
-                      <p className="text-xs text-on-surface-variant mt-1">{reviewCount} đánh giá</p>
-                    </div>
-                    <div className="flex-1 space-y-1.5">
-                      {[5,4,3,2,1].map(star => {
-                        const pct = star === Math.round(rating) ? 65
-                                  : star === Math.round(rating) - 1 ? 25
-                                  : star > Math.round(rating) ? 5 : 5;
-                        return (
-                          <div key={star} className="flex items-center gap-2 text-xs">
-                            <span className="w-3 text-on-surface-variant">{star}</span>
-                            <span className="text-warning text-[10px]">★</span>
-                            <div className="flex-1 h-2 rounded-full bg-surface-container-high overflow-hidden">
-                              <div className="h-full rounded-full bg-warning" style={{ width: `${pct}%` }} />
+                  {reviewCount > 0 ? (
+                    <div className="flex items-center gap-6 p-5 rounded-2xl bg-surface-container">
+                      <div className="text-center">
+                        <div className="text-5xl font-black text-primary">{rating.toFixed(1)}</div>
+                        <StarRating rating={rating} />
+                        <p className="text-xs text-on-surface-variant mt-1">{reviewCount} đánh giá</p>
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        {[5,4,3,2,1].map(star => {
+                          const count = reviews.filter(r => r.rating === star).length;
+                          const pct = Math.round((count / reviewCount) * 100);
+                          return (
+                            <div key={star} className="flex items-center gap-2 text-xs">
+                              <span className="w-3 text-on-surface-variant">{star}</span>
+                              <span className="text-warning text-[10px]">★</span>
+                              <div className="flex-1 h-2 rounded-full bg-surface-container-high overflow-hidden">
+                                <div className="h-full rounded-full bg-warning" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="w-6 text-on-surface-variant">{pct}%</span>
                             </div>
-                            <span className="w-6 text-on-surface-variant">{pct}%</span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-8 text-center bg-surface-container rounded-2xl">
+                      <p className="text-on-surface-variant font-medium">Chưa có đánh giá nào cho sản phẩm này.</p>
+                      <p className="text-sm text-on-surface-variant/70 mt-1">Hãy là người đầu tiên đánh giá sản phẩm!</p>
+                    </div>
+                  )}
 
-                  {/* Mock review cards */}
-                  {[
-                    { name: 'Minh Tuấn', rating: 5, date: '15/05/2026', text: 'Sản phẩm rất tốt, đúng như mô tả. Đóng gói cẩn thận, giao hàng nhanh. Sẽ mua lại.' },
-                    { name: 'Thu Hà',    rating: 4, date: '02/05/2026', text: 'Chất lượng ổn cho tầm giá. Thiết kế đẹp, dùng được một tuần thấy hoạt động tốt.' },
-                    { name: 'Bảo Long',  rating: 5, date: '28/04/2026', text: 'Xuất sắc! Vượt kỳ vọng. Chăm sóc khách hàng nhiệt tình. Highly recommend.' },
-                  ].map((r, i) => (
-                    <div key={i} className="p-4 rounded-2xl border border-outline-variant/40 bg-surface-container">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-                            {r.name[0]}
+                  {/* Review Form */}
+                  {user ? (
+                    <form onSubmit={submitReview} className="p-5 rounded-2xl border border-outline-variant/40 bg-surface-container-lowest">
+                      <h4 className="font-bold mb-3 text-on-surface">Viết đánh giá của bạn</h4>
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-sm font-semibold text-on-surface-variant">Chất lượng:</span>
+                        <div className="flex gap-1 text-2xl cursor-pointer">
+                          {[1,2,3,4,5].map(star => (
+                            <span 
+                              key={star} 
+                              onClick={() => setReviewForm(p => ({...p, rating: star}))}
+                              className={star <= reviewForm.rating ? "text-warning" : "text-outline-variant"}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <textarea 
+                        value={reviewForm.body}
+                        onChange={e => setReviewForm(p => ({...p, body: e.target.value}))}
+                        placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
+                        className="w-full p-3 text-sm rounded-xl border border-outline-variant/50 bg-surface focus:outline-none focus:border-primary mb-3"
+                        rows={3}
+                        required
+                      />
+                      <div className="flex justify-end">
+                        <button 
+                          type="submit" 
+                          disabled={reviewForm.submitting}
+                          className="px-5 py-2 rounded-xl bg-primary text-white font-bold text-sm disabled:opacity-50"
+                        >
+                          {reviewForm.submitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="p-4 rounded-xl border border-outline-variant/40 bg-primary/5 text-center">
+                      <p className="text-sm font-medium text-primary">Vui lòng đăng nhập để viết đánh giá.</p>
+                      <button onClick={() => navigate('/login')} className="mt-2 text-xs font-bold underline text-primary">
+                        Đăng nhập ngay
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Real review cards */}
+                  <div className="space-y-4">
+                    {reviews.map((r) => (
+                      <div key={r.id} className="p-4 rounded-2xl border border-outline-variant/40 bg-surface-container">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 overflow-hidden rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold">
+                              {r.user_avatar ? (
+                                <img src={r.user_avatar} alt={r.user_name} className="w-full h-full object-cover" />
+                              ) : (
+                                r.user_name?.[0]?.toUpperCase() || 'U'
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-on-surface flex items-center gap-1">
+                                {r.user_name}
+                                {r.is_verified && (
+                                  <span className="material-symbols-outlined text-[14px] text-success" title="Đã mua hàng">verified</span>
+                                )}
+                              </p>
+                              <p className="text-[10px] text-on-surface-variant">
+                                {new Date(r.created_at).toLocaleDateString('vi-VN')}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-bold text-on-surface">{r.name}</p>
-                            <p className="text-[10px] text-on-surface-variant">{r.date}</p>
+                          <div className="flex text-warning text-sm">
+                            {'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}
                           </div>
                         </div>
-                        <div className="flex text-warning text-sm">{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</div>
+                        {r.body && <p className="text-sm text-on-surface-variant leading-relaxed mt-3">{r.body}</p>}
                       </div>
-                      <p className="text-sm text-on-surface-variant leading-relaxed">{r.text}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </motion.div>

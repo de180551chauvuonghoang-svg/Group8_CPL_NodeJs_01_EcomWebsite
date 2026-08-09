@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { productService } from '../services/productService';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { Product } from '../types';
 
 /* ─── Helpers ─── */
@@ -46,7 +47,9 @@ const SkeletonCard = () => (
 const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: (p: Product) => void }) => {
   const [hovered, setHovered] = useState(false);
   const [added, setAdded] = useState(false);
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const isOutOfStock = product.stock === 0;
+  const isLiked = isInWishlist(product.id);
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -85,17 +88,34 @@ const ProductCard = ({ product, onAddToCart }: { product: Product; onAddToCart: 
             onError={e => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x400/eef2ff/4f46e5?text=No+Image'; }}
           />
 
-          {/* Badges */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-            {product.isFlashSale && product.originalPrice && product.originalPrice > product.price && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error">Sale</span>
-            )}
-            {isOutOfStock && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error">Hết hàng</span>
-            )}
-            {!isOutOfStock && product.stock <= 5 && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/90 text-white">Sắp hết</span>
-            )}
+          {/* Badges and Wishlist */}
+          <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
+            <div className="flex flex-col gap-1.5">
+              {product.isFlashSale && product.originalPrice && product.originalPrice > product.price && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error w-fit">Sale</span>
+              )}
+              {isOutOfStock && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-error/90 text-on-error w-fit">Hết hàng</span>
+              )}
+              {!isOutOfStock && product.stock <= 5 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/90 text-white w-fit">Sắp hết</span>
+              )}
+            </div>
+            
+            {/* Wishlist Button */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleWishlist(product.id);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/80 backdrop-blur-sm text-on-surface shadow-sm transition-transform hover:scale-110 hover:text-primary active:scale-95"
+              title={isLiked ? "Bỏ yêu thích" : "Yêu thích"}
+            >
+              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: isLiked ? "'FILL' 1" : "'FILL' 0", color: isLiked ? 'var(--color-primary)' : 'inherit' }}>
+                favorite
+              </span>
+            </button>
           </div>
 
           {/* Quick-add button */}

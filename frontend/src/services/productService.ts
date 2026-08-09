@@ -29,7 +29,15 @@ const fallbackProducts: Product[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCLpySGFG5rPGzS82qFoM8kxMy0vqEz-V-mOaoiPe4Wqf6LMkWJ1uBc6ABbOBWXMR3GiYh8zJk6imhRujekEOSGtsyZFZXMTOTkm-iaZs6JCjnEUqrnZQC7SFCnhb0qoKkPC1I_vfdGDcnbki4FwvPq_Qpcl5S810AG_gT1yDnEEdxqydps5sDP4K-Z6Wv9AykTdJ-sLkdYKlFjPRIH6a0jZLowOO90Az4So_h8m6B2thUsYzDGOLKnxUZ5aKyBMiBtksK6WwfhBr8t',
     category: 'Audio',
     rating: 4.8,
-    stock: 15
+    stock: 15,
+    specifications: {
+      'Thương hiệu': 'Volitify',
+      'Kiểu dáng': 'Over-ear',
+      'Kết nối': 'Bluetooth 5.3',
+      'Thời lượng pin': '40 giờ',
+      'Trọng lượng': '245g',
+      'Tính năng': 'Chống ồn chủ động (ANC)'
+    }
   },
   {
     id: 'mock-p-2',
@@ -39,7 +47,15 @@ const fallbackProducts: Product[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBHN9K-wEgsWJBGPJO55HBlCKBissNv5Jdslbk7sgVkXuAcLGKxaaeX-VGlSDelaOZPMMum6UUruJ8cxzgbsA_DJKjgpN-efHNM9_VgOxFYO1VbU3qNJ730Y3OxImmLI7WUcmgL5f3u65XdikaV9oONQeyYC_XR_2ghst7ZjnsBXqRqHHC9XB5CGp0OcHyJjkHwWUylRmc8Ai8I-032efWvhwkCV_EZbkWb2HqbG7yjUHTfuadiCX1DIt1O32rjDv0YiIP4ajCz7zm_',
     category: 'Wearables',
     rating: 4.6,
-    stock: 40
+    stock: 40,
+    specifications: {
+      'Thương hiệu': 'Volitify',
+      'Màn hình': 'AMOLED 1.43 inch',
+      'Độ phân giải': '466 x 466 pixels',
+      'Thời lượng pin': 'Lên đến 14 ngày',
+      'Chống nước': '5ATM (50 mét)',
+      'Tương thích': 'Android, iOS'
+    }
   },
   {
     id: 'mock-p-3',
@@ -49,7 +65,15 @@ const fallbackProducts: Product[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC30Ql3T_QZtf5AKA9UHrS59pVuCy5rG0Xbl-gsYHwEf77lo7ZK6RbpkKOctLLyb8YgHQloIxkntAByGmeacB_bclWMD7gJI0Xh_3wBR6XmZ7_SLeq-Tt6zagNG2NNrlWgbbfaoIZMBDzIRqNGdqJFAYOZdIRHlViKtuBPmBxZq-mb3nf_x1-F8hDzYQom-2M3H98vKJDxNgypE71CWCsqopJflpRGe1yLQjIVk1CqbYAxp7H5tRWZF8cKtc95dacMkR742ayfP0wEZ',
     category: 'Electronics',
     rating: 4.9,
-    stock: 3
+    stock: 3,
+    specifications: {
+      'Thương hiệu': 'Volitify',
+      'Màn hình': 'OLED 12.9 inch (120Hz)',
+      'Bộ vi xử lý': 'Snapdragon 8 Gen 3',
+      'RAM': '12 GB',
+      'Bộ nhớ trong': '256 GB',
+      'Pin': '10,090 mAh'
+    }
   },
   {
     id: 'mock-p-4',
@@ -59,7 +83,15 @@ const fallbackProducts: Product[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZm2Q1VLXf6sqjrvr8VFMW-TluXKObJsYXlgVbDWIScKTTOrVaAxznE2iF_2gMgax6JFEdP2dbswvfivqOORzJcqM1cqAELGaBHl-WOV_BAPkN-SQS4Sr9eMl6LWw1C3xbBnD9fpb-csfHa01bs6z8XCcxMT9_xaI74JlTH024JvMq5yNfZWkEgnKSGu7HO3uCNcnweu8Eij-wE_nroSCCcP-aADQtG56QCicxg4Uv0LWfpXdNV3lhmUIfkVqKETmPSy2aaf3GFfGu',
     category: 'Audio',
     rating: 4.7,
-    stock: 25
+    stock: 25,
+    specifications: {
+      'Thương hiệu': 'Volitify',
+      'Kiểu dáng': 'In-ear (True Wireless)',
+      'Kết nối': 'Bluetooth 5.4',
+      'Thời lượng pin': '8 giờ (32 giờ với hộp sạc)',
+      'Cổng sạc': 'Type-C, Sạc không dây Qi',
+      'Chuẩn kháng nước': 'IPX5'
+    }
   },
   {
     id: 'mock-p-5',
@@ -69,7 +101,15 @@ const fallbackProducts: Product[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCXEeH83JyP_mcG23PasmagZxj2nPL-sJroeLfFUHQoe4cyZuYvuul_whjX9FZC3-eFLGVr1Gh8jyblrgj8Yzy_x6bbQBhzZ7gDSqtCrX86AhD7XJ1Z72GsmblHaYTHi-GodHMP3Kl0X-DUduzOdzlf770zWWsHPp2zyOZOKNWhLDmpm3BB75N4qUJ3fbgpV84jPsrrPFEHTJBFSef_Mi7cQ8Ot8ixhSo9kyQ7jZRpfxWpqNAzORKXQ9EXKLkkAtJrpyadR7KRGvEpV',
     category: 'Home & Kitchen',
     rating: 4.8,
-    stock: 12
+    stock: 12,
+    specifications: {
+      'Thương hiệu': 'Volitify',
+      'Công suất': '1800W',
+      'Dung tích': '32 Lít',
+      'Nhiệt độ tối đa': '230°C',
+      'Bảng điều khiển': 'Cảm ứng & App thông minh',
+      'Kích thước': '50 x 40 x 35 cm'
+    }
   },
   {
     id: 'mock-p-6',
@@ -79,7 +119,15 @@ const fallbackProducts: Product[] = [
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC-w28NnAFIInT0qFs4n_V8zgeaUNCHCvBPOSmhOHuWEj3maUBIS86W3u2DDIFlWY-OHefYL187WXQYT-EULQuHQZ3lU8CED5aPQ_8pY5mdg9MFULmp66LCnLizB-V-n_TT21wphm0QEpmgQXoVsTHMoJkIlvmaoUcQEbfBFSKPAyY76631aG5rfvVDZZHox--CUDRnDrxreXl_tn37ntExPfm68FN-pZgxsKLfrarGaiImFelJ4MqKq5zheNgNsStKPvLFyqrtfIiM',
     category: 'Accessories',
     rating: 4.5,
-    stock: 8
+    stock: 8,
+    specifications: {
+      'Thương hiệu': 'Volitify',
+      'Màng lọc': 'HEPA H13 & Than hoạt tính',
+      'Diện tích phòng': 'Lên đến 45m²',
+      'Độ ồn': '25 - 50 dB',
+      'Kết nối thông minh': 'Wi-Fi, Điều khiển qua App',
+      'Trọng lượng': '4.5 kg'
+    }
   }
 ];
 

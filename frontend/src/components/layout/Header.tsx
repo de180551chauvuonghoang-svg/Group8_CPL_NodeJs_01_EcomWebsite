@@ -2,7 +2,10 @@ import { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNotifications } from '../../context/NotificationContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Logo URL - use local favicon.png
 const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !== 'undefined')
@@ -12,6 +15,7 @@ const logoUrl = (import.meta.env.VITE_CDN_URL && import.meta.env.VITE_CDN_URL !=
 
 export default function Header() {
   const { cartItems } = useCart();
+  const { wishlist } = useWishlist();
   const { theme, toggleTheme } = useTheme();
   const auth = useContext(AuthContext);
   if (!auth) {
@@ -24,7 +28,13 @@ export default function Header() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState(searchParams.get('search') || '');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const searchDebounceRef = useRef<number | null>(null);
+  
+  // Custom hook usage (must check if inside provider or just use optional chaining if context might be missing, but it's wrapped now)
+  let notifContext = null;
+  try { notifContext = useNotifications(); } catch(e) {}
+  const { notifications = [], unreadCount = 0, markAsRead, markAllAsRead } = notifContext || {};
 
   // Keep searchValue in sync with URL search params
   useEffect(() => {
@@ -215,6 +225,95 @@ export default function Header() {
 
           {/* Divider */}
           <div className="w-px h-4 bg-outline-variant/50 shrink-0" />
+
+          {/* Notification Icon */}
+          {isAuthenticated && (
+            <div className="relative shrink-0 flex items-center">
+              <button
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className="relative w-9 h-9 text-on-surface-variant hover:text-primary hover:bg-primary/8 active:scale-95 transition-all rounded-full flex items-center justify-center shrink-0"
+                title="Thông báo"
+              >
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 bg-error text-white text-[9px] w-[16px] h-[16px] flex items-center justify-center rounded-full font-bold shadow-md leading-none">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isNotifOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute top-full right-0 mt-2 w-[320px] sm:w-[380px] max-h-[80vh] overflow-y-auto bg-surface shadow-2xl rounded-2xl border border-outline-variant/30 z-50 flex flex-col"
+                    >
+                      <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center sticky top-0 bg-surface/90 backdrop-blur-md z-10">
+                        <h3 className="font-bold text-base">Thông báo</h3>
+                        {unreadCount > 0 && (
+                          <button onClick={() => markAllAsRead?.()} className="text-xs text-primary font-bold hover:underline">
+                            Đánh dấu tất cả đã đọc
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex-1 overflow-y-auto min-h-[100px]">
+                        {notifications.length === 0 ? (
+                          <div className="p-8 text-center text-on-surface-variant flex flex-col items-center">
+                            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">notifications_off</span>
+                            <p className="text-sm">Chưa có thông báo nào</p>
+                          </div>
+                        ) : (
+                          notifications.map(notif => (
+                            <div 
+                              key={notif.id} 
+                              onClick={() => { if(!notif.is_read) markAsRead?.(notif.id); }}
+                              className={`p-4 border-b border-outline-variant/10 hover:bg-surface-container-low transition cursor-pointer flex gap-3 ${!notif.is_read ? 'bg-primary/5' : ''}`}
+                            >
+                              <div className="shrink-0 pt-1">
+                                <span className={`material-symbols-outlined text-[24px] ${notif.type === 'promotion' ? 'text-error' : 'text-primary'}`}>
+                                  {notif.type === 'promotion' ? 'redeem' : 'inventory_2'}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className={`text-sm ${!notif.is_read ? 'font-bold' : 'font-semibold text-on-surface-variant'}`}>
+                                  {notif.title}
+                                </h4>
+                                <p className={`text-xs mt-1 ${!notif.is_read ? 'text-on-surface' : 'text-on-surface-variant/80'}`}>
+                                  {notif.message}
+                                </p>
+                                <span className="text-[10px] text-on-surface-variant mt-2 inline-block">
+                                  {new Date(notif.created_at).toLocaleString('vi-VN')}
+                                </span>
+                              </div>
+                              {!notif.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 self-center ml-auto"></div>}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Wishlist Icon */}
+          <Link
+            to="/wishlist"
+            className="relative w-9 h-9 text-on-surface-variant hover:text-primary hover:bg-primary/8 active:scale-95 transition-all rounded-full flex items-center justify-center shrink-0"
+            title="Yêu thích"
+          >
+            <span className="material-symbols-outlined text-[20px]">favorite</span>
+            {wishlist.length > 0 && (
+              <span className="absolute top-0 right-0 bg-primary text-white text-[9px] w-[16px] h-[16px] flex items-center justify-center rounded-full font-bold shadow-md leading-none">
+                {wishlist.length}
+              </span>
+            )}
+          </Link>
 
           {/* Cart Icon */}
           <Link

@@ -1,4 +1,5 @@
 import { sql, pool } from "../config/db.js";
+import { notificationService } from "./notificationService.js";
 
 const toLocalDateString = (date) => [
   date.getFullYear(),
@@ -388,8 +389,9 @@ export const sellerService = {
       .input("sellerId", sql.VarChar, sellerId)
       .input("orderItemId", sql.VarChar, orderItemId)
       .query(`
-        SELECT oi.id, oi.fulfillment_status
+        SELECT oi.id, oi.fulfillment_status, o.user_id, o.id as order_ref_id
         FROM OrderItems oi
+        JOIN Orders o ON oi.order_id = o.id
         JOIN ProductVariants pv ON oi.variant_id = pv.id
         JOIN Products p ON pv.product_id = p.id
         WHERE oi.id = @orderItemId AND p.seller_id = @sellerId
@@ -417,6 +419,22 @@ export const sellerService = {
             cancel_reason = CASE WHEN @status = 'cancelled' THEN @cancelReason ELSE cancel_reason END
         WHERE id = @orderItemId
       `);
+
+    if (ownerCheck.recordset[0].fulfillment_status !== fulfillmentStatus) {
+      let statusText = "đang xử lý";
+      if (fulfillmentStatus === "ready_to_ship") statusText = "đã chuẩn bị xong và chờ giao";
+      if (fulfillmentStatus === "shipping") statusText = "đang được giao";
+      if (fulfillmentStatus === "delivered") statusText = "đã giao thành công";
+      if (fulfillmentStatus === "cancelled") statusText = "đã bị huỷ";
+
+      await notificationService.createNotification({
+        userId: ownerCheck.recordset[0].user_id,
+        title: "Cập nhật đơn hàng",
+        message: `Đơn hàng ${ownerCheck.recordset[0].order_ref_id} của bạn ${statusText}.`,
+        type: "order_status",
+        relatedId: ownerCheck.recordset[0].order_ref_id
+      });
+    }
 
     return true;
   },
@@ -558,6 +576,15 @@ export const sellerService = {
           CONVERT(datetime2, @startsAt), CONVERT(datetime2, @expiresAt), 1
         )
       `);
+      
+    // Broadcast notification for new coupon
+    await notificationService.createBroadcastNotification({
+      title: "Mã giảm giá mới!",
+      message: `Mã ${code} giảm giá mới vừa được thêm. Nhanh tay sử dụng ngay!`,
+      type: "promotion",
+      relatedId: couponId
+    }).catch(err => console.error("Failed to broadcast coupon notification", err));
+
     return { id: couponId, code };
   },
 

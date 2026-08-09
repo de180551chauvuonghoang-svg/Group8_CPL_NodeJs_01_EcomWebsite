@@ -79,6 +79,23 @@ export const validateCoupon = async (req, res) => {
   }
 };
 
+export const getAvailableCoupons = async (req, res, next) => {
+  try {
+    const { recordset } = await pool.request().query(`
+      SELECT id, code, description, discount_type, discount_value, min_order_amount, max_discount_amt, usage_limit, used_count
+      FROM Coupons
+      WHERE is_active = 1
+        AND deleted_at IS NULL
+        AND (starts_at IS NULL OR starts_at <= GETDATE())
+        AND (expires_at IS NULL OR expires_at >= GETDATE())
+        AND (usage_limit IS NULL OR used_count < usage_limit)
+    `);
+    res.json({ status: 'success', data: recordset });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const decrementVariantStock = async (db, variantId, quantity) => {
   if (!Number.isInteger(quantity) || quantity <= 0) {
     throw new Error('So luong san pham khong hop le.');
@@ -343,7 +360,7 @@ export const getUserOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const { recordset: orders } = await pool.request()
+    const ordersRes = await pool.request()
       .input('user_id', userId)
       .query(`SELECT o.id, o.status, o.subtotal, o.discount_amount, o.shipping_fee, o.total, o.created_at,
                      o.shipping_name, o.shipping_phone, o.shipping_address, o.shipping_city,
@@ -353,11 +370,15 @@ export const getUserOrders = async (req, res, next) => {
               WHERE o.user_id = @user_id
               ORDER BY o.created_at DESC`);
 
+    const orders = ordersRes.recordset;
+
+    // Fetch items for these orders
     for (const order of orders) {
       const itemsRes = await pool.request()
         .input('order_id', order.id)
-        .query(`SELECT id, product_name, variant_info, quantity, unit_price, total_price 
-                FROM OrderItems 
+        .query(`SELECT id, product_name, variant_info, quantity, unit_price, total_price, 
+                       fulfillment_status, tracking_code, shipping_label_url
+                FROM OrderItems
                 WHERE order_id = @order_id`);
       order.items = itemsRes.recordset || [];
     }

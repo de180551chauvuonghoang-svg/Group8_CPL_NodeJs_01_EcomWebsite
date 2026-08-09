@@ -386,7 +386,6 @@ export default function Profile() {
               ) : (
                 orders.map((order, i) => {
                   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
-                  
                   // 1. Payment Status Badge
                   const isPaid = order.payment_status === 'completed' || order.status === 'paid' || order.status === 'confirmed';
                   const paymentBadge = isPaid
@@ -404,6 +403,17 @@ export default function Profile() {
                     shipped: { label: '🚚 Đang giao hàng', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
                     delivered: { label: '✅ Đã giao hàng', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
                     cancelled: { label: '❌ Đã hủy', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
+                  };
+
+                  const STATUS: Record<string, { label: string; bg: string; text: string }> = {
+                    pending: { label: 'Chờ xử lý', bg: 'bg-amber-50', text: 'text-amber-600' },
+                    confirmed: { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    pending_fulfillment: { label: 'Chờ chuẩn bị', bg: 'bg-amber-50', text: 'text-amber-600' },
+                    ready_to_ship: { label: 'Chờ giao', bg: 'bg-blue-50', text: 'text-blue-600' },
+                    processing: { label: 'Đang xử lý', bg: 'bg-blue-50', text: 'text-blue-600' },
+                    shipping: { label: 'Đang giao', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+                    delivered: { label: 'Đã giao', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                    cancelled: { label: 'Đã hủy', bg: 'bg-rose-50', text: 'text-rose-600' },
                   };
 
                   const orderBadge = ORDER_STATUS_MAP[order.status] || {
@@ -456,7 +466,6 @@ export default function Profile() {
                           <p className="text-xs font-medium text-slate-600">{order.shipping_address}</p>
                         </div>
                       </div>
-
                       {/* Clickable CTA footer */}
                       <div className="mt-4 pt-3 border-t border-slate-100/80 flex items-center justify-between text-xs font-bold text-blue-600 group-hover:text-blue-700">
                         <span>📦 {order.items?.length || 0} sản phẩm trong đơn hàng</span>
@@ -464,6 +473,42 @@ export default function Profile() {
                           Xem chi tiết <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                         </span>
                       </div>
+                      
+                      {/* Hiển thị chi tiết từng sản phẩm và mã vận đơn */}
+                      {order.items && order.items.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-3">
+                          {order.items.map(item => {
+                            const fStatus = STATUS[item.fulfillment_status] || { label: item.fulfillment_status, bg: 'bg-slate-50', text: 'text-slate-600' };
+                            return (
+                              <div key={item.id} className="flex flex-col sm:flex-row justify-between gap-2 p-3 bg-slate-50 rounded-xl">
+                                <div>
+                                  <p className="text-sm font-bold text-slate-700">{item.product_name}</p>
+                                  <p className="text-xs text-slate-500">
+                                    Phân loại: {item.variant_info || 'Mặc định'} | SL: {item.quantity} | {fmt(item.unit_price)}
+                                  </p>
+                                </div>
+                                <div className="text-left sm:text-right">
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${fStatus.bg} ${fStatus.text}`}>
+                                    {fStatus.label}
+                                  </span>
+                                  {item.tracking_code && (
+                                    <div className="mt-1">
+                                      <p className="text-[11px] text-slate-400">Mã vận đơn:</p>
+                                      {item.shipping_label_url ? (
+                                        <a href={item.shipping_label_url} target="_blank" rel="noreferrer" className="text-xs font-mono font-bold text-blue-600 hover:underline">
+                                          {item.tracking_code}
+                                        </a>
+                                      ) : (
+                                        <p className="text-xs font-mono font-bold text-slate-700">{item.tracking_code}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })

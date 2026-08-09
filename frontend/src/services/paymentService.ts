@@ -55,7 +55,17 @@ export interface UserOrder {
   shipping_city?: string;
   transaction_ref?: string | null;
   created_at: string;
-  items?: OrderItem[];
+  items?: Array<{
+    id?: string;
+    product_name: string;
+    variant_info?: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    fulfillment_status?: string;
+    tracking_code?: string | null;
+    shipping_label_url?: string | null;
+  }>;
 }
 
 export const paymentService = {

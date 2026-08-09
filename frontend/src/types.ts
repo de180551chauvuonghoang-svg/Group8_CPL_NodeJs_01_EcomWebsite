@@ -30,6 +30,7 @@ export interface Product {
   seller_user_id?: string;
   seller_name?: string;
   seller_logo_url?: string;
+  specifications?: Record<string, string>;
 }
 
 export interface ProductDetail extends Product {
