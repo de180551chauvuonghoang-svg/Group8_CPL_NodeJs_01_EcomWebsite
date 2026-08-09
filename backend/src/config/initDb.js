@@ -53,6 +53,7 @@ export const initDb = async (pool, sql) => {
     console.log("[✓] initDb: All 24 tables + AI tables verified/created.");
 
     await seedData(pool, sql);
+    await ensureTest5kProduct(pool, sql);
   } catch (err) {
     console.error("[🚨 initDb ERROR]", err.message);
     throw err;
@@ -1822,4 +1823,62 @@ const seedOrders = async (pool, sql) => {
             VALUES (@id,@orderId,@variantId,@qty,@price,@total,@prodName,@varInfo)`);
 
   console.log("[Seed] ✓ Order histories seeded.");
+};
+
+const ensureTest5kProduct = async (pool, sql) => {
+  try {
+    const { recordset } = await pool.request()
+      .input("id", sql.VarChar, "prod_test_5k")
+      .query(`SELECT COUNT(*) AS cnt FROM Products WHERE id = @id`);
+
+    if (recordset[0].cnt === 0) {
+      console.log("[Seed] Creating 5,000 VND Test Product...");
+      
+      const sellerRes = await pool.request().query(`SELECT TOP 1 id FROM Sellers`);
+      const sellerId = sellerRes.recordset[0]?.id || null;
+
+      const catRes = await pool.request().query(`SELECT TOP 1 id FROM Categories`);
+      const categoryId = catRes.recordset[0]?.id || null;
+
+      await pool.request()
+        .input("id", sql.VarChar, "prod_test_5k")
+        .input("sellerId", sql.VarChar, sellerId)
+        .input("name", sql.NVarChar, "Cáp Sạc Test Thanh Toán QR (5.000đ)")
+        .input("slug", sql.VarChar, "cap-sac-test-thanh-toan-qr-5k")
+        .input("shortDesc", sql.NVarChar, "Sản phẩm test chuyển khoản VietQR 5.000 VND BIDV")
+        .input("desc", sql.NVarChar, "Sản phẩm test chuyển khoản VietQR 5.000 VND BIDV CHÂU VƯƠNG HOÀNG")
+        .input("price", sql.Decimal(18, 2), 5000.00)
+        .query(`INSERT INTO Products (id, seller_id, name, slug, short_desc, description, base_price, is_active, created_at, updated_at)
+                VALUES (@id, @sellerId, @name, @slug, @shortDesc, @desc, @price, 1, GETDATE(), GETDATE())`);
+
+      await pool.request()
+        .input("id", sql.VarChar, "img_test_5k")
+        .input("productId", sql.VarChar, "prod_test_5k")
+        .input("imgUrl", sql.VarChar, "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80")
+        .query(`INSERT INTO ProductImages (id, product_id, image_url, is_primary, sort_order)
+                VALUES (@id, @productId, @imgUrl, 1, 0)`);
+
+      if (categoryId) {
+        await pool.request()
+          .input("productId", sql.VarChar, "prod_test_5k")
+          .input("categoryId", sql.VarChar, categoryId)
+          .query(`INSERT INTO ProductCategories (product_id, category_id) VALUES (@productId, @categoryId)`);
+      }
+
+      await pool.request()
+        .input("id", sql.VarChar, "var_test_5k")
+        .input("productId", sql.VarChar, "prod_test_5k")
+        .input("sku", sql.VarChar, "TEST-5K-QR")
+        .input("price", sql.Decimal(18, 2), 5000.00)
+        .input("stock", sql.Int, 999)
+        .query(`INSERT INTO ProductVariants (id, product_id, sku, price, stock_qty, created_at, updated_at)
+                VALUES (@id, @productId, @sku, @price, @stock, GETDATE(), GETDATE())`);
+
+      console.log("[Seed] ✓ Test 5,000 VND product created & stock = 999!");
+    } else {
+      await pool.request().query(`UPDATE ProductVariants SET stock_qty = 999 WHERE product_id = 'prod_test_5k'`);
+    }
+  } catch (err) {
+    console.error("[Seed 5k Error]", err.message);
+  }
 };

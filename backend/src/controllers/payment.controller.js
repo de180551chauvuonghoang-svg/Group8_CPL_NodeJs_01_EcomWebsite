@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { pool, sql } from '../config/db.js';
+import { getIO } from '../config/socket.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const getCartProductIds = (cartItems = []) =>
@@ -342,17 +343,26 @@ export const getUserOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const { recordset } = await pool.request()
+    const { recordset: orders } = await pool.request()
       .input('user_id', userId)
-      .query(`SELECT o.id, o.status, o.total, o.created_at,
-                     o.shipping_name, o.shipping_address,
-                     p.method AS payment_method, p.status AS payment_status
+      .query(`SELECT o.id, o.status, o.subtotal, o.discount_amount, o.shipping_fee, o.total, o.created_at,
+                     o.shipping_name, o.shipping_phone, o.shipping_address, o.shipping_city,
+                     p.method AS payment_method, p.status AS payment_status, p.transaction_ref
               FROM Orders o
               LEFT JOIN Payments p ON p.order_id = o.id
               WHERE o.user_id = @user_id
               ORDER BY o.created_at DESC`);
 
-    res.json({ status: 'success', data: recordset });
+    for (const order of orders) {
+      const itemsRes = await pool.request()
+        .input('order_id', order.id)
+        .query(`SELECT id, product_name, variant_info, quantity, unit_price, total_price 
+                FROM OrderItems 
+                WHERE order_id = @order_id`);
+      order.items = itemsRes.recordset || [];
+    }
+
+    res.json({ status: 'success', data: orders });
   } catch (err) {
     next(err);
   }
@@ -439,6 +449,172 @@ export const cancelOrderAndRestoreStock = async (req, res, next) => {
     if (transactionStarted) {
       try { await transaction.rollback(); } catch (_) {}
     }
+    next(err);
+  }
+};
+
+export const markOrderPaid = async (orderId, transactionRef = 'SEPAY_WEBHOOK') => {
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const orderRes = await transaction.request()
+      .input('order_id', orderId)
+      .query(`SELECT id, status, user_id, total FROM Orders WITH (UPDLOCK, ROWLOCK) WHERE id = @order_id`);
+    
+    const order = orderRes.recordset[0];
+    if (!order) {
+      await transaction.rollback();
+      return { success: false, message: 'Order not found' };
+    }
+
+    if (order.status === 'paid' || order.status === 'confirmed') {
+      await transaction.rollback();
+      return { success: true, message: 'Order already paid', order };
+    }
+
+    await transaction.request()
+      .input('order_id', orderId)
+      .query(`UPDATE Orders SET status = 'paid', updated_at = GETDATE() WHERE id = @order_id`);
+
+    const payRes = await transaction.request()
+      .input('order_id', orderId)
+      .query(`SELECT id FROM Payments WHERE order_id = @order_id`);
+    
+    if (payRes.recordset.length > 0) {
+      await transaction.request()
+        .input('order_id', orderId)
+        .input('ref', transactionRef)
+        .query(`UPDATE Payments SET status = 'completed', transaction_ref = @ref WHERE order_id = @order_id`);
+    } else {
+      await createPaymentRecord(transaction, {
+        orderId,
+        method: 'qr',
+        amount: order.total,
+        status: 'completed',
+        transactionRef
+      });
+    }
+
+    await transaction.commit();
+
+    const io = getIO();
+    if (io) {
+      io.emit('payment_success', {
+        orderId: order.id,
+        userId: order.user_id,
+        amount: order.total,
+        status: 'paid',
+        message: 'Thanh toán tự động thành công!'
+      });
+      console.log(`[Payment Auto Success] Socket.io emitted for Order: ${order.id}`);
+    }
+
+    return { success: true, order };
+  } catch (err) {
+    try { await transaction.rollback(); } catch (_) {}
+    throw err;
+  }
+};
+
+/**
+ * POST /api/payments/webhook/sepay
+ * SePay / Banking Webhook receiver for automatic transaction detection.
+ */
+export const handleSepayWebhook = async (req, res, next) => {
+  try {
+    console.log('[SePay Webhook Received Payload]:', JSON.stringify(req.body));
+    const { content, description, transferAmount, code, referenceCode } = req.body || {};
+
+    const textToSearch = `${content || ''} ${description || ''} ${code || ''} ${referenceCode || ''}`;
+    
+    let matchedOrderId = null;
+    const match = textToSearch.match(/(ORD_?[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+    
+    if (match) {
+      matchedOrderId = match[1];
+      if (matchedOrderId.toUpperCase().startsWith('ORD') && !matchedOrderId.includes('_')) {
+        matchedOrderId = 'ORD_' + matchedOrderId.substring(3);
+      }
+    } else {
+      // Fallback: Check all pending orders in DB
+      const pendingOrdersRes = await pool.request().query(`
+        SELECT id FROM Orders 
+        WHERE status IN ('pending', 'pending_payment') 
+        ORDER BY created_at DESC
+      `);
+      
+      for (const row of pendingOrdersRes.recordset) {
+        const cleanId = row.id.replace('ORD_', '');
+        if (textToSearch.includes(row.id) || (cleanId && textToSearch.includes(cleanId))) {
+          matchedOrderId = row.id;
+          break;
+        }
+      }
+    }
+
+    if (!matchedOrderId) {
+      console.warn('[SePay Webhook] Could not find Order ID pattern in content:', textToSearch);
+      return res.status(200).json({ success: false, message: 'No Order ID matched in DB' });
+    }
+
+    console.log(`[SePay Webhook] Matched Order ID: ${matchedOrderId}`);
+
+    const result = await markOrderPaid(matchedOrderId, `SEPAY_${transferAmount || 0}`);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error('[SePay Webhook Error]:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * GET /api/payments/status-public/:orderId
+ * Public Order Payment Status check for frontend polling.
+ */
+export const checkPaymentStatusPublic = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { recordset } = await pool.request()
+      .input('order_id', orderId)
+      .query(`
+        SELECT o.id, o.status AS order_status, o.total, p.status AS payment_status
+        FROM Orders o
+        LEFT JOIN Payments p ON p.order_id = o.id
+        WHERE o.id = @order_id
+      `);
+
+    if (recordset.length === 0) {
+      return res.status(404).json({ status: 'fail', message: 'Order not found' });
+    }
+
+    const order = recordset[0];
+    const isPaid = order.order_status === 'paid' || order.order_status === 'confirmed' || order.payment_status === 'completed';
+
+    res.json({
+      status: 'success',
+      data: {
+        orderId: order.id,
+        isPaid,
+        orderStatus: order.order_status,
+        paymentStatus: order.payment_status,
+        total: order.total
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/payments/simulate-success/:orderId
+ * Dev mode simulator endpoint for demoing auto-payment success.
+ */
+export const simulatePaymentSuccess = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const result = await markOrderPaid(orderId, 'SIMULATED_DEMO');
+    res.json({ status: 'success', data: result });
+  } catch (err) {
     next(err);
   }
 };

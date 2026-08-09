@@ -1,10 +1,11 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import { paymentService, ShippingInfo } from '../services/paymentService';
 import { addressService, Address } from '../services/addressService';
+import { socketService } from '../services/socketService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
@@ -163,6 +164,62 @@ export default function Checkout() {
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Đã xảy ra lỗi, vui lòng thử lại');
+      setLoading(false);
+    }
+  };
+
+  // Callback to trigger successful payment completion modal
+  const handlePaymentSuccessConfirmed = useCallback(() => {
+    clearCart();
+    setShowSuccessModal(true);
+  }, [clearCart]);
+
+  // Auto-Detection Effect: Real-time Socket.io + Polling for automatic QR payment detection
+  useEffect(() => {
+    if (!createdOrderId || method !== 'qr' || showSuccessModal) return;
+
+    let isMounted = true;
+
+    // 1. Socket.io Listener
+    const unbindSocket = socketService.on('payment_success', (data: any) => {
+      if (!isMounted) return;
+      if (!data?.orderId || data?.orderId === createdOrderId) {
+        console.log('⚡ [Real-time Auto Payment] Socket.io event detected:', data);
+        handlePaymentSuccessConfirmed();
+      }
+    });
+
+    // 2. Polling Fallback (every 3 seconds)
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await paymentService.checkPaymentStatusPublic(createdOrderId);
+        if (res?.isPaid && isMounted) {
+          console.log('⚡ [Auto Payment] Polling detected completed status for order:', createdOrderId);
+          clearInterval(pollInterval);
+          handlePaymentSuccessConfirmed();
+        }
+      } catch (e) {
+        // Silently catch network errors during polling
+      }
+    }, 3000);
+
+    return () => {
+      isMounted = false;
+      if (typeof unbindSocket === 'function') unbindSocket();
+      clearInterval(pollInterval);
+    };
+  }, [createdOrderId, method, showSuccessModal, handlePaymentSuccessConfirmed]);
+
+  // Handler for simulator button in Dev mode
+  const handleSimulatePayment = async () => {
+    if (!createdOrderId) return;
+    try {
+      setLoading(true);
+      await paymentService.simulatePaymentSuccess(createdOrderId);
+      handlePaymentSuccessConfirmed();
+    } catch (err: any) {
+      setError(err?.message || 'Lỗi khi giả lập thanh toán');
+    } finally {
       setLoading(false);
     }
   };
@@ -335,20 +392,43 @@ export default function Checkout() {
                   )}
 
                   {qrUrl ? (
-                    <div className="mt-6 p-6 rounded-3xl border border-primary/20 bg-primary/5 text-center animate-in fade-in zoom-in duration-300">
-                      <p className="text-sm font-bold text-primary mb-3">Vui lòng quét mã QR dưới đây để thanh toán</p>
-                      <div className="bg-white p-4 rounded-2xl inline-block border border-white/10 mb-4 shadow-lg">
+                    <div className="mt-6 p-6 rounded-3xl border border-primary/30 bg-primary/5 text-center animate-in fade-in zoom-in duration-300 space-y-4">
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold animate-pulse">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        Đang tự động nhận diện giao dịch chuyển khoản...
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl inline-block border border-white/10 shadow-xl relative group">
                         <img src={qrUrl} alt="VietQR" className="w-56 h-56 object-contain rounded-xl" />
                       </div>
-                      <motion.button
-                        onClick={() => { clearCart(); setShowSuccessModal(true); }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full h-12 rounded-xl bg-primary text-white font-bold hover:shadow-lg hover:shadow-primary/20 transition-all cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                        Tôi đã thanh toán xong
-                      </motion.button>
+
+                      <div className="text-xs text-on-surface-variant max-w-sm mx-auto space-y-1">
+                        <p className="font-medium">Nội dung chuyển khoản (bắt buộc giữ nguyên):</p>
+                        <p className="font-mono font-bold text-primary text-sm bg-primary/10 py-1.5 px-3 rounded-xl border border-primary/20 select-all">
+                          {createdOrderId}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/10 space-y-2">
+                        <button
+                          onClick={handleSimulatePayment}
+                          disabled={loading}
+                          className="w-full py-3 px-4 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">science</span>
+                          🧪 [DEMO] Giả lập Khách quét QR thanh toán thành công
+                        </button>
+                        
+                        <button
+                          onClick={handlePaymentSuccessConfirmed}
+                          className="w-full text-xs text-on-surface-variant/70 hover:text-on-surface underline transition-colors cursor-pointer py-1"
+                        >
+                          Tôi đã chuyển khoản thành công (Xác nhận thủ công)
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <motion.button

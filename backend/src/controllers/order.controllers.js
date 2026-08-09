@@ -164,14 +164,12 @@ export const createOrder = async (req, res) => {
 
       // 6. Xử lý trả về cho Frontend dựa theo phương thức thanh toán
       if (paymentMethod === 'qr') {
-        // TẠO MÃ VIETQR ĐỘNG
-        // Cấu trúc: https://img.vietqr.io/image/<MÃ_NGÂN_HÀNG>-<SỐ_TÀI_KHOẢN>-<TEMPLATE>.png?amount=<SỐ_TIỀN>&addInfo=<NỘI_DUNG>&accountName=<TÊN_CHỦ_TK>
-        // Bạn hãy thay mã ngân hàng và STK thật của bạn vào đây nhé!
-        const bankId = 'mbbank'; // Ví dụ: mbbank, vcb, techcombank
-        const accountNo = '123456789'; 
-        const accountName = 'NGUYEN VAN A';
+        // TẠO MÃ VIETQR ĐỘNG BIDV CỦA CHÂU VƯƠNG HOÀNG (TÀI KHOẢN ẢO SEPAY VA: 962475660465542)
+        const bankId = 'bidv';
+        const accountNo = '962475660465542'; 
+        const accountName = 'CHAU VUONG HOANG';
         
-        const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${totalAmount}&addInfo=${orderId}&accountName=${accountName}`;
+        const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${totalAmount}&addInfo=${orderId}&accountName=${encodeURIComponent(accountName)}`;
         
         return res.status(201).json({ 
           success: true, 

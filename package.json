@@ -1,12 +1,14 @@
 {
   "name": "ecomfpt",
   "version": "1.0.0",
+  "type": "module",
   "description": "Standard E-Commerce boilerplate codebase with React JS frontend and Node.js backend",
   "scripts": {
     "install-all": "npm install && npm install --prefix backend && npm install --prefix frontend",
     "backend": "npm run dev --prefix backend",
     "frontend": "npm run dev --prefix frontend",
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "tunnel": "node scripts/start-ngrok.js",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\" \"npm run tunnel\"",
     "start": "npm run dev"
   },
   "devDependencies": {

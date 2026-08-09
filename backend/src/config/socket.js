@@ -19,6 +19,10 @@ const getAllowedOrigins = () => {
   return origins;
 };
 
+let ioInstance = null;
+
+export const getIO = () => ioInstance;
+
 export const setupSocket = (server) => {
   const io = new Server(server, {
     cors: {
@@ -27,6 +31,8 @@ export const setupSocket = (server) => {
       credentials: true
     }
   });
+
+  ioInstance = io;
 
   io.use((socket, next) => {
     try {

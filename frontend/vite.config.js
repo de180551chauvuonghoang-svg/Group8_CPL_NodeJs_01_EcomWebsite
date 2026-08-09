@@ -9,6 +9,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    allowedHosts: true,
     proxy: {
       '/api/n8n': {
         target: 'http://127.0.0.1:5678',

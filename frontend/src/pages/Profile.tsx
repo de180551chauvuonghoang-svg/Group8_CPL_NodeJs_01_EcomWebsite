@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Spinner from '../components/common/Spinner';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { authService } from '../services/authService';
 import AddressBook from '../components/profile/AddressBook';
 import { paymentService, UserOrder } from '../services/paymentService';
@@ -38,6 +38,7 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
   // Sync state with logged in user
   useEffect(() => {
@@ -385,15 +386,31 @@ export default function Profile() {
               ) : (
                 orders.map((order, i) => {
                   const fmt = (v: number) => new Intl.NumberFormat('vi-VN').format(v) + '₫';
-                  const STATUS: Record<string, { label: string; bg: string; text: string }> = {
-                    pending: { label: 'Chờ xử lý', bg: 'bg-amber-50', text: 'text-amber-600' },
-                    confirmed: { label: 'Đã xác nhận', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    processing: { label: 'Đang xử lý', bg: 'bg-blue-50', text: 'text-blue-600' },
-                    shipped: { label: 'Đang giao', bg: 'bg-indigo-50', text: 'text-indigo-600' },
-                    delivered: { label: 'Đã giao', bg: 'bg-emerald-50', text: 'text-emerald-600' },
-                    cancelled: { label: 'Đã hủy', bg: 'bg-rose-50', text: 'text-rose-600' },
+                  
+                  // 1. Payment Status Badge
+                  const isPaid = order.payment_status === 'completed' || order.status === 'paid' || order.status === 'confirmed';
+                  const paymentBadge = isPaid
+                    ? { label: '💳 Đã thanh toán', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+                    : order.status === 'cancelled'
+                    ? { label: '💳 Đã hủy thanh toán', bg: 'bg-slate-50 text-slate-500 border-slate-200' }
+                    : { label: '⏳ Chờ thanh toán', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
+
+                  // 2. Order Fulfillment Status Badge
+                  const ORDER_STATUS_MAP: Record<string, { label: string; bg: string }> = {
+                    pending: { label: '📦 Đang xử lý đơn hàng', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+                    paid: { label: '📦 Đang xử lý đơn hàng', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+                    confirmed: { label: '📦 Đang xử lý đơn hàng', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+                    processing: { label: '⚙️ Đang chuẩn bị hàng', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+                    shipped: { label: '🚚 Đang giao hàng', bg: 'bg-purple-50 text-purple-700 border-purple-200' },
+                    delivered: { label: '✅ Đã giao hàng', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                    cancelled: { label: '❌ Đã hủy', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
                   };
-                  const s = STATUS[order.status] || { label: order.status, bg: 'bg-slate-50', text: 'text-slate-600' };
+
+                  const orderBadge = ORDER_STATUS_MAP[order.status] || {
+                    label: '📦 Đang xử lý đơn hàng',
+                    bg: 'bg-blue-50 text-blue-700 border-blue-200'
+                  };
+
                   const pm = order.payment_method === 'momo' ? 'MoMo' : order.payment_method === 'cod' ? 'COD' : order.payment_method === 'qr' ? 'Chuyển khoản VietQR' : order.payment_method;
                   return (
                     <motion.div
@@ -401,15 +418,26 @@ export default function Profile() {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.06 }}
-                      className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-200 text-slate-700"
+                      onClick={() => setSelectedOrder(order)}
+                      className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-lg hover:border-blue-200 cursor-pointer transition-all duration-200 text-slate-700 group"
                     >
                       <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div>
                           <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Mã đơn hàng</p>
-                          <p className="font-mono font-bold text-sm text-blue-600">#{order.id.toUpperCase()}</p>
+                          <p className="font-mono font-bold text-sm text-blue-600 group-hover:underline">#{order.id.toUpperCase()}</p>
                         </div>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
+                        
+                        {/* 2 BADGES RIÊNG BIỆT: THANH TOÁN & ĐƠN HÀNG */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full border ${paymentBadge.bg}`}>
+                            {paymentBadge.label}
+                          </span>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full border ${orderBadge.bg}`}>
+                            {orderBadge.label}
+                          </span>
+                        </div>
                       </div>
+
                       <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-xs text-slate-400 mb-1">Tổng tiền</p>
@@ -428,6 +456,14 @@ export default function Profile() {
                           <p className="text-xs font-medium text-slate-600">{order.shipping_address}</p>
                         </div>
                       </div>
+
+                      {/* Clickable CTA footer */}
+                      <div className="mt-4 pt-3 border-t border-slate-100/80 flex items-center justify-between text-xs font-bold text-blue-600 group-hover:text-blue-700">
+                        <span>📦 {order.items?.length || 0} sản phẩm trong đơn hàng</span>
+                        <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          Xem chi tiết <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                        </span>
+                      </div>
                     </motion.div>
                   );
                 })
@@ -436,6 +472,133 @@ export default function Profile() {
           )}
         </section>
       </main>
+
+      {/* ── ORDER DETAIL MODAL ── */}
+      <AnimatePresence>
+        {selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Chi tiết đơn hàng</span>
+                  <h3 className="text-lg font-black text-slate-800 font-mono">#{selectedOrder.id.toUpperCase()}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="w-9 h-9 rounded-full bg-slate-200/60 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto space-y-6 text-slate-700 text-sm">
+                {/* Status Badges */}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className={`text-xs font-bold px-3.5 py-1.5 rounded-full border ${
+                    selectedOrder.payment_status === 'completed' || selectedOrder.status === 'paid' || selectedOrder.status === 'confirmed'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : selectedOrder.status === 'cancelled'
+                      ? 'bg-slate-50 text-slate-500 border-slate-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}>
+                    {selectedOrder.payment_status === 'completed' || selectedOrder.status === 'paid' || selectedOrder.status === 'confirmed'
+                      ? '💳 Đã thanh toán'
+                      : selectedOrder.status === 'cancelled'
+                      ? '💳 Đã hủy thanh toán'
+                      : '⏳ Chờ thanh toán'}
+                  </span>
+
+                  <span className="text-xs font-bold px-3.5 py-1.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                    📦 Đang xử lý đơn hàng
+                  </span>
+                </div>
+
+                {/* Recipient & Delivery Address */}
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-1.5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Thông tin nhận hàng</p>
+                  <p className="font-bold text-slate-800">{selectedOrder.shipping_name || user?.name || 'Khách hàng'}</p>
+                  {selectedOrder.shipping_phone && (
+                    <p className="text-xs text-slate-600 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">call</span> SĐT: {selectedOrder.shipping_phone}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-600 flex items-start gap-1">
+                    <span className="material-symbols-outlined text-[14px] mt-0.5">location_on</span>
+                    Địa chỉ: {selectedOrder.shipping_address}{selectedOrder.shipping_city ? `, ${selectedOrder.shipping_city}` : ''}
+                  </p>
+                </div>
+
+                {/* Order Items List */}
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Sản phẩm trong đơn hàng ({selectedOrder.items?.length || 0})</p>
+                  <div className="space-y-2.5">
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      selectedOrder.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{item.product_name}</p>
+                            {item.variant_info && <p className="text-xs text-slate-500 mt-0.5">{item.variant_info}</p>}
+                            <p className="text-xs text-slate-400 mt-1">
+                              Đơn giá: <span className="font-semibold text-slate-600">{new Intl.NumberFormat('vi-VN').format(item.unit_price)}₫</span> × {item.quantity}
+                            </p>
+                          </div>
+                          <span className="font-black text-blue-600 text-base">{new Intl.NumberFormat('vi-VN').format(item.total_price)}₫</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center bg-slate-50 rounded-2xl text-xs text-slate-400">
+                        Thông tin tổng quan đơn hàng đã được ghi nhận.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Summary Details */}
+                <div className="pt-4 border-t border-slate-100 space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Phương thức thanh toán:</span>
+                    <span className="font-bold text-slate-800">
+                      {selectedOrder.payment_method === 'momo' ? 'MoMo' : selectedOrder.payment_method === 'cod' ? 'Thanh toán COD' : selectedOrder.payment_method === 'qr' ? 'Chuyển khoản VietQR' : selectedOrder.payment_method}
+                    </span>
+                  </div>
+                  {selectedOrder.transaction_ref && (
+                    <div className="flex justify-between text-slate-500">
+                      <span>Mã giao dịch / SePay:</span>
+                      <span className="font-mono font-bold text-blue-600">{selectedOrder.transaction_ref}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-500">
+                    <span>Thời gian đặt hàng:</span>
+                    <span className="font-semibold text-slate-800">{new Date(selectedOrder.created_at).toLocaleString('vi-VN')}</span>
+                  </div>
+
+                  <div className="flex justify-between text-base font-black text-blue-600 pt-3 border-t border-slate-100">
+                    <span>Tổng tiền thanh toán:</span>
+                    <span className="text-lg">{new Intl.NumberFormat('vi-VN').format(selectedOrder.total)}₫</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="px-6 py-2.5 rounded-full bg-slate-800 text-white font-bold text-xs hover:bg-slate-900 transition-all active:scale-95 shadow-md"
+                >
+                  Đóng
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

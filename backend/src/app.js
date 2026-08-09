@@ -75,6 +75,14 @@ app.use(morgan("dev"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 3. API Routes Setup
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "Volitify E-Commerce Server & SePay Webhook is ONLINE",
+    webhookUrl: "https://unabased-melodie-collapsable.ngrok-free.dev/api/payments/webhook/sepay",
+  });
+});
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "success",

@@ -80,6 +80,27 @@ class SocketService {
   offChatUnreadUpdated() {
     this.socket?.off("chatUnreadUpdated");
   }
+
+  on(event: string, callback: (data: any) => void) {
+    if (!this.socket) {
+      const token = localStorage.getItem("ecom_token");
+      if (token && token !== "mock_token_123456") {
+        this.connect("");
+      }
+    }
+    this.socket?.on(event, callback);
+    return () => {
+      this.socket?.off(event, callback);
+    };
+  }
+
+  off(event: string, callback?: (data: any) => void) {
+    if (callback) {
+      this.socket?.off(event, callback);
+    } else {
+      this.socket?.off(event);
+    }
+  }
 }
 
 export const socketService = new SocketService();
