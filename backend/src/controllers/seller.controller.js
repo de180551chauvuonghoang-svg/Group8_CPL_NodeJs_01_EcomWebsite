@@ -1,5 +1,6 @@
 import { sellerService } from "../services/sellerService.js";
 import { messageService } from "../services/messageService.js";
+import { notificationService } from "../services/notificationService.js";
 import { sql, pool } from "../config/db.js";
 import jwt from "jsonwebtoken";
 
@@ -540,6 +541,25 @@ export const createSellerCoupon = async (req, res, next) => {
     }
 
     const coupon = await sellerService.createSellerCoupon(seller.id, req.body);
+
+    // Gửi thông báo ưu đãi Voucher mới tới tất cả người dùng!
+    try {
+      const discountText = coupon.discount_type === 'percentage'
+        ? `Giảm ${coupon.discount_value}%`
+        : `Giảm ${new Intl.NumberFormat('vi-VN').format(coupon.discount_value)}₫`;
+      
+      const shopName = seller.shop_name || 'Cửa hàng';
+
+      await notificationService.createBroadcastNotification({
+        title: `🎁 Voucher Mới Từ ${shopName}!`,
+        message: `Mã ưu đãi "${coupon.code}" (${discountText}) vừa được phát hành! Số lượng có hạn, nhập ngay khi thanh toán!`,
+        type: 'promotion',
+        relatedId: coupon.id
+      });
+    } catch (notifErr) {
+      console.error('[Notification Error] Broadcast voucher notification failed:', notifErr.message);
+    }
+
     res.status(201).json({
       status: "success",
       message: "Tạo voucher thành công.",
