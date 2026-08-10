@@ -481,19 +481,10 @@ export default function Header() {
             </div>
 
             {isAuthenticated && (
-              <button onClick={handleLogout} className="w-full py-2.5 text-red-600 bg-red-50 font-bold rounded-xl text-xs">
+              <button onClick={handleLogout} className="w-full py-2.5 text-red-600 bg-red-50 font-bold rounded-xl text-xs cursor-pointer">
                 Đăng xuất
               </button>
             )}
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
-                © {new Date().getFullYear()} Volitify Systems
-              </p>
-            </div>
           </div>
         </div>
       )}
