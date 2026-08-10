@@ -49,6 +49,7 @@ export const initDb = async (pool, sql) => {
     await createSearchAnalyticsTable(pool);
     await createComboEmbeddingsTable(pool);
     await createMessagesTable(pool);
+    await createNotificationsTable(pool);
 
     console.log("[✓] initDb: All 24 tables + AI tables verified/created.");
 
@@ -1878,7 +1879,31 @@ const ensureTest5kProduct = async (pool, sql) => {
     } else {
       await pool.request().query(`UPDATE ProductVariants SET stock_qty = 999 WHERE product_id = 'prod_test_5k'`);
     }
+
+    // Auto top-up stock for all variants to ensure checkout testing never fails
+    await pool.request().query(`UPDATE ProductVariants SET stock_qty = 999 WHERE stock_qty <= 0 OR stock_qty IS NULL`);
   } catch (err) {
     console.error("[Seed 5k Error]", err.message);
   }
+};
+
+const createNotificationsTable = async (pool) => {
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'Notifications')
+    BEGIN
+      CREATE TABLE Notifications (
+        id           VARCHAR(50)    NOT NULL PRIMARY KEY,
+        user_id      VARCHAR(50)    NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+        title        NVARCHAR(255)  NOT NULL,
+        message      NVARCHAR(MAX)  NOT NULL,
+        type         VARCHAR(50)    NOT NULL DEFAULT 'system',
+        related_id   VARCHAR(50)    NULL,
+        is_read      BIT            NOT NULL DEFAULT 0,
+        created_at   DATETIME2      NOT NULL DEFAULT GETDATE()
+      );
+      CREATE INDEX IX_Notifications_user_id ON Notifications(user_id);
+      CREATE INDEX IX_Notifications_created_at ON Notifications(created_at);
+      PRINT '[✓] Table Notifications created';
+    END
+  `);
 };
