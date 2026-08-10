@@ -478,7 +478,8 @@ export default function Profile() {
                       {order.items && order.items.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-3">
                           {order.items.map(item => {
-                            const fStatus = STATUS[item.fulfillment_status] || { label: item.fulfillment_status, bg: 'bg-slate-50', text: 'text-slate-600' };
+                            const statusKey = item.fulfillment_status || 'pending';
+                            const fStatus = STATUS[statusKey] || { label: statusKey, bg: 'bg-slate-50', text: 'text-slate-600' };
                             return (
                               <div key={item.id} className="flex flex-col sm:flex-row justify-between gap-2 p-3 bg-slate-50 rounded-xl">
                                 <div>

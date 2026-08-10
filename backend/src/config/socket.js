@@ -20,8 +20,6 @@ const getAllowedOrigins = () => {
   return origins;
 };
 
-let ioInstance = null;
-
 export const getIO = () => ioInstance;
 
 export const setupSocket = (server) => {
@@ -32,8 +30,6 @@ export const setupSocket = (server) => {
       credentials: true
     }
   });
-  ioInstance = io;
-
   ioInstance = io;
 
   io.use((socket, next) => {
